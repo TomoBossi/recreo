@@ -1,5 +1,5 @@
 /**
- * Draw & guess: one player draws a word, everyone else races to guess it.
+ * Pictionary: one player draws a word, everyone else races to guess it.
  *
  * Authoritative, because guesses race: when two people type the word at the
  * same moment, somebody has to decide who was first, and only one peer can.
@@ -72,12 +72,13 @@ function startTurn(s, at) {
 
 export default {
   id: 'draw',
-  name: 'Draw & guess',
+  name: 'Pictionary',
   tone: 'berry',
   seats: 4,
   minSeats: 2,
   mode: 'authoritative',
   ownRestart: true,
+  playerColours: true,
   seatColours: ['#ff5d8f', '#3c7ff0', '#6bd66b', '#ff9a3c'],
 
   init({ seed }) {
@@ -354,7 +355,7 @@ export default {
           const seated = Object.keys(info.names ?? {}).length
           over = info.mySeat != null && seated >= 2
             ? `<button class="btn sun big" data-start>${s.phase === 'over' ? 'play again' : 'start!'}</button>`
-            : `<p>${seated < 2 ? 'need at least two at the table' : 'waiting for a player to start'}</p>`
+            : `<p>${seated < 2 ? 'need at least two players' : 'waiting for a player to start'}</p>`
         } else if (s.phase === 'choosing') {
           over = info.mySeat === s.drawer
             ? `<p>pick a word to draw</p><div class="choices">${s.choices.map((w) => `<button class="btn grape" data-word="${w}">${w}</button>`).join('')}</div>`
@@ -382,7 +383,7 @@ export default {
         const canGuess = s.phase === 'drawing' && info.mySeat != null && info.mySeat !== s.drawer && s.guessed[info.mySeat] == null
         guessInput.disabled = !canGuess
         guessForm.querySelector('button').disabled = !canGuess
-        guessInput.placeholder = info.mySeat === s.drawer && s.phase === 'drawing' ? 'you are drawing' : canGuess ? 'your guess' : 'guessing is closed'
+        guessInput.placeholder = info.mySeat === s.drawer && s.phase === 'drawing' ? 'you are drawing' : canGuess ? 'your guess' : 'not now'
         tools.hidden = !iDraw()
       }
 

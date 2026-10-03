@@ -6,6 +6,14 @@
 <meta name="theme-color" content="#59c3ef">
 <title>recreo</title>
 <meta name="description" content="A room for you and your friends: video, chat and little games. No account, no install, no server.">
+<!-- The theme is set before anything paints, so a dark page never flashes light. -->
+<script>
+  try {
+    const t = JSON.parse(localStorage.getItem('recreo:theme') ?? '"auto"')
+    const dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  } catch {}
+</script>
 <link rel="stylesheet" href="style.css">
 
 <!--
@@ -25,12 +33,16 @@
 <body>
 
 <main id="landing">
+  <span id="landing-settings" class="anchor">
+    <button class="btn icon settings-button" aria-label="settings" aria-expanded="false"></button>
+    <div class="popover settings-pop" hidden></div>
+  </span>
+
   <div class="card landing-card">
     <h1 class="wordmark big">recreo</h1>
-    <p class="tagline">a room for you and your friends — video, chat, and little games</p>
 
     <div class="preview">
-      <video id="preview" autoplay muted playsinline></video>
+      <video id="preview" autoplay muted playsinline disablepictureinpicture></video>
       <div id="preview-placeholder" class="avatar"><div class="head"><div class="smile"></div></div></div>
       <div class="preview-controls">
         <button id="preview-mic" type="button" class="btn small" aria-pressed="true">mic</button>
@@ -39,17 +51,20 @@
     </div>
 
     <form id="join-form">
-      <label class="field">
-        <span>your name</span>
-        <input id="nick-input" class="input" maxlength="24" autocomplete="nickname" required>
-      </label>
-      <label class="field">
-        <span>room</span>
+      <div class="field">
+        <label for="nick-input">your name</label>
+        <span class="row" id="name-row">
+          <input id="nick-input" class="input" maxlength="24" autocomplete="nickname" required>
+        </span>
+      </div>
+      <div class="field">
+        <label for="room-input">room</label>
         <span class="row">
           <input id="room-input" class="input" autocomplete="off" spellcheck="false" required>
           <button id="regenerate" type="button" class="btn small" title="a new room">new</button>
         </span>
-      </label>
+        <div id="recent" class="recent" hidden></div>
+      </div>
       <button id="join-button" type="submit" class="btn sun big">let's play</button>
       <p id="landing-error" class="error" role="alert"></p>
     </form>
@@ -62,16 +77,13 @@
     <button id="room-chip" class="chip" title="copy the invite link">room <b id="room-name"></b></button>
     <button id="invite" class="btn small sun">invite</button>
     <span class="spacer"></span>
-    <button id="mic" class="btn small" aria-pressed="true" title="microphone">mic</button>
-    <button id="cam" class="btn small" aria-pressed="true" title="camera">camera</button>
-    <button id="cursors" class="btn small" aria-pressed="true" title="show everyone's pointer on the tables">cursors</button>
-    <span class="shelf-anchor">
-      <button id="new-table" class="btn small leaf" aria-expanded="false">+ new table</button>
+    <span class="anchor">
+      <button id="new-table" class="btn small leaf" aria-expanded="false">+ new game</button>
       <div id="shelf-pop" class="popover" hidden></div>
     </span>
-    <span class="segmented" id="mode">
-      <button class="btn small" data-mode="tiled">tiled</button>
-      <button class="btn small" data-mode="floating">floating</button>
+    <span class="anchor">
+      <button id="settings" class="btn small icon settings-button" aria-label="settings" aria-expanded="false"></button>
+      <div class="popover settings-pop" hidden></div>
     </span>
     <button id="leave" class="btn small berry">leave</button>
   </header>

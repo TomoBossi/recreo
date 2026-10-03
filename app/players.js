@@ -3,8 +3,11 @@
  * the names of those who left — a seat keeps showing its player's name after
  * they have gone, until somebody else sits down.
  */
+import { clampColour, colourFor } from './colours.js'
+
 export class Players {
   #known = new Map() // player id -> last known nick
+  #colours = new Map() // player id -> last known colour
 
   constructor({ room, me }) {
     this.room = room
@@ -15,6 +18,7 @@ export class Players {
   learn(peer) {
     const player = peer.presence?.player
     if (player && peer.nick) this.#known.set(player, peer.nick)
+    if (player && peer.presence.colour) this.#colours.set(player, clampColour(peer.presence.colour))
   }
 
   /** Everyone in the room now, self first. */
@@ -32,6 +36,15 @@ export class Players {
     if (player === this.me.player) return this.me.nick || 'you'
     const here = this.list().find((p) => p.player === player)
     return here?.nick ?? this.#known.get(player) ?? 'someone'
+  }
+
+  /** The colour a player chose, or one picked for them from their id. */
+  colourOf(player) {
+    if (player === this.me.player) return this.me.colour
+    for (const peer of this.room.peers.values()) {
+      if (peer.presence?.player === player && peer.presence.colour) return clampColour(peer.presence.colour)
+    }
+    return this.#colours.get(player) ?? colourFor(player)
   }
 
   /** 'here', 'reconnecting' or 'away'. */

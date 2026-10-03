@@ -17,8 +17,8 @@ export class TableView {
     body.innerHTML = `
       <div class="table">
         <div class="ask" hidden>
-          <span>close this table for everyone?</span>
-          <button class="btn small berry yes">close it</button>
+          <span>end this game for everyone?</span>
+          <button class="btn small berry yes">end it</button>
           <button class="btn small no">keep playing</button>
         </div>
         <div class="seats"></div>
@@ -33,13 +33,25 @@ export class TableView {
     this.ask.querySelector('.yes').addEventListener('click', () => tables.close(table.id))
     this.ask.querySelector('.no').addEventListener('click', () => { this.ask.hidden = true })
 
+    const view = this
     this.view = this.game.view.mount(body.querySelector('.stage'), {
-      colours: this.game.seatColours,
+      // A game whose pieces are just "you" draws them in each player's colour.
+      get colours() { return view.colours() },
       play: (move) => tables.play(table.id, move),
       intend: (intent) => tables.intend(table.id, intent),
       get mySeat() { return tables.seatOf(table, me.player) },
     })
     this.render()
+  }
+
+  /** Each seat's colour: the game's own, or its player's when the game says so. */
+  colours() {
+    const own = this.game.seatColours
+    if (!this.game.playerColours) return own
+    return own.map((c, seat) => {
+      const player = this.table.seats[seat]?.player
+      return player ? this.players.colourOf(player) : c
+    })
   }
 
   /** Seat index -> display name, for the game's status line. */
@@ -56,7 +68,7 @@ export class TableView {
     const names = this.names()
     const seated = Object.values(names)
     const watching = this.watchers().length
-    const who = seated.length ? seated.join(this.game.seats === 2 ? ' vs ' : ', ') : 'empty — take a seat'
+    const who = seated.length ? seated.join(this.game.seats === 2 ? ' vs ' : ', ') : 'waiting for players'
     return watching ? `${who} · ${watching} watching` : who
   }
 
@@ -78,10 +90,10 @@ export class TableView {
       const chip = document.createElement('span')
       chip.className = 'seat'
       chip.innerHTML = `<span class="piece"></span><span class="who"></span>`
-      chip.querySelector('.piece').style.background = game.seatColours[seat]
+      chip.querySelector('.piece').style.background = this.colours()[seat]
       if (!claim?.player) {
         chip.classList.add('empty')
-        chip.querySelector('.who').textContent = 'sit here'
+        chip.querySelector('.who').textContent = 'join'
         chip.setAttribute('role', 'button')
         chip.tabIndex = 0
         chip.addEventListener('click', () => tables.sit(table.id, seat))
@@ -93,14 +105,15 @@ export class TableView {
         if (claim.player === me.player) {
           const stand = document.createElement('button')
           stand.className = 'btn small'
-          stand.textContent = 'stand up'
+          stand.textContent = 'leave'
           stand.addEventListener('click', () => tables.stand(table.id))
           chip.append(stand)
         }
       }
       this.seatsEl.append(chip)
       if (seat < game.seats - 1) {
-        const vs = document.createElement('b')
+        const vs = document.createElement('span')
+        vs.className = 'vs'
         vs.textContent = game.seats === 2 ? 'vs' : '·'
         this.seatsEl.append(vs)
       }
@@ -132,7 +145,7 @@ export class TableView {
     })
   }
 
-  /** Closing is for everyone, so it asks first — inline, not in a dialog. */
+  /** Ending is for everyone, so it asks first — inline, not in a dialog. */
   askClose() { this.ask.hidden = false }
 
   destroy() { this.view.destroy() }

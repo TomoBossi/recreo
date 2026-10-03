@@ -5,13 +5,42 @@
  * offset shadows, chunky type. A little less rounded and a little thinner in
  * the line than the original. Everything is drawn from shapes here; there
  * are no images and no web fonts.
+ *
+ * Colours are roles, not values: outlines, text, panels, fields, the page,
+ * and text on a bright fill. Light and dark are two sets of values for the
+ * same roles, chosen by the system unless the settings say otherwise.
  */
 
+/*
+ * Firefox has no ui-rounded, and falls back to Arial Rounded, whose metrics
+ * sit text noticeably below the middle of a pill or a button. The same local
+ * font with corrected ascent and descent centres it. Nothing is downloaded.
+ */
+@font-face {
+  font-family: "recreo rounded";
+  src: local("Arial Rounded MT Bold"), local("ArialRoundedMTBold");
+  ascent-override: 88%;
+  descent-override: 26%;
+  line-gap-override: 0%;
+}
+
 :root {
-  --ink: #241c3a;
-  --ink-soft: #4a4166;
-  --paper: #fffaf0;
-  --paper-2: #f3ecdc;
+  --ink: #241c3a;          /* outlines and shadows */
+  --text: #241c3a;
+  --text-soft: #4a4166;
+  --panel: #fffaf0;        /* windows, cards, buttons */
+  --panel-2: #f3ecdc;      /* strips inside panels */
+  --field: #ffffff;        /* inputs, scores, cards inside panels */
+  --page: #59c3ef;
+  --page-dots: rgb(255 255 255 / 0.22);
+  --on-accent: #241c3a;    /* text on a bright fill */
+  --on-strong: #ffffff;    /* text on berry and grape */
+  --tint-sky: #e3f6fe;
+  --tint-grape: #ece5ff;
+  --tint-berry: #ffe3ec;
+  --tint-leaf: #e2f8e2;
+  --veil: rgb(255 250 240 / 0.86);
+
   --sky: #59c3ef;
   --sky-deep: #3aa6d8;
   --sun: #ffd23f;
@@ -20,25 +49,46 @@
   --grape: #9a7bf2;
   --tang: #ff9a3c;
   --sea: #3c7ff0;
+
   --line: 2.5px;
   --round: 9px;
   --round-small: 6px;
   --lift: 3px 3px 0 var(--ink);
   --lift-small: 2px 2px 0 var(--ink);
-  --font: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Varela Round",
-    "Trebuchet MS", system-ui, sans-serif;
+  --font: ui-rounded, "recreo rounded", "Nunito", "Varela Round", "Trebuchet MS", system-ui, sans-serif;
   color-scheme: light;
 }
 
+/* Dark: the same cartoon, at night. Outlines go darker still, so the bright
+   accents keep their edges; panels and text swap. */
+:root[data-theme="dark"] {
+  --ink: #06040d;
+  --text: #f1ecff;
+  --text-soft: #b6acd6;
+  --panel: #2a2446;
+  --panel-2: #221d3a;
+  --field: #1a1630;
+  --page: #182544;
+  --page-dots: rgb(255 255 255 / 0.07);
+  --tint-sky: #1f3a52;
+  --tint-grape: #34295a;
+  --tint-berry: #4a2238;
+  --tint-leaf: #1f4130;
+  --veil: rgb(26 22 48 / 0.88);
+  --sky-deep: #2b84b4;
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
   height: 100%;
   font-family: var(--font);
-  color: var(--ink);
-  background-color: var(--sky);
-  background-image: radial-gradient(rgb(255 255 255 / 0.22) 2px, transparent 2.5px);
+  color: var(--text);
+  background-color: var(--page);
+  background-image: radial-gradient(var(--page-dots) 2px, transparent 2.5px);
   background-size: 22px 22px;
   overflow: hidden;
 }
@@ -50,11 +100,14 @@ button, input, select { font: inherit; color: inherit; }
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 14px;
+  line-height: 1.15;
   border: var(--line) solid var(--ink);
   border-radius: var(--round-small);
-  background: var(--paper);
+  background: var(--panel);
+  color: var(--text);
   box-shadow: var(--lift-small);
   font-weight: 800;
   cursor: pointer;
@@ -63,46 +116,67 @@ button, input, select { font: inherit; color: inherit; }
 }
 .btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
 .btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
-.btn.sun { background: var(--sun); }
-.btn.berry { background: var(--berry); color: #fff; }
-.btn.leaf { background: var(--leaf); }
-.btn.grape { background: var(--grape); color: #fff; }
-.btn.small { padding: 2px 9px; font-size: 13px; }
-.btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn.sun { background: var(--sun); color: var(--on-accent); }
+.btn.leaf { background: var(--leaf); color: var(--on-accent); }
+.btn.berry { background: var(--berry); color: var(--on-strong); }
+.btn.grape { background: var(--grape); color: var(--on-strong); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn[aria-pressed="true"] { background: var(--text); color: var(--panel); }
 .btn[disabled] { opacity: 0.45; cursor: default; box-shadow: none; transform: none; }
+.btn.icon { padding: 4px 7px; }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 4px 11px;
+  line-height: 1.15;
   border: var(--line) solid var(--ink);
   border-radius: 999px;
-  background: var(--paper);
+  background: var(--panel);
+  color: var(--text);
   font-weight: 800;
   font-size: 13px;
+  cursor: pointer;
 }
 
 .input {
   padding: 8px 12px;
+  line-height: 1.15;
   border: var(--line) solid var(--ink);
   border-radius: var(--round-small);
-  background: #fff;
-  box-shadow: inset 2px 2px 0 rgb(36 28 58 / 0.12);
+  background: var(--field);
+  color: var(--text);
+  box-shadow: inset 2px 2px 0 rgb(0 0 0 / 0.1);
   font-weight: 700;
   outline: none;
 }
 .input:focus { border-color: var(--sea); }
+.input::placeholder { color: var(--text-soft); opacity: 0.8; }
 
-/* Outlined chunky lettering, the logo's voice. */
+/* Two or three choices as one control. */
+.segmented { display: inline-flex; box-shadow: var(--lift-small); border-radius: var(--round-small); }
+.segmented .btn { border-radius: 0; box-shadow: none; }
+.segmented .btn:hover, .segmented .btn:active { transform: none; }
+.segmented .btn + .btn { margin-left: calc(-1 * var(--line)); }
+.segmented .btn:first-child { border-radius: var(--round-small) 0 0 var(--round-small); }
+.segmented .btn:last-child { border-radius: 0 var(--round-small) var(--round-small) 0; }
+
+/* Outlined chunky lettering, the logo's voice. Always the same colours: it
+   is drawn, not themed. */
 .wordmark {
   font-weight: 900;
   letter-spacing: 0.5px;
   color: var(--sun);
-  -webkit-text-stroke: 2px var(--ink);
+  -webkit-text-stroke: 2px #241c3a;
   paint-order: stroke fill;
-  text-shadow: 3px 3px 0 var(--ink);
+  text-shadow: 3px 3px 0 #241c3a;
 }
+
+/* At night the logo keeps its cartoon edge: a black outline, and a purple
+   shadow where a dark one would vanish into the page. */
+:root[data-theme="dark"] .wordmark { -webkit-text-stroke-color: #06040d; text-shadow: 3px 3px 0 #7b5fd6; }
+:root[data-theme="dark"] .wordmark.big { text-shadow: 4px 4px 0 #7b5fd6; }
 
 /* ------------------------------------------------------------------ chrome */
 
@@ -111,18 +185,23 @@ button, input, select { font: inherit; color: inherit; }
 #topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 14px;
   flex: none;
 }
 #topbar .wordmark { font-size: 30px; line-height: 1; margin-right: 6px; }
 #topbar .spacer { flex: 1; }
-.segmented { display: inline-flex; }
-.segmented .btn { border-radius: 0; box-shadow: none; }
-.segmented .btn + .btn { margin-left: calc(-1 * var(--line)); }
-.segmented .btn:first-child { border-radius: var(--round-small) 0 0 var(--round-small); }
-.segmented .btn:last-child { border-radius: 0 var(--round-small) var(--round-small) 0; }
-.segmented { box-shadow: var(--lift-small); border-radius: var(--round-small); }
+
+.anchor { position: relative; }
+.popover {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 10000;
+  width: max-content; max-width: min(480px, 92vw);
+  border: var(--line) solid var(--ink); border-radius: var(--round);
+  background: var(--panel); box-shadow: var(--lift);
+}
+
+/* A gear, from a toothed ring and a hole. */
+.gear { width: 18px; height: 18px; display: block; }
 
 /* ------------------------------------------------------------------ desktop */
 
@@ -139,12 +218,11 @@ button, input, select { font: inherit; color: inherit; }
   flex-direction: column;
   border: var(--line) solid var(--ink);
   border-radius: var(--round);
-  background: var(--paper);
+  background: var(--panel);
   box-shadow: var(--lift);
   overflow: hidden;
   min-width: 160px;
 }
-.win.focused { box-shadow: 5px 5px 0 var(--ink); }
 .win.collapsed { height: auto !important; }
 .win.collapsed .win-body { display: none; }
 
@@ -152,20 +230,24 @@ button, input, select { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px 5px 12px;
+  height: 31px;
+  padding: 0 7px 0 12px;
   border-bottom: var(--line) solid var(--ink);
   background: var(--sun);
+  color: var(--on-accent);
   font-weight: 900;
   font-size: 15px;
+  line-height: 1;
   user-select: none;
   flex: none;
 }
-.win.collapsed .win-title { border-bottom: none; }
+.win.collapsed .win-title { border-bottom: none; height: 29px; }
 .win-title .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-title .meta { font-weight: 700; font-size: 12px; opacity: 0.75; }
-.win.tone-berry .win-title { background: var(--berry); color: #fff; }
+.win-title .meta { font-weight: 700; font-size: 12px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win-title .tools { display: inline-flex; gap: 5px; }
+.win.tone-berry .win-title { background: var(--berry); color: var(--on-strong); }
 .win.tone-leaf .win-title { background: var(--leaf); }
-.win.tone-grape .win-title { background: var(--grape); color: #fff; }
+.win.tone-grape .win-title { background: var(--grape); color: var(--on-strong); }
 .win.tone-tang .win-title { background: var(--tang); }
 .win.tone-sky .win-title { background: #a9e4fb; }
 
@@ -176,48 +258,65 @@ button, input, select { font: inherit; color: inherit; }
   padding: 0;
   border: 2px solid var(--ink);
   border-radius: 5px;
-  background: var(--paper);
+  background: var(--panel);
+  color: var(--text);
   position: relative;
   cursor: pointer;
   flex: none;
 }
-.wbtn::before, .wbtn::after { content: ""; position: absolute; background: var(--ink); }
+.wbtn::before, .wbtn::after { content: ""; position: absolute; background: currentColor; }
 .wbtn.collapse::before { left: 4px; right: 4px; top: 7px; height: 2.5px; }
 .win.collapsed .wbtn.collapse::after { top: 3px; bottom: 3px; left: 7px; width: 2.5px; }
 .wbtn.close::before, .wbtn.close::after { left: 7px; top: 2px; bottom: 2px; width: 2.5px; }
 .wbtn.close::before { transform: rotate(45deg); }
 .wbtn.close::after { transform: rotate(-45deg); }
 
+/* The microphone and camera toggles in the Peers title bar. */
+.wbtn.media { width: 26px; display: grid; place-items: center; }
+.wbtn.media::before, .wbtn.media::after { content: none; }
+.wbtn.media svg { width: 14px; height: 14px; display: block; overflow: visible; }
+.wbtn.media .slash { display: none; }
+.wbtn.media[aria-pressed="false"] { background: var(--berry); color: var(--on-strong); }
+.wbtn.media[aria-pressed="false"] .slash { display: inline; }
+
 .win-body { flex: 1; min-height: 0; position: relative; overflow: auto; }
 
-/* Floating mode: windows grow a grip and can be dragged by the title. */
+/* Floating: windows drag by the title and resize from any corner. */
 .floating .win-title { cursor: grab; }
-.floating .win::after {
-  content: "";
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 11px;
-  height: 11px;
-  background:
-    linear-gradient(135deg, transparent 45%, var(--ink) 45% 55%, transparent 55% 70%, var(--ink) 70% 80%, transparent 80%);
-  cursor: nwse-resize;
+
+/* The dividers between tiled windows. */
+.gutter, .hgutter { position: absolute; z-index: 1; touch-action: none; }
+.gutter { cursor: col-resize; }
+.hgutter { cursor: row-resize; }
+.gutter::after, .hgutter::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
 }
+.gutter::after { width: 5px; height: 44px; }
+.hgutter::after { width: 44px; height: 5px; }
+.gutter:hover::after, .hgutter:hover::after { background: color-mix(in srgb, var(--ink) 55%, transparent); }
+:root[data-theme="dark"] .gutter::after, :root[data-theme="dark"] .hgutter::after { background: rgb(255 255 255 / 0.22); }
 
-/* ------------------------------------------------------------------- faces */
+/* -------------------------------------------------------------------- peers */
 
-.faces { display: flex; flex-direction: column; gap: 8px; padding: 8px; height: 100%; }
+.faces-body, .chat-body, .table-body { height: 100%; }
+.faces-grid { position: relative; height: 100%; }
 .face {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
   border: var(--line) solid var(--ink);
   border-radius: var(--round-small);
   overflow: hidden;
-  background: var(--ink-soft);
+  /* A ring in the player's own colour, inside the outline. */
+  box-shadow: inset 0 0 0 3px var(--who, var(--sky));
+  background: color-mix(in srgb, var(--who, var(--sky)) 30%, var(--field));
+  transition: left 120ms, top 120ms, width 120ms, height 120ms;
 }
-.face video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.face video { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 3px; object-fit: cover; display: block; opacity: 0; }
+.face.has-video video { opacity: 1; }
+.face.has-video .avatar { display: none; }
 .face.speaking { outline: 3px solid var(--leaf); outline-offset: 1px; }
+.face.reconnecting { filter: saturate(0.3); }
 .face .tag {
   position: absolute;
   left: 6px;
@@ -225,60 +324,55 @@ button, input, select { font: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 8px;
+  padding: 2px 8px;
+  line-height: 1.15;
   border: 2px solid var(--ink);
   border-radius: 999px;
-  background: var(--paper);
+  background: var(--panel);
+  color: var(--text);
   font-weight: 800;
   font-size: 12px;
 }
-.face .tag .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.face .tag .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--who, var(--sky)); flex: none; }
+.face .face-state {
+  position: absolute; right: 6px; top: 6px; font-size: 11px; font-weight: 800; line-height: 1.2;
+  background: var(--panel); color: var(--text); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 7px;
+}
+.face .face-state:empty { display: none; }
 
-/* A muted microphone, from a capsule, a stand and a slash. */
-.muted-mark { position: relative; width: 12px; height: 13px; }
-.muted-mark::before {
-  content: ""; position: absolute; left: 3px; top: 0; width: 6px; height: 9px;
-  border: 2px solid var(--ink); border-radius: 4px;
-}
-.muted-mark::after {
-  content: ""; position: absolute; left: -1px; top: 5px; width: 15px; height: 2.5px;
-  background: var(--berry); transform: rotate(-45deg);
-}
+/* A muted microphone, drawn small in a name tag. */
+.muted-mark { width: 12px; height: 12px; display: block; flex: none; }
 
-/* A face drawn where there is no camera: a head and two eyes. */
-.avatar {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
+/* A face drawn where there is no camera: a head, two eyes and a smile. */
+.avatar { position: absolute; inset: 0; display: grid; place-items: center; }
 .avatar .head {
   position: relative;
   width: 46%;
   aspect-ratio: 1;
   max-width: 90px;
-  border: var(--line) solid var(--ink);
+  border: var(--line) solid #241c3a;
   border-radius: 50%;
+  background: var(--who, var(--sky));
 }
 .avatar .head::before, .avatar .head::after {
   content: ""; position: absolute; top: 38%; width: 12%; height: 16%;
-  background: var(--ink); border-radius: 50%;
+  background: #241c3a; border-radius: 50%;
 }
 .avatar .head::before { left: 30%; }
 .avatar .head::after { right: 30%; }
 .avatar .head .smile {
   position: absolute; left: 30%; right: 30%; top: 55%; height: 18%;
-  border: 2.5px solid var(--ink); border-top: none; border-radius: 0 0 40px 40px;
+  border: 2.5px solid #241c3a; border-top: none; border-radius: 0 0 40px 40px;
 }
 
 /* -------------------------------------------------------------------- chat */
 
 .chat { display: flex; flex-direction: column; height: 100%; }
 .chat-lines { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
-.chat-line { font-size: 13.5px; line-height: 1.3; }
+.chat-line { font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere; }
 .chat-line .who { font-weight: 900; }
-.chat-line.system { color: var(--ink-soft); font-style: italic; font-size: 12.5px; }
-.chat-form { display: flex; gap: 6px; padding: 6px; border-top: var(--line) solid var(--ink); background: var(--paper-2); }
+.chat-line.system { color: var(--text-soft); font-style: italic; font-size: 12.5px; }
+.chat-form { display: flex; gap: 6px; padding: 6px; border-top: var(--line) solid var(--ink); background: var(--panel-2); }
 .chat-form .input { flex: 1; min-width: 0; padding: 5px 9px; font-size: 13.5px; }
 
 /* ------------------------------------------------------------------ shelf */
@@ -293,16 +387,22 @@ button, input, select { font: inherit; color: inherit; }
   padding: 10px 6px 8px;
   border: var(--line) solid var(--ink);
   border-radius: var(--round-small);
-  background: #fff;
+  background: var(--field);
+  color: var(--text);
   box-shadow: var(--lift-small);
   font-weight: 900;
   font-size: 13px;
+  line-height: 1.15;
   cursor: pointer;
 }
 .game-card:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
-.game-card .icon { width: 56px; height: 44px; position: relative; }
+.game-card .icon { width: 56px; height: 44px; }
+.game-card.tone-sky { background: var(--tint-sky); }
+.game-card.tone-grape { background: var(--tint-grape); }
+.game-card.tone-berry { background: var(--tint-berry); }
+.game-card.tone-leaf { background: var(--tint-leaf); }
 
-/* ------------------------------------------------------------------ tables */
+/* ------------------------------------------------------------------- games */
 
 .table { display: flex; flex-direction: column; height: 100%; }
 .seats {
@@ -311,187 +411,73 @@ button, input, select { font: inherit; color: inherit; }
   gap: 8px;
   padding: 8px 10px;
   border-bottom: var(--line) solid var(--ink);
-  background: var(--paper-2);
+  background: var(--panel-2);
   flex-wrap: wrap;
+  min-height: 46px;
 }
 .seat {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px 3px 4px;
+  height: 28px;
+  padding: 0 10px 0 4px;
   border: var(--line) solid var(--ink);
   border-radius: 999px;
-  background: #fff;
+  background: var(--field);
+  color: var(--text);
   font-weight: 800;
   font-size: 13px;
+  line-height: 1;
 }
-.seat.turn { background: var(--sun); box-shadow: var(--lift-small); }
-.seat.empty { border-style: dashed; background: transparent; color: var(--ink-soft); cursor: pointer; }
-.seat .piece { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
-.watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
-.stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 12px; }
-.status { padding: 6px 10px; font-weight: 800; font-size: 14px; text-align: center; border-top: var(--line) solid var(--ink); }
+.seat:has(.btn) { padding-right: 3px; }
+.seat.turn { background: var(--sun); color: var(--on-accent); box-shadow: var(--lift-small); }
+.seat.empty { border-style: dashed; background: transparent; color: var(--text-soft); cursor: pointer; }
+.seat.empty:hover { background: var(--field); color: var(--text); }
+.seat.away { opacity: 0.6; }
+.seat .piece { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); flex: none; }
+.seat .btn { height: 20px; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
+.seat .btn:hover { transform: none; background: var(--panel-2); }
+.seats .vs { font-weight: 900; color: var(--text-soft); }
+.watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text-soft); }
 
-/* -------------------------------------------------------------- landing */
+/* The board fits whatever room the window leaves it, keeping its shape. */
+.stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; touch-action: manipulation; }
 
-#landing {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 16px;
+.status {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 34px; padding: 4px 10px;
+  font-weight: 800; font-size: 14px; line-height: 1.2; text-align: center;
+  border-top: var(--line) solid var(--ink);
 }
-.card {
-  width: min(420px, 100%);
-  padding: 22px;
-  border: var(--line) solid var(--ink);
-  border-radius: var(--round);
-  background: var(--paper);
-  box-shadow: 5px 5px 0 var(--ink);
-}
-
-/* ------------------------------------------------------------- room extras */
-
-[hidden] { display: none !important; }
-
-.gutter { position: absolute; cursor: col-resize; z-index: 0; }
-.gutter::after {
-  content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 44px;
-  transform: translate(-50%, -50%); border-radius: 3px;
-  background: rgb(36 28 58 / 0.25);
-}
-.gutter:hover::after { background: rgb(36 28 58 / 0.5); }
-
-.faces-body, .chat-body, .table-body { height: 100%; }
-.faces-grid { position: relative; height: 100%; }
-.faces-grid .face { position: absolute; background: color-mix(in srgb, var(--who, var(--sky)) 30%, #fff); transition: left 120ms, top 120ms, width 120ms, height 120ms; }
-.face .avatar .head { background: var(--who, var(--sky)); }
-.face video { position: absolute; inset: 0; opacity: 0; }
-.face.has-video video { opacity: 1; }
-.face.has-video .avatar { display: none; }
-.face .tag .dot { background: var(--who, var(--sky)); }
-.face.reconnecting { filter: saturate(0.3); }
-.face .face-state {
-  position: absolute; right: 6px; top: 6px; font-size: 11px; font-weight: 800;
-  background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 0 7px;
-}
-.face .face-state:empty { display: none; }
-.muted-mark[hidden] { display: none; }
-
-.shelf-anchor { position: relative; }
-.popover {
-  position: absolute; right: 0; top: calc(100% + 10px); z-index: 10000;
-  width: max-content; max-width: min(480px, 92vw);
-  border: var(--line) solid var(--ink); border-radius: var(--round);
-  background: var(--paper); box-shadow: 5px 5px 0 var(--ink);
-}
-.game-card[disabled] { cursor: default; opacity: 0.55; box-shadow: none; }
-.game-card[disabled]:hover { transform: none; }
-.game-card .soon { font-size: 11px; font-weight: 800; color: var(--ink-soft); margin-top: -4px; }
-.game-card.tone-sky { background: #e3f6fe; }
-.game-card.tone-grape { background: #ece5ff; }
-.game-card.tone-berry { background: #ffe3ec; }
-.game-card.tone-leaf { background: #e2f8e2; }
 
 .table .ask {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 8px 10px; background: #ffe3ec; border-bottom: var(--line) solid var(--ink); font-weight: 800;
+  padding: 8px 10px; background: var(--tint-berry); border-bottom: var(--line) solid var(--ink); font-weight: 800;
 }
-.seat.away { opacity: 0.6; }
-.seat .btn { margin-left: 4px; }
-.status { display: flex; align-items: center; justify-content: center; gap: 10px; }
-/* The board fits whatever room the window leaves it, keeping its shape. */
-.stage { position: relative; display: block; padding: 0; }
-.stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; }
 
+/* Connect four */
 .c4 .disc.falling { animation: c4-fall 380ms cubic-bezier(.4, 0, .9, .6) both; }
 @keyframes c4-fall {
   0% { transform: translateY(var(--fall)); }
   80% { transform: translateY(3px); }
   100% { transform: translateY(0); }
 }
-/* The winning four wear a bold ring and bob. */
 .c4 .disc .ring { display: none; }
 .c4 .disc.winning .ring { display: inline; }
 .c4 .disc.winning { animation: c4-win 650ms ease-in-out infinite alternate; }
 @keyframes c4-win { from { transform: scale(0.92); } to { transform: scale(1.06); } }
 .c4.my-turn .hits rect { cursor: pointer; }
 
-.toast {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20000;
-  padding: 8px 16px; border: var(--line) solid var(--ink); border-radius: var(--round-small);
-  background: var(--sun); box-shadow: var(--lift); font-weight: 800;
-}
-
-/* ------------------------------------------------------------------ landing */
-
-.landing-card { display: flex; flex-direction: column; gap: 14px; }
-.wordmark.big { font-size: 64px; margin: 0; text-align: center; line-height: 1; }
-.tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--ink-soft); }
-.preview {
-  position: relative; aspect-ratio: 4 / 3; border: var(--line) solid var(--ink); border-radius: var(--round-small);
-  overflow: hidden; background: #ffd9a8;
-}
-.preview video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-.preview .avatar .head { background: var(--tang); }
-.preview-controls { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; }
-#join-form { display: flex; flex-direction: column; gap: 10px; }
-.field { display: flex; flex-direction: column; gap: 4px; font-weight: 800; font-size: 13px; }
-.field .row { display: flex; gap: 6px; }
-.field .row .input { flex: 1; min-width: 0; }
-.btn.big { justify-content: center; padding: 10px; font-size: 18px; }
-.error { margin: 0; color: #c2185b; font-weight: 800; min-height: 1em; }
-
-/* Toggles read as on when pressed. */
-#mic[aria-pressed="false"], #cam[aria-pressed="false"],
-#preview-mic[aria-pressed="false"], #preview-cam[aria-pressed="false"] {
-  background: var(--berry); color: #fff; text-decoration: line-through;
-}
-#mic[aria-pressed="true"], #cam[aria-pressed="true"],
-#preview-mic[aria-pressed="true"], #preview-cam[aria-pressed="true"] {
-  background: var(--paper); color: var(--ink);
-}
-
-/* ------------------------------------------------------------- narrow screens */
-
-@media (max-width: 760px) {
-  html, body { overflow: auto; }
-  #topbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
-  #topbar .wordmark { font-size: 24px; }
-  #topbar .spacer { display: none; }
-  #mode { display: none; }
-  #app { height: auto; min-height: 100%; }
-  #desk { margin: 0 8px 8px; flex: none; }
-  .wordmark.big { font-size: 48px; }
-  /* The shelf spans the screen rather than hanging off its button. */
-  .popover { position: fixed; left: 8px; right: 8px; top: 96px; max-width: none; width: auto; }
-  .shelf { justify-content: center; }
-}
-
-/* Touch: dragging a floating window must not scroll the page, and a board
-   takes taps without the browser waiting to see whether they are zooms. */
-.floating .win-title, .gutter { touch-action: none; }
-.stage svg { touch-action: manipulation; }
-@media (pointer: coarse) {
-  .wbtn { width: 28px; height: 28px; }
-  .wbtn.collapse::before { left: 6px; right: 6px; top: 11px; }
-  .wbtn.close::before, .wbtn.close::after { left: 11px; top: 4px; bottom: 4px; }
-  .win.collapsed .wbtn.collapse::after { top: 6px; bottom: 6px; left: 11px; }
-  .btn.small { padding: 6px 12px; }
-}
-
-/* Chess: details inside a piece take the contrasting colour. */
-.chess .piece .detail { fill: var(--detail); stroke: none; }
-.chess .piece .slit, .chess .piece .mane { fill: none; stroke: var(--detail); stroke-width: 4; stroke-linecap: round; }
+/* Chess */
 .chess.my-turn rect[data-sq] { cursor: pointer; }
 .chess .promo { cursor: pointer; }
 
-/* ------------------------------------------------------------ draw & guess */
-
-.stage.draw-stage { position: relative; }
+/* Pictionary */
 .draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
 .draw-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
-.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 3px; }
-.draw-clock { font-weight: 900; font-size: 18px; padding: 1px 10px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); }
+.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 3px; line-height: 1; }
+.draw-clock { font-weight: 900; font-size: 17px; line-height: 1.15; padding: 2px 11px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--on-accent); }
 .draw-clock:empty { display: none; }
 .draw-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
 .draw-paper { position: relative; flex: 1; min-width: 0; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
@@ -499,53 +485,48 @@ button, input, select { font: inherit; color: inherit; }
 .draw-stage.drawing .draw-canvas { cursor: crosshair; }
 .draw-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  background: rgb(255 250 240 / 0.86); font-weight: 900; font-size: 18px; text-align: center; padding: 16px;
+  background: rgb(255 250 240 / 0.86); color: #241c3a; font-weight: 900; font-size: 18px; text-align: center; padding: 16px;
 }
+.draw-overlay p { margin: 0; }
 .draw-overlay .choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .draw-side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .draw-scores { display: flex; flex-direction: column; gap: 4px; }
-.score { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border: 2px solid var(--ink); border-radius: var(--round-small); background: #fff; font-weight: 800; font-size: 13px; }
+.score { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); font-weight: 800; font-size: 13px; line-height: 1; }
 .score .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.score .dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink); }
-.score.drawer { background: var(--sun); }
-.score.got { background: #d8f5d8; }
-.draw-log { flex: 1; min-height: 60px; overflow-y: auto; border: 2px solid var(--ink); border-radius: var(--round-small); background: #fff; padding: 6px 8px; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
-.draw-log .system { color: var(--ink-soft); font-style: italic; }
-.draw-log .correct { color: #2e7d32; font-weight: 800; }
+.score .dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink); flex: none; }
+.score.drawer { background: var(--sun); color: var(--on-accent); }
+.score.got { background: var(--tint-leaf); }
+.draw-log { flex: 1; min-height: 60px; overflow-y: auto; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); padding: 6px 8px; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 3px; }
+.draw-log .system { color: var(--text-soft); font-style: italic; }
+.draw-log .correct { color: #2e9d3a; font-weight: 800; }
 .draw-log .close { color: var(--tang); }
 .draw-guess { display: flex; gap: 6px; }
 .draw-guess .input { flex: 1; min-width: 0; padding: 5px 9px; }
 .draw-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 50%; cursor: pointer; padding: 0; }
-.swatch.on { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--ink); }
+.swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 50%; cursor: pointer; padding: 0; flex: none; }
+.swatch.on { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
 .swatch.eraser { background: repeating-linear-gradient(45deg, #fff 0 4px, #ddd 4px 8px); border-radius: 6px; }
 
-@media (max-width: 760px) {
-  .draw-main { flex-direction: column; }
-  .draw-side { width: auto; flex: 0 0 170px; }
-}
-
-/* ------------------------------------------------------------------ minigolf */
-
-.golf .wall { fill: #c9884f; stroke: var(--ink); stroke-width: 3; }
-.golf .water { fill: #59c3ef; stroke: var(--ink); stroke-width: 3; }
+/* Minigolf */
+.golf .wall { fill: #c9884f; stroke: #241c3a; stroke-width: 3; }
+.golf .water { fill: #59c3ef; stroke: #241c3a; stroke-width: 3; }
 .golf.my-turn { cursor: crosshair; }
-.golf .power { font: 900 22px var(--font); fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.golf .power { font: 900 22px var(--font); fill: #241c3a; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
 .golf .spin { animation: golf-spin 3s linear infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes golf-spin { to { transform: rotate(360deg); } }
 .golf-over {
   position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background: rgb(255 250 240 / 0.82); border-radius: var(--round-small); font-weight: 900; text-align: center;
+  background: var(--veil); border-radius: var(--round-small); font-weight: 900; text-align: center;
 }
-.golf-over .card { border-collapse: collapse; background: #fff; border: var(--line) solid var(--ink); font-weight: 800; }
+.golf-over p { margin: 0; }
+.golf-over .card { border-collapse: collapse; background: var(--field); border: var(--line) solid var(--ink); font-weight: 800; }
 .golf-over .card th, .golf-over .card td { border: 2px solid var(--ink); padding: 4px 10px; text-align: center; }
-.golf-over .card .par { color: var(--ink-soft); }
-.golf-over .card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; }
+.golf-over .card .par { color: var(--text-soft); }
+.golf-over .card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
 .stage svg.golf { touch-action: none; }
 
 /* ------------------------------------------------------------------ cursors */
 
-.stage { overflow: hidden; }
 .cursor {
   position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none;
   display: flex; align-items: flex-start; gap: 2px;
@@ -554,8 +535,152 @@ button, input, select { font: inherit; color: inherit; }
 }
 .cursor.idle { opacity: 0.25; }
 .cursor-name {
-  margin-top: 16px; padding: 0 7px; border: 2px solid var(--ink); border-radius: 999px;
-  background: var(--paper); font-weight: 800; font-size: 11px; white-space: nowrap;
+  margin-top: 16px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;
+  background: #fffaf0; color: #241c3a; font-weight: 800; font-size: 11px; white-space: nowrap;
 }
-#cursors[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
-@media (pointer: coarse) { #cursors { display: none; } }
+
+/* --------------------------------------------------------------- settings */
+
+.settings { width: 330px; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 90px); overflow-y: auto; }
+.settings h3 { margin: 0 0 7px; font-size: 13px; font-weight: 900; color: var(--text-soft); letter-spacing: 0.3px; }
+.settings .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.settings .row .input { flex: 1; min-width: 0; padding: 6px 10px; }
+.settings .hint { margin: 6px 0 0; font-size: 12px; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
+.settings .rooms { display: flex; flex-direction: column; gap: 5px; }
+.settings .rooms .empty { font-size: 12.5px; font-weight: 700; color: var(--text-soft); }
+.room-row { display: flex; align-items: center; gap: 6px; }
+.room-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-size: 13.5px; }
+.room-row .when { font-size: 11.5px; font-weight: 700; color: var(--text-soft); }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13.5px; cursor: pointer; }
+.switch input { appearance: none; width: 38px; height: 22px; margin: 0; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--panel-2); position: relative; cursor: pointer; flex: none; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--ink); background: var(--panel); transition: left 100ms; }
+.switch input:checked { background: var(--leaf); }
+.switch input:checked::after { left: 17px; }
+
+/* ------------------------------------------------------------------ toast */
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20000;
+  padding: 8px 16px; line-height: 1.2; border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  background: var(--sun); color: var(--on-accent); box-shadow: var(--lift); font-weight: 800;
+}
+
+/* ------------------------------------------------------------------ landing */
+
+#landing { height: 100%; display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+#landing-settings { position: fixed; top: 12px; right: 14px; z-index: 10; }
+.card {
+  width: min(420px, 100%);
+  padding: 22px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round);
+  background: var(--panel);
+  box-shadow: var(--lift);
+}
+.landing-card { display: flex; flex-direction: column; gap: 14px; }
+.wordmark.big { font-size: 92px; margin: 4px 0 6px; text-align: center; line-height: 1; letter-spacing: 1px; -webkit-text-stroke-width: 3px; text-shadow: 4px 4px 0 #241c3a; }
+.tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
+.preview {
+  position: relative; aspect-ratio: 4 / 3; border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  overflow: hidden; background: color-mix(in srgb, var(--tang) 35%, var(--field));
+}
+.preview video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.preview .avatar .head { background: var(--tang); }
+.preview-controls { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; }
+#join-form { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 5px; font-weight: 800; font-size: 13px; }
+.field .row { display: flex; gap: 6px; }
+.field .row .input { flex: 1; min-width: 0; }
+.recent { display: flex; flex-wrap: wrap; gap: 6px; }
+.recent .chip { font-size: 12px; padding: 3px 9px; }
+.recent .chip:hover { background: var(--sun); color: var(--on-accent); }
+.btn.big { padding: 10px; font-size: 18px; }
+.error { margin: 0; color: #e0457a; font-weight: 800; line-height: 1.3; }
+.error:empty { display: none; }
+
+/* Toggles read as off when not pressed. */
+#preview-mic[aria-pressed="false"], #preview-cam[aria-pressed="false"] {
+  background: var(--berry); color: var(--on-strong); text-decoration: line-through;
+}
+#preview-mic[aria-pressed="true"], #preview-cam[aria-pressed="true"] { background: var(--panel); color: var(--text); }
+
+/* ------------------------------------------------------------- narrow screens */
+
+@media (max-width: 760px) {
+  html, body { overflow: auto; }
+  #topbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  #topbar .wordmark { font-size: 24px; }
+  #app { height: auto; min-height: 100%; }
+  #desk { margin: 0 8px 8px; flex: none; }
+  .wordmark.big { font-size: 64px; }
+  /* Popovers span the screen rather than hanging off their buttons. */
+  .popover { position: fixed; left: 8px; right: 8px; top: 96px; max-width: none; width: auto; }
+  .settings { width: auto; }
+  .shelf { justify-content: center; }
+  .draw-main { flex-direction: column; }
+  .draw-side { width: auto; flex: 0 0 170px; }
+}
+
+/* Touch: bigger targets, and dragging never scrolls the page. */
+.floating .win-title { touch-action: none; }
+@media (pointer: coarse) {
+  .wbtn { width: 28px; height: 28px; }
+  .wbtn.collapse::before { left: 6px; right: 6px; top: 11px; }
+  .wbtn.close::before, .wbtn.close::after { left: 11px; top: 4px; bottom: 4px; }
+  .win.collapsed .wbtn.collapse::after { top: 6px; bottom: 6px; left: 11px; }
+  .wbtn.media { width: 34px; }
+  .win-title { height: 38px; }
+  .win.collapsed .win-title { height: 36px; }
+  .btn.small { padding: 6px 12px; }
+}
+
+/* ------------------------------------------------------------------ colours */
+
+.colour-anchor { position: relative; display: inline-flex; flex: none; }
+.colour-button {
+  width: 36px; height: 36px; padding: 0; flex: none; cursor: pointer;
+  border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  background: var(--c, var(--berry)); box-shadow: var(--lift-small);
+}
+.settings .colour-button { width: 31px; height: 31px; }
+.colour-pop { left: 0; right: auto; top: calc(100% + 8px); padding: 10px; }
+.colour-picker .swatches { display: grid; grid-template-columns: repeat(6, 28px); gap: 7px; }
+.colour-picker .swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
+.colour-picker .custom {
+  position: relative; overflow: hidden;
+  background: conic-gradient(#ff5d8f, #f98a26, #d8a118, #5cbc3c, #17ab94, #2fa4e6, #9a72f2, #d65fd0, #ff5d8f);
+}
+.colour-picker .custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+
+/* --------------------------------------------------------------- pointers */
+
+/* Your own pointer is drawn like everyone else's, so the system's is hidden. */
+html.own-cursor, html.own-cursor * { cursor: none !important; }
+
+.cursor {
+  position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none;
+  display: flex; align-items: flex-start; gap: 2px;
+  transform: translate(var(--x, 0), var(--y, 0));
+  transition: transform 70ms linear, opacity 600ms ease;
+}
+.cursor .arrow, .cursor > svg {
+  display: block; transform-origin: 2px 2px; transform: scale(0.92);
+  transition: transform 140ms ease; filter: drop-shadow(1px 1.5px 0 rgb(36 28 58 / 0.45));
+}
+.cursor.moving .arrow { transform: scale(1.12); }
+.cursor.idle { opacity: 0.3; }
+.cursor.lifted { opacity: 0; transition: opacity 700ms ease 150ms; }
+.cursor.touch .arrow { transform: scale(1.05); }
+.cursor-name {
+  margin-top: 17px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;
+  background: #fffaf0; color: #241c3a; font-weight: 800; font-size: 11px; white-space: nowrap;
+}
+
+/* Your own: on top of everything, following the mouse with no lag. */
+.cursor.own { position: fixed; z-index: 2147483647; transition: none; }
+.cursor.own[data-shape^="resize"] > svg, .cursor.own[data-shape="text"] > svg {
+  transform: translate(-50%, -50%) rotate(var(--turn, 0deg)); transform-origin: center;
+}
+
+/* A small phone by the name of someone on a touchscreen. */
+.phone-mark { width: 9px; height: 13px; display: block; flex: none; }

@@ -124,6 +124,7 @@ export default {
   minSeats: 2,
   mode: 'replicated',
   ownRestart: true,
+  playerColours: true,
   seatColours: ['#ff5d8f', '#3c7ff0', '#ffd23f', '#ff9a3c'],
 
   init() {
@@ -322,7 +323,7 @@ export default {
           const card = state.phase === 'over' ? scorecard() : ''
           box.innerHTML = `${card}${info.mySeat != null && seated >= 2
             ? `<button class="btn sun big" data-start>${state.phase === 'over' ? 'play again' : 'tee off!'}</button>`
-            : `<p>${seated < 2 ? 'need at least two at the table' : 'waiting for a player to start'}</p>`}`
+            : `<p>${seated < 2 ? 'need at least two players' : 'waiting for a player to start'}</p>`}`
           box.hidden = false
         } else {
           box.hidden = true

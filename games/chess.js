@@ -20,11 +20,9 @@ const PIECES = {
       <rect x="35" y="36" width="30" height="34"/>
       <rect x="26" y="70" width="48" height="14" rx="4"/>`,
   N: `<path d="M32 84 L33 66 C34 54 44 50 46 42 L36 46 C30 48 26 44 27 39 L36 28 C40 18 50 14 60 16 C72 19 76 34 74 52 L72 84 Z"/>
-      <circle cx="51" cy="28" r="3.5" class="detail"/>
-      <path d="M58 22 L64 12 L66 24" class="mane"/>`,
+`,
   B: `<circle cx="50" cy="17" r="6"/>
       <path d="M50 24 C64 34 66 50 58 62 H42 C34 50 36 34 50 24 Z"/>
-      <path d="M50 34 L56 44" class="slit"/>
       <rect x="36" y="62" width="28" height="9" rx="3"/>
       <rect x="26" y="71" width="48" height="13" rx="4"/>`,
   Q: `<circle cx="24" cy="24" r="5"/><circle cx="37" cy="17" r="5"/><circle cx="50" cy="14" r="5"/><circle cx="63" cy="17" r="5"/><circle cx="76" cy="24" r="5"/>
@@ -111,10 +109,9 @@ export default {
           const { x, y } = at(sq)
           const fill = p[0] === 'w' ? WHITE : BLACK
           const line = p[0] === 'w' ? 'var(--ink)' : '#120d22'
-          const detail = p[0] === 'w' ? 'var(--ink)' : WHITE
           const upright = flipped() ? ' rotate(180 50 50)' : ''
           html += `<g transform="translate(${x} ${y})${upright}" pointer-events="none" class="piece"
-            fill="${fill}" stroke="${line}" stroke-width="4" stroke-linejoin="round" style="--detail:${detail}">${PIECES[p[1]]}</g>`
+            fill="${fill}" stroke="${line}" stroke-width="4" stroke-linejoin="round">${PIECES[p[1]]}</g>`
         }
         for (const sq of targets) {
           const { x, y } = at(sq)
@@ -129,7 +126,7 @@ export default {
           ;['Q', 'R', 'B', 'N'].forEach((kind, i) => {
             const colour = state.turn === 'w' ? WHITE : BLACK
             html += `<g transform="translate(${180 + i * 115} 345)" class="piece promo" data-promo="${kind}"
-              fill="${colour}" stroke="var(--ink)" stroke-width="4" stroke-linejoin="round" style="--detail:${state.turn === 'w' ? 'var(--ink)' : WHITE}">
+              fill="${colour}" stroke="var(--ink)" stroke-width="4" stroke-linejoin="round">
               <rect width="100" height="100" fill="transparent" stroke="none"/>${PIECES[kind]}</g>`
           })
         }

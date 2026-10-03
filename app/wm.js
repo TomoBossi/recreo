@@ -1,41 +1,36 @@
+import { store } from './store.js'
+
 /**
  * A small window manager for the room.
  *
- * Everything in the room is a window — each table, the faces, the chat — and
+ * Everything in the room is a window — each game, the peers, the chat — and
  * there are two ways to arrange them. Tiled, after dwm: one window is the
  * master and takes most of the width, everything else stacks in a column
- * beside it, and a divider between the two can be dragged. Floating: windows
- * go wherever they are dragged, at whatever size they are given. Any window
+ * beside it, and the dividers between them can be dragged. Floating: windows
+ * go wherever they are dragged, resized from any corner. Any window
  * collapses to its title bar in either mode.
  *
- * On a narrow screen there is no room for two columns, so tiling becomes a
- * single column and floating is not offered.
+ * On a narrow screen there is no room for two columns, so the windows become
+ * one scrolling column and floating is not offered.
  */
 
 const GAP = 14
-const TITLE = 34
+const LIFT = 3        // the hard shadow every window casts, right and down
+const TITLE = 34      // a collapsed window, title bar and border
 const NARROW = 760
 const MIN_W = 220
 const MIN_H = 120
-
-const store = {
-  get(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(`recreo:wm:${key}`)) ?? fallback } catch { return fallback }
-  },
-  set(key, value) {
-    try { localStorage.setItem(`recreo:wm:${key}`, JSON.stringify(value)) } catch { /* private mode */ }
-  },
-}
+const CORNER = 16     // how close to a corner a pointer must be to resize
 
 export class WindowManager {
   /** @param {HTMLElement} desk */
   constructor(desk) {
     this.desk = desk
     this.windows = []
-    this.mode = store.get('mode', 'tiled')
-    this.mfact = store.get('mfact', 0.68)
+    this.mode = store.get('wm:mode', 'tiled')
+    this.mfact = store.get('wm:mfact', 0.68)
     this.master = null
-    this.floatRects = new Map()
+    this.floatRects = new Map(Object.entries(store.get('wm:float', {})))
     this.z = 1
     this.onChange = () => {}
 
@@ -44,6 +39,7 @@ export class WindowManager {
     this.gutter.title = 'drag to resize'
     desk.append(this.gutter)
     this.#dragGutter()
+    this.hgutters = []
 
     new ResizeObserver(() => this.layout()).observe(desk)
   }
@@ -53,11 +49,12 @@ export class WindowManager {
   /**
    * Add a window.
    *
-   * `kind` decides tiling: a table may be the master, a panel never is unless
+   * `kind` decides tiling: a game may be the master, a panel never is unless
    * there is nothing else. `weight` is how much of the stack's height a
-   * window wants relative to its neighbours. `order` sorts the stack.
+   * window wants relative to its neighbours, until someone drags a divider.
+   * `tools` are extra buttons for the title bar.
    */
-  add({ id, title, meta = '', tone = 'sun', body, kind = 'panel', weight = 1, order = 0, closable = false, collapsed = false, onClose }) {
+  add({ id, title, meta = '', tone = 'sun', body, kind = 'panel', weight = 1, order = 0, closable = false, closeLabel = 'close', collapsed = false, tools = [], onClose }) {
     const el = document.createElement('section')
     el.className = `win tone-${tone}`
     el.dataset.id = id
@@ -65,21 +62,23 @@ export class WindowManager {
       <div class="win-title">
         <span class="title"></span>
         <span class="meta"></span>
+        <span class="tools"></span>
         <button class="wbtn collapse" title="collapse" aria-label="collapse"></button>
-        ${closable ? '<button class="wbtn close" title="close" aria-label="close"></button>' : ''}
+        ${closable ? `<button class="wbtn close" title="${closeLabel}" aria-label="${closeLabel}"></button>` : ''}
       </div>
       <div class="win-body"></div>`
+    el.querySelector('.tools').append(...tools)
     el.querySelector('.win-body').append(body)
 
     const win = {
-      id, el, kind, weight, order, onClose,
-      collapsed: store.get(`collapsed:${id}`, collapsed),
+      id, el, kind, order, onClose,
+      weight: store.get(`wm:weight:${id}`, weight),
+      collapsed: store.get(`wm:collapsed:${id}`, collapsed),
       setTitle: (text) => { el.querySelector('.title').textContent = text },
       setMeta: (text) => { el.querySelector('.meta').textContent = text },
-      setTone: (t) => { el.className = el.className.replace(/tone-\S+/, `tone-${t}`) },
       collapse: (on = !win.collapsed) => {
         win.collapsed = on
-        store.set(`collapsed:${id}`, on)
+        store.set(`wm:collapsed:${id}`, on)
         this.layout()
       },
       close: () => this.remove(win),
@@ -90,8 +89,9 @@ export class WindowManager {
     el.querySelector('.wbtn.collapse').addEventListener('click', (e) => { e.stopPropagation(); win.collapse() })
     el.querySelector('.wbtn.close')?.addEventListener('click', (e) => { e.stopPropagation(); win.onClose ? win.onClose() : win.close() })
     el.addEventListener('pointerdown', () => this.focus(win))
-    el.querySelector('.win-title').addEventListener('dblclick', () => win.collapse())
+    el.querySelector('.win-title').addEventListener('dblclick', (e) => { if (!e.target.closest('button')) win.collapse() })
     this.#dragWindow(win)
+    this.#resizeWindow(win)
 
     this.windows.push(win)
     this.desk.append(el)
@@ -109,12 +109,11 @@ export class WindowManager {
   get(id) { return this.windows.find((w) => w.id === id) }
 
   /**
-   * Bring a window forward. A table becomes the master when tiled; any
-   * window is raised when floating.
+   * Bring a window forward. A game becomes the master when tiled; any window
+   * is raised when floating.
    */
   focus(win, { expand = false } = {}) {
     if (expand && win.collapsed) win.collapse(false)
-    for (const w of this.windows) w.el.classList.toggle('focused', w === win)
     win.el.style.zIndex = String(++this.z)
     if (win.kind === 'table' && this.master !== win) {
       this.master = win
@@ -129,17 +128,33 @@ export class WindowManager {
       for (const w of this.windows) {
         if (!this.floatRects.has(w.id)) this.floatRects.set(w.id, this.#rectOf(w))
       }
+      this.#saveFloat()
     }
     this.mode = mode
-    store.set('mode', mode)
+    store.set('wm:mode', mode)
     this.layout()
     this.onChange()
+  }
+
+  /**
+   * Put every floating window back where tiling would put it. Windows can be
+   * dragged nearly off the desk; this is how they come back.
+   */
+  resetFloating() {
+    this.mode = 'tiled'
+    this.layout()
+    for (const w of this.windows) this.floatRects.set(w.id, this.#rectOf(w))
+    this.mode = 'floating'
+    this.#saveFloat()
+    this.layout()
   }
 
   layout() {
     const W = this.desk.clientWidth
     if (!W) return
     this.gutter.hidden = true
+    for (const g of this.hgutters) g.remove()
+    this.hgutters = []
     // A phone's column scrolls, so it sets the desk's height rather than
     // fitting inside one — and has no height to wait for.
     if (this.narrow) {
@@ -153,7 +168,7 @@ export class WindowManager {
     this.desk.classList.toggle('floating', floating)
     if (floating) return this.#layoutFloating(W, H)
 
-    // A table is the master whenever there is one: the game is the stage.
+    // A game is the master whenever there is one: the game is the stage.
     const tables = this.windows.filter((w) => w.kind === 'table')
     const kept = this.master && this.windows.includes(this.master)
       && (this.master.kind === 'table' || tables.length === 0)
@@ -169,33 +184,75 @@ export class WindowManager {
     }
     const mw = Math.round(W * this.mfact - GAP / 2)
     this.#place(master, 0, 0, mw, master.collapsed ? TITLE : H)
-    this.#column(rest, mw + GAP, 0, W - mw - GAP, H)
+    const stackBottom = this.#column(rest, mw + GAP, 0, W - mw - GAP, H)
 
+    // The divider sits in the gap the shadow leaves, and only as tall as the
+    // windows beside it: next to the stack when everything in it is
+    // collapsed.
+    const reach = Math.min(H, stackBottom)
     this.gutter.hidden = false
-    Object.assign(this.gutter.style, { left: `${mw}px`, top: '0px', width: `${GAP}px`, height: `${H}px` })
+    Object.assign(this.gutter.style, { left: `${mw + LIFT}px`, top: '0px', width: `${GAP - LIFT}px`, height: `${reach}px` })
   }
 
   #sorted(list) { return [...list].sort((a, b) => a.order - b.order) }
 
-  /** Stack windows in a column: collapsed ones take a title bar, the rest share. */
+  /**
+   * Stack windows in a column: collapsed ones take a title bar, the rest share
+   * the height by weight, with a divider between each two open neighbours.
+   * Returns where the column ends.
+   */
   #column(list, x, y, w, h) {
     const open = list.filter((win) => !win.collapsed)
     const fixed = list.length * GAP - GAP + (list.length - open.length) * TITLE
     const share = Math.max(0, h - fixed)
     const weights = open.reduce((sum, win) => sum + win.weight, 0) || 1
     let top = y
-    for (const win of list) {
+    list.forEach((win, i) => {
       const height = win.collapsed ? TITLE : Math.round(share * win.weight / weights)
       this.#place(win, x, top, w, height)
+      const next = list[i + 1]
+      if (next && !win.collapsed && !next.collapsed) this.#hgutter(win, next, x, top + height, w)
       top += height + GAP
-    }
+    })
+    return open.length ? y + h : top - GAP
+  }
+
+  /** A divider between two open windows in the stack, trading height between them. */
+  #hgutter(above, below, x, y, w) {
+    const g = document.createElement('div')
+    g.className = 'hgutter'
+    g.title = 'drag to resize'
+    Object.assign(g.style, { left: `${x}px`, top: `${y + LIFT}px`, width: `${w}px`, height: `${GAP - LIFT}px` })
+    g.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      g.setPointerCapture(e.pointerId)
+      const a = above.el.getBoundingClientRect()
+      const b = below.el.getBoundingClientRect()
+      const span = a.height + b.height
+      const total = above.weight + below.weight
+      const move = (ev) => {
+        const ha = Math.min(span - MIN_H, Math.max(MIN_H, ev.clientY - a.top))
+        above.weight = total * ha / span
+        below.weight = total - above.weight
+        this.layout()
+      }
+      const up = () => {
+        store.set(`wm:weight:${above.id}`, above.weight)
+        store.set(`wm:weight:${below.id}`, below.weight)
+        g.removeEventListener('pointermove', move)
+        g.removeEventListener('pointerup', up)
+      }
+      g.addEventListener('pointermove', move)
+      g.addEventListener('pointerup', up)
+    })
+    this.desk.append(g)
+    this.hgutters.push(g)
   }
 
   /**
    * On a phone, one column that scrolls, every window at a natural height for
-   * its kind: a table nearly square so its board is playable, the faces
-   * short, the chat a strip. Squeezing them all into one screen made boards
-   * the size of a thumbnail.
+   * its kind: a game nearly square so its board is playable, the peers
+   * short, the chat a strip.
    */
   #scroll(list, W) {
     const natural = (win) => win.collapsed ? TITLE
@@ -220,8 +277,10 @@ export class WindowManager {
   }
 
   #rectOf(win) {
-    return { x: win.el.offsetLeft, y: win.el.offsetTop, w: win.el.offsetWidth, h: win.el.offsetHeight }
+    return { x: win.el.offsetLeft, y: win.el.offsetTop, w: win.el.offsetWidth, h: win.collapsed ? 360 : win.el.offsetHeight }
   }
+
+  #saveFloat() { store.set('wm:float', Object.fromEntries(this.floatRects)) }
 
   #layoutFloating(W, H) {
     let cascade = 0
@@ -242,7 +301,7 @@ export class WindowManager {
   #dragWindow(win) {
     const title = win.el.querySelector('.win-title')
     title.addEventListener('pointerdown', (e) => {
-      if (this.mode !== 'floating' || this.narrow || e.target.closest('button')) return
+      if (this.mode !== 'floating' || this.narrow || e.target.closest('button') || this.#corner(win, e)) return
       e.preventDefault()
       const r = this.floatRects.get(win.id)
       const start = { x: e.clientX, y: e.clientY, rx: r.x, ry: r.y }
@@ -252,29 +311,62 @@ export class WindowManager {
         r.y = start.ry + ev.clientY - start.y
         this.layout()
       }
-      const up = () => { title.removeEventListener('pointermove', move); title.removeEventListener('pointerup', up) }
+      const up = () => {
+        this.#saveFloat()
+        title.removeEventListener('pointermove', move)
+        title.removeEventListener('pointerup', up)
+      }
       title.addEventListener('pointermove', move)
       title.addEventListener('pointerup', up)
     })
+  }
 
-    // The resize grip is the window's bottom-right corner.
+  /** Which corner of an open floating window a pointer is at, if any: 'nw', 'ne', 'sw' or 'se'. */
+  #corner(win, e) {
+    if (this.mode !== 'floating' || this.narrow || win.collapsed) return null
+    const box = win.el.getBoundingClientRect()
+    const v = e.clientY - box.top < CORNER ? 'n' : box.bottom - e.clientY < CORNER ? 's' : null
+    const h = e.clientX - box.left < CORNER ? 'w' : box.right - e.clientX < CORNER ? 'e' : null
+    return v && h ? v + h : null
+  }
+
+  /**
+   * Resize from any corner. No grip is drawn: the pointer changes as it
+   * reaches a corner, and a collapsed window does not resize at all.
+   */
+  #resizeWindow(win) {
+    win.el.addEventListener('pointermove', (e) => {
+      if (e.buttons) return
+      const c = this.#corner(win, e)
+      win.el.style.cursor = c ? (c === 'nw' || c === 'se' ? 'nwse-resize' : 'nesw-resize') : ''
+    })
+    win.el.addEventListener('pointerleave', () => { win.el.style.cursor = '' })
     win.el.addEventListener('pointerdown', (e) => {
-      if (this.mode !== 'floating' || this.narrow || win.collapsed) return
-      const box = win.el.getBoundingClientRect()
-      if (e.clientX < box.right - 16 || e.clientY < box.bottom - 16) return
+      const c = this.#corner(win, e)
+      if (!c) return
       e.preventDefault()
+      e.stopPropagation()
+      this.focus(win)
       const r = this.floatRects.get(win.id)
-      const start = { x: e.clientX, y: e.clientY, w: r.w, h: r.h }
+      const start = { x: e.clientX, y: e.clientY, rx: r.x, ry: r.y, rw: r.w, rh: r.h }
       win.el.setPointerCapture(e.pointerId)
       const move = (ev) => {
-        r.w = Math.max(MIN_W, start.w + ev.clientX - start.x)
-        r.h = Math.max(MIN_H, start.h + ev.clientY - start.y)
+        const dx = ev.clientX - start.x
+        const dy = ev.clientY - start.y
+        if (c.includes('e')) r.w = Math.max(MIN_W, start.rw + dx)
+        if (c.includes('s')) r.h = Math.max(MIN_H, start.rh + dy)
+        if (c.includes('w')) { r.w = Math.max(MIN_W, start.rw - dx); r.x = start.rx + start.rw - r.w }
+        if (c.includes('n')) { r.h = Math.max(MIN_H, start.rh - dy); r.y = start.ry + start.rh - r.h }
         this.layout()
       }
-      const up = () => { win.el.removeEventListener('pointermove', move); win.el.removeEventListener('pointerup', up) }
+      const up = () => {
+        this.#saveFloat()
+        win.el.removeEventListener('pointermove', move)
+        win.el.removeEventListener('pointerup', up)
+      }
       win.el.addEventListener('pointermove', move)
       win.el.addEventListener('pointerup', up)
-    })
+    }, true)
   }
 
   #dragGutter() {
@@ -287,7 +379,7 @@ export class WindowManager {
         this.layout()
       }
       const up = () => {
-        store.set('mfact', this.mfact)
+        store.set('wm:mfact', this.mfact)
         this.gutter.removeEventListener('pointermove', move)
         this.gutter.removeEventListener('pointerup', up)
       }

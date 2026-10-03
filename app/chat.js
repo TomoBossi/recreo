@@ -1,4 +1,3 @@
-import { colourFor } from './identity.js'
 
 /**
  * The room's chat, as a narrow window.
@@ -8,8 +7,9 @@ import { colourFor } from './identity.js'
  * happened while you were not watching.
  */
 export class Chat {
-  constructor(body, { room, onSend }) {
+  constructor(body, { room, players, onSend }) {
     this.room = room
+    this.players = players
     body.innerHTML = `
       <div class="chat">
         <div class="chat-lines" aria-live="polite"></div>
@@ -39,7 +39,7 @@ export class Chat {
     const who = document.createElement('span')
     who.className = 'who'
     who.textContent = `${nick} `
-    who.style.color = `color-mix(in srgb, ${colourFor(player)} 70%, #241c3a)`
+    who.style.color = this.players.colourOf(player)
     line.append(who, document.createTextNode(text))
     this.#append(line)
   }
