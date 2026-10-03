@@ -2,7 +2,7 @@ import { avatar } from './avatar.js'
 import { devicePickers, restoreDevices } from './devices.js'
 import { peersMenuButton } from './peersmenu.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
-import { LocalMedia, resumeAudio } from 'mirador'
+import { LocalMedia, resumeAudio, videoProfileFor } from 'mirador'
 
 import { WindowManager } from './wm.js'
 import { Faces } from './faces.js'
@@ -279,6 +279,8 @@ async function enterRoom(code, nick) {
   $('#landing').hidden = true
   $('#app').hidden = false
   centreWordmarks()
+  // The welcome screen's preview is gone from view; stop it drawing frames.
+  $('#preview').srcObject = null
   $('#room-name').textContent = code
 
   const wm = new WindowManager($('#desk'))
@@ -337,7 +339,36 @@ async function enterRoom(code, nick) {
     sendCamera()
     room.updatePresence(mediaPresence())
     refreshFaces()
+    void adaptQuality()
   }
+
+  /**
+   * Send no more video than the room can use. Faces here are tiles beside
+   * a game, so even two people need no more than 640×360 at 20 fps; larger
+   * rooms get less, per mirador's profile — every peer is another encode of
+   * our camera in a mesh. Applied to the live track, so the camera never
+   * blinks; with the bitrate capped and the far side told not to hoard a
+   * buffer, as tertulia does over the same plaza.
+   */
+  let tuned = null
+  let tunedStream = null
+  async function adaptQuality() {
+    const profile = videoProfileFor(room.peers.size)
+    const want = { width: Math.min(profile.width, 640), height: Math.min(profile.height, 360), frameRate: Math.min(profile.frameRate, 20), kbps: Math.min(profile.maxBitrateKbps, 500) }
+    const key = JSON.stringify(want)
+    if (key === tuned && media.stream === tunedStream) return
+    tuned = key
+    tunedStream = media.stream
+    await room.limitBitrate({ video: want.kbps, audio: 48 }).catch(() => {})
+    await room.limitPlayoutDelay({ audio: 150, video: 300 }).catch(() => {})
+    for (const track of media.stream?.getVideoTracks() ?? []) {
+      try {
+        await track.applyConstraints({ width: { ideal: want.width }, height: { ideal: want.height }, frameRate: { ideal: want.frameRate } })
+      } catch { /* some cameras refuse; the call goes on */ }
+    }
+  }
+  room.on('peer:join', () => void adaptQuality())
+  room.on('peer:leave', () => void adaptQuality())
   // Once now, for a camera that started while we were still joining: the
   // presence sent at the door was taken before it existed.
   mediaChanged()

@@ -225,9 +225,12 @@ function view(el, ctx) {
   }
 
   // The running clock ticks; at zero on our own move, we say so.
+  // Redrawn only when what they show changes: a still clock costs nothing.
+  let shown = ''
   const ticker = setInterval(() => {
     if (!state?.clock || state.result) return
-    drawClocks()
+    const now = [0, 1].map((seat) => format(timeLeft(seat))).join() + turn(state) + Object.keys(info.names ?? {}).length
+    if (now !== shown) { shown = now; drawClocks() }
     if (myTurn() && state.clock.moves >= 2 && timeLeft(info.mySeat) <= 0 && flagged !== state.clock.moves) {
       flagged = state.clock.moves
       ctx.play({ timeout: true })
