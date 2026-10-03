@@ -1,3 +1,5 @@
+import { select } from './select.js'
+
 /**
  * One table, drawn: its seats, its game, a line saying what is happening, and
  * whoever is watching.
@@ -197,7 +199,17 @@ export class TableView {
       label.className = 'label'
       label.textContent = option.label
       group.append(label)
-      if (editable) {
+      if (editable && option.choices.length > 3) {
+        // Many choices: a dropdown, which stays open across re-renders.
+        group.append(select({
+          value: chosen[option.id],
+          choices: option.choices,
+          label: option.label,
+          open: this.openOption === option.id,
+          onToggle: (open) => { this.openOption = open ? option.id : this.openOption === option.id ? null : this.openOption },
+          onPick: (value) => { this.openOption = null; tables.setOption(table.id, option.id, value) },
+        }))
+      } else if (editable) {
         const seg = document.createElement('span')
         seg.className = 'segmented'
         for (const choice of option.choices) {

@@ -551,7 +551,9 @@ export class Tables extends Emitter {
       if (split >= 0) {
         if (beats(theirs.moves[split], table.moves[split])) this.#rewind(table, theirs.moves)
       } else if (theirs.moves.length > table.moves.length) {
-        for (const record of theirs.moves.slice(table.moves.length)) this.#applyMove(table, record)
+        // Catching up, not playing: one change at the end, so the room sees
+        // where the game stands rather than each step of how it got there.
+        for (const record of theirs.moves.slice(table.moves.length)) this.#applyMove(table, record, { quiet: true })
       }
     }
 

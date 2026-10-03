@@ -89,11 +89,13 @@ const rules = {
     if (move.timeout) return timeUp(s, seat)
     const clock = s.clock && { ...s.clock, left: [...s.clock.left], moves: s.clock.moves + 1 }
     if (clock) {
-      // Thinking time counts once both sides have moved; the increment always.
-      const spent = s.clock.moves >= 2 ? Math.round(move.spent) : 0
-      clock.left[seat] -= spent
-      if (clock.left[seat] <= 0) return timeUp({ ...s, clock: { ...clock, left: clock.left.map((v, i) => (i === seat ? 0 : v)) } }, seat)
-      clock.left[seat] += clock.inc
+      // As on lichess, neither thinking time nor the increment counts until
+      // both sides have made their first move.
+      if (s.clock.moves >= 2) {
+        clock.left[seat] -= Math.round(move.spent)
+        if (clock.left[seat] <= 0) return timeUp({ ...s, clock: { ...clock, left: clock.left.map((v, i) => (i === seat ? 0 : v)) } }, seat)
+        clock.left[seat] += clock.inc
+      }
     }
     return { ...play(s, { from: move.from, to: move.to, promo: move.promo }), clock }
   },
@@ -173,9 +175,14 @@ function view(el, ctx) {
     const box = el.getBoundingClientRect()
     return box.width >= box.height * 1.2 ? 'side' : 'stack'
   }
+  // Clock cards, in board units (a square is 100): beside the board, top
+  // and bottom edges level with it; or above and below it in a tall window.
+  const CARD = { w: 236, h: 100, gap: 26 }
+  const STACK = CARD.h + 20 // room above and below the board for a card and its gap
   function frame() {
     layout = clockLayout()
-    svg.setAttribute('viewBox', layout === 'side' ? '-6 -6 1086 812' : layout === 'stack' ? '-6 -112 812 1036' : '-6 -6 812 812')
+    svg.setAttribute('viewBox', layout === 'side' ? `-6 -6 ${812 + CARD.gap + CARD.w} 812`
+      : layout === 'stack' ? `-6 ${-6 - STACK} 812 ${812 + 2 * STACK}` : '-6 -6 812 812')
   }
   new ResizeObserver(() => { if (state && clockLayout() !== layout) { frame(); draw() } }).observe(el)
 
@@ -186,22 +193,27 @@ function view(el, ctx) {
     if (!layout) { g.innerHTML = ''; return }
     const bottom = info.mySeat ?? 0
     const top = 1 - bottom
-    const box = (seat, x, y, w, h) => {
+    // A clock is only "running" once the game is: both seated, not over.
+    const started = !state.result && Object.keys(info.names ?? {}).length === 2
+    const card = (seat, x, y) => {
       const ms = timeLeft(seat)
-      const running = !state.result && turn(state) === seat
-      const low = ms < 10_000
-      const fill = running ? (low ? 'var(--berry)' : 'var(--sun)') : '#fffaf0'
+      const running = started && turn(state) === seat
+      const low = running && ms < 10_000
+      const fill = low ? 'var(--berry)' : running ? 'var(--sun)' : 'var(--panel)'
+      const ink = low ? '#fff' : running ? 'var(--on-accent)' : 'var(--text)'
       const name = info.names?.[seat] ?? (seat === 0 ? 'white' : 'black')
-      return `<g class="clock ${running ? 'running' : ''}">
-        <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${fill}" stroke="var(--ink)" stroke-width="5"/>
-        <circle cx="${x + 30}" cy="${y + h / 2}" r="12" fill="${seat === 0 ? WHITE : BLACK}" stroke="var(--ink)" stroke-width="4"/>
-        <text x="${x + w - 20}" y="${y + h / 2 + 18}" text-anchor="end" class="clock-time">${format(ms)}</text>
-        <text x="${x + 52}" y="${y + h / 2 + 8}" class="clock-name">${escape(name).slice(0, 12)}</text>
+      const short = name.length > 13 ? `${name.slice(0, 12)}…` : name
+      return `<g class="clock">
+        <rect x="${x}" y="${y}" width="${CARD.w}" height="${CARD.h}" rx="14" fill="${fill}" stroke="var(--ink)" stroke-width="4"/>
+        <rect x="${x + 18}" y="${y + 17}" width="20" height="20" rx="5" fill="${seat === 0 ? WHITE : BLACK}" stroke="var(--ink)" stroke-width="3"/>
+        <text x="${x + 48}" y="${y + 34}" class="clock-name" fill="${ink}">${escape(short)}</text>
+        <text x="${x + CARD.w - 18}" y="${y + CARD.h - 16}" text-anchor="end" class="clock-time" fill="${ink}">${format(ms)}</text>
       </g>`
     }
+    const x = layout === 'side' ? 800 + CARD.gap : 800 - CARD.w
     g.innerHTML = layout === 'side'
-      ? box(top, 830, 0, 250, 110) + box(bottom, 830, 690, 250, 110)
-      : box(top, 0, -106, 800, 96) + box(bottom, 0, 822, 800, 96)
+      ? card(top, x, 0) + card(bottom, x, 800 - CARD.h)
+      : card(top, x, -STACK) + card(bottom, x, 800 + STACK - CARD.h)
   }
 
   // The running clock ticks; at zero on our own move, we say so.
@@ -351,7 +363,7 @@ export default defineGame({
   pieces: [WHITE, BLACK],
   options: {
     time: { label: 'clock', choices: { '1m': '1m', '3m': '3m', '5m': '5m', '10m': '10m', '15m': '15m', '30m': '30m', none: 'none' }, default: '10m' },
-    increment: { label: 'per move', choices: { '+0': '+0s', '+1': '+1', '+2': '+2', '+3': '+3', '+5': '+5', '+10': '+10', '+20': '+20' }, default: '+0' },
+    increment: { label: 'per move', choices: { '+0': '+0s', '+1': '+1s', '+2': '+2s', '+3': '+3s', '+5': '+5s', '+10': '+10s', '+20': '+20s' }, default: '+0' },
   },
   rules,
   view,

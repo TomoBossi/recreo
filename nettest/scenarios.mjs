@@ -253,7 +253,22 @@ export const scenarios = {
     await roomUp(run, ['ana', 'tomo', 'pau'])
     const [table] = await converge(run, ['ana', 'tomo', 'pau'], 'once pau arrived')
     if (table.moves !== 4) throw new Error(`pau sees ${table.moves} moves`)
-    return { movesSeenByLateArrival: table.moves }
+
+    // Finish it, then let a fourth arrive: the ending is history to them,
+    // not news. Those who watched it happen were told.
+    for (const [seat, col] of WINNING.slice(4)) {
+      await play(run, seat === 0 ? 'ana' : 'tomo', id, col)
+      await converge(run, ['ana', 'tomo', 'pau'], 'to the end')
+    }
+    run.peer('vic', {}, app)
+    await roomUp(run, ['ana', 'tomo', 'pau', 'vic'])
+    await converge(run, ['ana', 'tomo', 'pau', 'vic'], 'once vic arrived')
+    await sleep(2500)
+    const lines = (label) => js(run, label, `[...document.querySelectorAll('.chat-line.system')].map((l) => l.textContent)`)
+    const told = { pau: (await lines('pau')).filter((l) => /beat/.test(l)), vic: (await lines('vic')).filter((l) => /beat|joined/.test(l)) }
+    if (told.pau.length !== 1) throw new Error(`pau watched the end and should be told once: ${JSON.stringify(told.pau)}`)
+    if (told.vic.length !== 0) throw new Error(`vic arrived after it all and was told: ${JSON.stringify(told.vic)}`)
+    return { movesSeenByLateArrival: table.moves, told }
   },
 
   /**
@@ -447,8 +462,8 @@ export const scenarios = {
     const [table] = await converge(run, labels, 'after the premove')
     const state = JSON.parse(table.board)
     if (state.result?.winner !== 'b') throw new Error(`expected black to win: ${JSON.stringify(state.result)}`)
-    if (state.clock.left[0] !== 59000) throw new Error(`white's clock: ${state.clock.left[0]}`)
-    if (state.clock.left[1] <= 59000 || state.clock.left[1] > 62000) throw new Error(`black's clock: ${state.clock.left[1]}`)
+    if (state.clock.left[0] !== 58000) throw new Error(`white's clock: ${state.clock.left[0]}`) // 60s − 3s + 1s
+    if (state.clock.left[1] <= 59000 || state.clock.left[1] > 61000) throw new Error(`black's clock: ${state.clock.left[1]}`) // a premove costs next to nothing
     await js(run, 'lu', 'ntViewport(1280, 800)')
     await sleep(400)
     return { result: 'black wins by checkmate', clocks: state.clock.left, shots: [shotBlack, await shoot(run, 'lu', 'chess-mate-lu')] }

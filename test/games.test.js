@@ -289,15 +289,15 @@ test('a rolling ball slows steadily: twice the speed, about four times the dista
   assert.ok(ratio > 3.2 && ratio < 4.4, `ratio ${ratio}`)
 })
 
-test('chess clocks: thinking time counts after both first moves, the increment always, and running out loses', () => {
+test('chess clocks: time and increment count once both sides have moved, and running out loses', () => {
   let s = chess.init({ options: { time: '1m', increment: '+2' } })
   assert.deepEqual(s.clock.left, [60000, 60000])
   const go = (from, to, spent, seat) => { assert.ok(chess.legal(s, { from, to, spent }, seat), `${from}-${to}`); s = chess.apply(s, { from, to, spent }, seat) }
   go(12, 28, 9000, 0) // e4: first moves are free
   go(52, 36, 9000, 1) // e5
-  assert.deepEqual(s.clock.left, [62000, 62000], 'only the increment so far')
+  assert.deepEqual(s.clock.left, [60000, 60000], 'the first moves are free')
   go(6, 21, 5000, 0) // Nf3: 5s thought, 2s back
-  assert.equal(s.clock.left[0], 59000)
+  assert.equal(s.clock.left[0], 57000)
   assert.equal(chess.legal(s, { from: 57, to: 42 }, 1), false, 'with a clock, a move must say how long it took')
   go(57, 42, 70000, 1) // Nc6, far too slowly
   assert.deepEqual(chess.outcome(s, { 0: 'ana', 1: 'tomo' }), { winners: [0], reason: 'tomo ran out of time' })
