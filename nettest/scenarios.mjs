@@ -295,4 +295,36 @@ export const scenarios = {
     if (counts.some((n) => n !== 4)) throw new Error(`the four see ${counts} people`)
     return { told, counts }
   },
+
+  /**
+   * Chess with a spectator: a fool's mate, every move compared across all
+   * three peers, the result agreed everywhere. Pictures of black's view
+   * (the board turns round for them) and of the end from the spectator's.
+   */
+  async 'chess-game'(run) {
+    const labels = ['ana', 'tomo', 'lu']
+    players(run, labels)
+    await roomUp(run, labels)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('chess'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening')
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
+    const moves = [['ana', 13, 21], ['tomo', 52, 36], ['ana', 14, 30], ['tomo', 59, 31]]
+    let shotBlack = null
+    for (const [who, from, to] of moves) {
+      const ok = await js(run, who, `recreo.tables.play(${JSON.stringify(id)}, { from: ${from}, to: ${to} })`)
+      if (!ok) throw new Error(`${who} could not play ${from}-${to}`)
+      await converge(run, labels, `after ${who} played ${from}-${to}`)
+      if (from === 14) {
+        await js(run, 'tomo', 'ntViewport(1280, 800)')
+        await sleep(400)
+        shotBlack = await shoot(run, 'tomo', 'chess-black')
+      }
+    }
+    const [table] = await agree(run, labels, 'at the end')
+    const state = JSON.parse(table.board)
+    if (state.result?.winner !== 'b') throw new Error(`expected black to win: ${JSON.stringify(state.result)}`)
+    await js(run, 'lu', 'ntViewport(1280, 800)')
+    await sleep(400)
+    return { result: 'black wins by checkmate', shots: [shotBlack, await shoot(run, 'lu', 'chess-mate-lu')] }
+  },
 }

@@ -474,3 +474,9 @@ button, input, select { font: inherit; color: inherit; }
   .win.collapsed .wbtn.collapse::after { top: 6px; bottom: 6px; left: 11px; }
   .btn.small { padding: 6px 12px; }
 }
+
+/* Chess: details inside a piece take the contrasting colour. */
+.chess .piece .detail { fill: var(--detail); stroke: none; }
+.chess .piece .slit, .chess .piece .mane { fill: none; stroke: var(--detail); stroke-width: 4; stroke-linecap: round; }
+.chess.my-turn rect[data-sq] { cursor: pointer; }
+.chess .promo { cursor: pointer; }

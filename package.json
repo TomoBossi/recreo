@@ -1,0 +1,7 @@
+{
+  "name": "recreo",
+  "private": true,
+  "type": "module",
+  "description": "No dependencies and no build; this file only names the test command.",
+  "scripts": { "test": "node --test test/*.test.js" }
+}
