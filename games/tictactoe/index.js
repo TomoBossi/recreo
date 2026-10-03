@@ -113,6 +113,27 @@ function view(el, ctx) {
   }
 }
 
+/**
+ * The shelf icon: the board as the game draws it — a paper square, a bold
+ * rounded grid, marks in colour over an ink outline — mid-win on a diagonal.
+ */
+const icon = () => {
+  const cx = [16.5, 28, 39.5]
+  const cy = [10.5, 22, 33.5]
+  const x = (c, r) => {
+    const d = `M${cx[c] - 2.5} ${cy[r] - 2.5} L${cx[c] + 2.5} ${cy[r] + 2.5} M${cx[c] + 2.5} ${cy[r] - 2.5} L${cx[c] - 2.5} ${cy[r] + 2.5}`
+    return `<path d="${d}" fill="none" stroke="${INK}" stroke-width="4.4" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${PINK}" stroke-width="2.2" stroke-linecap="round"/>`
+  }
+  const o = (c, r) => `<circle cx="${cx[c]}" cy="${cy[r]}" r="2.8" fill="none" stroke="${INK}" stroke-width="4.4"/>
+      <circle cx="${cx[c]}" cy="${cy[r]}" r="2.8" fill="none" stroke="${BLUE}" stroke-width="2.2"/>`
+  return `
+    <rect x="9.5" y="3.5" width="37" height="37" rx="6" fill="${PAPER}" stroke="${INK}" stroke-width="2.5"/>
+    <path d="M22.25 7.5 V36.5 M33.75 7.5 V36.5 M13.5 16.25 H42.5 M13.5 27.75 H42.5" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
+    ${o(2, 0)}${o(0, 2)}${x(0, 0)}${x(1, 1)}${x(2, 2)}`
+}
+const ICON = icon()
+
 // ------------------------------------------------------------------- game
 
 export default defineGame({
@@ -124,10 +145,5 @@ export default defineGame({
   pieces: [PINK, BLUE],
   rules,
   view,
-  icon: `
-    <rect x="8" y="4" width="40" height="36" rx="5" fill="${PAPER}" stroke="${INK}" stroke-width="2.5"/>
-    <path d="M22 9 V35 M34 9 V35 M13 16 H43 M13 28 H43" stroke="${INK}" stroke-width="2"/>
-    <path d="M14 9 L20 15 M20 9 L14 15" stroke="${PINK}" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="28" cy="22" r="3.4" fill="none" stroke="${BLUE}" stroke-width="2.5"/>
-    <path d="M37 29 L41 33 M41 29 L37 33" stroke="${PINK}" stroke-width="2.5" stroke-linecap="round"/>`,
+  icon: ICON,
 })

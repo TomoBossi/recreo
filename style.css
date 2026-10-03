@@ -48,6 +48,8 @@
   --tint-grape: #ece5ff;
   --tint-berry: #ffe3ec;
   --tint-leaf: #e2f8e2;
+  --tint-tang: #ffecd9;
+  --tint-sun: #fff6cf;
   --veil: rgb(255 250 240 / 0.86);
 
   --sky: #59c3ef;
@@ -82,6 +84,8 @@
   --tint-grape: #34295a;
   --tint-berry: #4a2238;
   --tint-leaf: #1f4130;
+  --tint-tang: #4a3020;
+  --tint-sun: #474018;
   --veil: rgb(26 22 48 / 0.88);
   --sky-deep: #2b84b4;
   color-scheme: dark;
@@ -400,6 +404,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .game-card.tone-grape { background: var(--tint-grape); }
 .game-card.tone-berry { background: var(--tint-berry); }
 .game-card.tone-leaf { background: var(--tint-leaf); }
+.game-card.tone-tang { background: var(--tint-tang); }
+.game-card.tone-sun { background: var(--tint-sun); }
 
 /* ------------------------------------------------------------------- games */
 
