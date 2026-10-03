@@ -542,8 +542,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 /* Chess */
 .chess.my-turn rect[data-sq] { cursor: pointer; }
 .chess .promo { cursor: pointer; }
-.chess .clock-time { font: 900 44px var(--font); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
-.chess .clock-name { font: 800 21px var(--font); opacity: 0.85; }
+.chess .clock-time { font: 900 38px var(--font); font-variant-numeric: tabular-nums; }
+.chess .clock-name { font: 800 19px var(--font); opacity: 0.85; }
 
 /* Tic-tac-toe */
 .ttt.my-turn .hits rect { cursor: pointer; }
@@ -665,8 +665,9 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------- narrow screens */
 
-@media (max-width: 760px) {
-  html, body { overflow: auto; }
+/* The phone header, for any screen that is narrow — or short, like a phone
+   on its side, where the full bar would take height the game needs. */
+@media (max-width: 760px), (max-height: 520px) {
   /* A phone's header: one row — the name, the room, three compact actions.
      The room name invites (the share sheet), so there is no invite button,
      and "+ new game" is its plus. */
@@ -684,6 +685,23 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   #topbar #room-chip { height: 34px; display: inline-flex; align-items: center; }
   #topbar #room-chip .label { display: none; }
   #topbar #settings .gear { width: 18px; height: 18px; }
+}
+
+/* Short screens — a phone on its side — give the height to the game:
+   slimmer bars all round. */
+@media (max-height: 520px) {
+  :root { --row: 38px; }
+  #topbar { padding: 6px 12px; }
+  #topbar .btn.small, #topbar #room-chip { height: 30px; }
+  .win-title { height: 27px; font-size: 14px; }
+  .seats { padding: 4px 8px; gap: 6px; }
+  .seat { height: 26px; }
+  .status { font-size: 13px; padding: 2px 10px; }
+  .chat-form { padding: 4px; }
+}
+
+@media (max-width: 760px) {
+  html, body { overflow: auto; }
   #app { height: auto; min-height: 100%; }
   #desk { margin: 0 8px 8px; flex: none; }
   .wordmark.big { font-size: 64px; }
@@ -706,6 +724,28 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   .win-title { height: 38px; }
   .win.collapsed .win-title { height: 36px; }
   .btn.small { padding: 6px 12px; }
+}
+
+/* A phone on its side: every pixel of height is the game's. Window
+   controls slim down a little (still a comfortable tap), and a table's
+   status moves up beside its seats instead of taking a row of its own. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .wbtn { width: 26px; height: 26px; }
+  .wbtn.media { width: 30px; }
+  .wbtn.collapse::before { top: 10px; }
+  .win-title, .win.collapsed .win-title { height: 32px; }
+  .btn.small { padding: 4px 10px; }
+}
+@media (max-height: 520px) {
+  .table { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); }
+  .table > .seats { grid-column: 1; grid-row: 1; flex-wrap: nowrap; overflow: hidden; }
+  .table > .status { grid-column: 2; grid-row: 1; border-top: none; border-bottom: var(--line) solid var(--ink); background: var(--panel-2); padding: 0 12px; max-width: 46vw; }
+  .table > .status .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .table > .stage { grid-column: 1 / -1; grid-row: 2; }
+  .table > .ask { position: absolute; left: 0; right: 0; top: 0; z-index: 7; }
+  .seats .watchers { display: none; }
+  .table-option .label { display: none; } /* "10m", "+0s": clear without them */
+  .table-option { white-space: nowrap; }
 }
 
 /* ------------------------------------------------------------------ colours */

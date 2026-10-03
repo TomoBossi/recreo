@@ -16,7 +16,7 @@ import { store } from './store.js'
 
 const GAP = 14
 const LIFT = 3        // the hard shadow every window casts, right and down
-const TITLE = 34      // a collapsed window, title bar and border
+const TITLE = 34      // a collapsed window, title bar and border, where none can be measured
 const NARROW = 760
 const MIN_W = 220
 const MIN_H = 120
@@ -153,6 +153,14 @@ export class WindowManager {
     this.layout()
   }
 
+  /** A collapsed window's height: its title bar and border, as styled now. */
+  #title() {
+    const bar = this.desk.querySelector('.win-title')
+    if (!bar) return TITLE
+    const cs = getComputedStyle(bar.parentElement)
+    return bar.offsetHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)
+  }
+
   layout() {
     const W = this.desk.clientWidth
     if (!W) return
@@ -187,7 +195,7 @@ export class WindowManager {
       return
     }
     const mw = Math.round(W * this.mfact - GAP / 2)
-    this.#place(master, 0, 0, mw, master.collapsed ? TITLE : H)
+    this.#place(master, 0, 0, mw, master.collapsed ? this.#title() : H)
     const stackBottom = this.#column(rest, mw + GAP, 0, W - mw - GAP, H)
 
     // The divider sits in the gap the shadow leaves, and only as tall as the
@@ -207,12 +215,12 @@ export class WindowManager {
    */
   #column(list, x, y, w, h) {
     const open = list.filter((win) => !win.collapsed)
-    const fixed = list.length * GAP - GAP + (list.length - open.length) * TITLE
+    const fixed = list.length * GAP - GAP + (list.length - open.length) * this.#title()
     const share = Math.max(0, h - fixed)
     const weights = open.reduce((sum, win) => sum + win.weight, 0) || 1
     let top = y
     list.forEach((win, i) => {
-      const height = win.collapsed ? TITLE : Math.round(share * win.weight / weights)
+      const height = win.collapsed ? this.#title() : Math.round(share * win.weight / weights)
       this.#place(win, x, top, w, height)
       const next = list[i + 1]
       if (next && !win.collapsed && !next.collapsed) this.#hgutter(win, next, x, top + height, w)
@@ -265,7 +273,7 @@ export class WindowManager {
    * short, the chat a strip.
    */
   #scroll(list, W) {
-    const natural = (win) => win.collapsed ? TITLE
+    const natural = (win) => win.collapsed ? this.#title()
       : win.kind === 'table' ? Math.round(W * 0.95 + 110)
       : win.id === 'faces' ? Math.round(W * 0.62)
       : 300
@@ -303,7 +311,7 @@ export class WindowManager {
       }
       // Keep a title bar reachable whatever the window size did.
       r.x = Math.min(Math.max(r.x, -r.w + 80), W - 80)
-      r.y = Math.min(Math.max(r.y, 0), H - TITLE)
+      r.y = Math.min(Math.max(r.y, 0), H - this.#title())
       this.#place(win, r.x, r.y, r.w, r.h)
     }
   }
