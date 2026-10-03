@@ -138,13 +138,20 @@ export class WindowManager {
 
   layout() {
     const W = this.desk.clientWidth
-    const H = this.desk.clientHeight
-    if (!W || !H) return
-    const floating = this.mode === 'floating' && !this.narrow
-    this.desk.classList.toggle('floating', floating)
+    if (!W) return
     this.gutter.hidden = true
+    // A phone's column scrolls, so it sets the desk's height rather than
+    // fitting inside one — and has no height to wait for.
+    if (this.narrow) {
+      this.desk.classList.remove('floating')
+      return this.#scroll(this.#sorted(this.windows), W)
+    }
+    if (this.desk.style.height) this.desk.style.height = ''
+    const H = this.desk.clientHeight
+    if (!H) return
+    const floating = this.mode === 'floating'
+    this.desk.classList.toggle('floating', floating)
     if (floating) return this.#layoutFloating(W, H)
-    if (this.narrow) return this.#column(this.#sorted(this.windows), 0, 0, W, H)
 
     // A table is the master whenever there is one: the game is the stage.
     const tables = this.windows.filter((w) => w.kind === 'table')
@@ -182,6 +189,27 @@ export class WindowManager {
       this.#place(win, x, top, w, height)
       top += height + GAP
     }
+  }
+
+  /**
+   * On a phone, one column that scrolls, every window at a natural height for
+   * its kind: a table nearly square so its board is playable, the faces
+   * short, the chat a strip. Squeezing them all into one screen made boards
+   * the size of a thumbnail.
+   */
+  #scroll(list, W) {
+    const natural = (win) => win.collapsed ? TITLE
+      : win.kind === 'table' ? Math.round(W * 0.95 + 110)
+      : win.id === 'faces' ? Math.round(W * 0.62)
+      : 300
+    let top = 0
+    for (const win of list) {
+      const h = natural(win)
+      this.#place(win, 0, top, W, h)
+      top += h + GAP
+    }
+    const height = `${Math.max(0, top - GAP)}px`
+    if (this.desk.style.height !== height) this.desk.style.height = height
   }
 
   #place(win, x, y, w, h) {

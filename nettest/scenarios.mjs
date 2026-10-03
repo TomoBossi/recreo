@@ -194,4 +194,35 @@ export const scenarios = {
     await converge(run, ['ana', 'tomo'], 'after tomo played')
     return { samePlayer: true, seat1: table.seats[1] }
   },
+
+  /**
+   * Not a test of behaviour: pictures of a game in progress at a desktop
+   * size tiled and floating, and at a phone's width, for a person (or a
+   * model) to look at.
+   */
+  async visual(run) {
+    players(run, ['ana', 'tomo'])
+    await roomUp(run, ['ana', 'tomo'])
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, ['ana', 'tomo'], 'after opening')
+    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
+    for (const [seat, col] of WINNING) {
+      await js(run, seat === 0 ? 'ana' : 'tomo', `recreo.tables.play(${JSON.stringify(id)}, { col: ${col} })`)
+      await converge(run, ['ana', 'tomo'], 'mid-game')
+    }
+    await js(run, 'ana', `recreo.tables.open('connect4').id`)
+    await sleep(800)
+    const shots = []
+    await js(run, 'tomo', 'ntViewport(1440, 900)')
+    await sleep(500)
+    shots.push(await shoot(run, 'tomo', 'desktop-tiled'))
+    await js(run, 'tomo', `recreo.wm.setMode('floating'), true`)
+    await sleep(500)
+    shots.push(await shoot(run, 'tomo', 'desktop-floating'))
+    await js(run, 'tomo', `recreo.wm.setMode('tiled'), true`)
+    await js(run, 'tomo', 'ntViewport(390, 844)')
+    await sleep(700)
+    shots.push(await shoot(run, 'tomo', 'phone'))
+    return { shots }
+  },
 }

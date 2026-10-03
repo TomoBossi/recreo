@@ -17,6 +17,12 @@ export async function start(page, args, out) {
     await page.screenshot({ path: file })
     return file
   })
+  // Resize the viewport, in whichever spelling this page library uses.
+  await page.exposeFunction('ntViewport', async (width, height) => {
+    if (page.setViewportSize) await page.setViewportSize({ width, height })
+    else await page.setViewport({ width, height })
+    return true
+  })
 
   // Start from nothing remembered, before anything listens for loads.
   await page.goto(`${base}/index.html?room=${encodeURIComponent(room)}`)

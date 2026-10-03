@@ -111,8 +111,11 @@ export class TableView {
 
     const everyoneSeated = Object.keys(this.tables.seated(table)).length === game.seats
     let status = game.status(table.state, names)
+    const toMove = turn != null ? table.seats[turn]?.player : null
+    const away = toMove && this.players.stateOf(toMove)
     if (!everyoneSeated && table.moves.length === 0) status = 'waiting for players'
     else if (turn != null && turn === mySeat) status = 'your turn!'
+    else if (away && away !== 'here') status = `waiting for ${names[turn]} to come back…`
     this.statusText.textContent = status
     this.rematchBtn.hidden = !(turn === null && mySeat != null)
 

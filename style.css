@@ -408,9 +408,11 @@ button, input, select { font: inherit; color: inherit; }
   80% { transform: translateY(3px); }
   100% { transform: translateY(0); }
 }
-.c4 .disc.winning > circle:first-child { stroke: var(--paper); stroke-width: 4; }
-.c4 .disc.winning { animation: c4-win 700ms ease-in-out infinite alternate; }
-@keyframes c4-win { to { transform: scale(1.12); } }
+/* The winning four wear a bold ring and bob. */
+.c4 .disc .ring { display: none; }
+.c4 .disc.winning .ring { display: inline; }
+.c4 .disc.winning { animation: c4-win 650ms ease-in-out infinite alternate; }
+@keyframes c4-win { from { transform: scale(0.92); } to { transform: scale(1.06); } }
 .c4.my-turn .hits rect { cursor: pointer; }
 
 .toast {
@@ -456,6 +458,7 @@ button, input, select { font: inherit; color: inherit; }
   #topbar .wordmark { font-size: 24px; }
   #topbar .spacer { display: none; }
   #mode { display: none; }
-  #desk { margin: 0 8px 8px; }
+  #app { height: auto; min-height: 100%; }
+  #desk { margin: 0 8px 8px; flex: none; }
   .wordmark.big { font-size: 48px; }
 }

@@ -161,6 +161,8 @@ export default {
               inner.append(
                 shape('circle', { r: 19, fill: ctx.colours[seat] }),
                 shape('circle', { cx: -5, cy: -6, r: 5, fill: 'rgb(255 255 255 / 0.45)' }),
+                shape('circle', { class: 'ring', r: 11, fill: 'none', stroke: '#fff', 'stroke-width': 4 }),
+                shape('circle', { class: 'ring', r: 13.5, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2 }),
               )
               if (winning.has(at(c, r))) inner.classList.add('winning')
               // The newest disc falls into place.
