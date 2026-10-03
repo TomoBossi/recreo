@@ -131,14 +131,26 @@ export default {
       }
 
       hits.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return
         const col = e.target.dataset?.col
         hover = col == null ? null : Number(col)
         drawGhost()
       })
-      hits.addEventListener('pointerleave', () => { hover = null; drawGhost() })
+      hits.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { hover = null; drawGhost() } })
+      // A mouse previews by hovering and drops on click. A finger has no
+      // hover, so its first tap on a column previews and a second tap on the
+      // same column drops — a stray tap never plays.
+      let pointerType = 'mouse'
+      hits.addEventListener('pointerdown', (e) => { pointerType = e.pointerType })
       hits.addEventListener('click', (e) => {
         const col = e.target.dataset?.col
-        if (col != null) ctx.play({ col: Number(col) })
+        if (col == null) return
+        if (pointerType !== 'mouse' && hover !== Number(col)) {
+          hover = Number(col)
+          drawGhost()
+          return
+        }
+        ctx.play({ col: Number(col) })
       })
       svg.style.cursor = 'default'
 

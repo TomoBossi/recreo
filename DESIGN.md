@@ -5,8 +5,15 @@ order things get built in.
 
 ## The room
 
-Up to five people. Everyone is in one plaza room: video, chat, presence,
-optionally cursors. Games happen at **tables** inside the room.
+Up to **four** people. In a full mesh everyone uploads their video once per
+other person, so upload grows with every arrival; four stays comfortable on a
+phone's uplink with small tiles capped at 400 kbps, and four is also the most
+a rollback game in the mesh (gomero) supports. A fifth person is told the room
+is full: everyone ranks the room by when each player came in, so whoever is
+fifth knows it without being told.
+
+Everyone is in one plaza room: video, chat, presence, optionally cursors.
+Games happen at **tables** inside the room.
 
 - **Several tables at once.** Two people play chess while three draw, in the
   same call. A table has a game, seats, and whoever is watching.
@@ -29,8 +36,14 @@ pane. Everything is a **window**: each table, the video strip, the chat.
 - Any window collapses to its title bar.
 - Several tables are simply several windows.
 
-The OMGPOP look: bright, chunky, rounded, friendly. To be worked out in a
-mockup before it is committed to.
+The OMGPOP look: bright, chunky, rounded, friendly, a little less rounded and
+thinner in the line than the original. Everything drawn from shapes; no
+images.
+
+**Phones and touch from the start.** On a narrow screen the windows become
+one scrolling column at natural heights, so a board is playable. Nothing
+relies on hover: where a mouse previews by hovering, a finger's first tap
+previews and a second tap confirms.
 
 ## Game state: two modes, chosen per game
 

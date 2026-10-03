@@ -12,6 +12,13 @@ import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming } from '../games/index.js'
 
 const $ = (sel) => document.querySelector(sel)
+
+/**
+ * How many people a room holds. In a full mesh everyone sends their video to
+ * everyone else, so upload grows with each person; four stays comfortable on
+ * a phone, and four is also the most a rollback game in the mesh supports.
+ */
+const CAPACITY = 4
 const media = new LocalMedia()
 
 // ---------------------------------------------------------------- landing
@@ -76,12 +83,16 @@ async function enterRoom(code, nick) {
     room: code,
     appId: 'recreo',
     nick,
-    presence: { player: me.player, ...mediaPresence() },
+    presence: { player: me.player, since: Date.now(), ...mediaPresence() },
     // A friend whose connection drops is waited for a full minute. Seats
     // outlast even that — they belong to the player, not the connection.
     readmitMs: 60000,
   })
   history.replaceState(null, '', inviteUrl(code))
+
+  // Video tiles here are small, and in a mesh everyone uploads one stream
+  // per other person; this keeps four people inside a phone's uplink.
+  void room.limitBitrate({ video: 400, audio: 40 })
 
   $('#landing').hidden = true
   $('#app').hidden = false
@@ -147,6 +158,7 @@ async function enterRoom(code, nick) {
   room.on('peer:join', (peer) => { setTimeout(() => greet(peer), 1500); refreshFaces() })
   room.on('peer:update', (peer) => {
     players.learn(peer)
+    if (overCapacity()) return roomFull()
     // A duplicated tab copies its player id; one of the two takes a new one.
     if (peer.presence.player === me.player && shouldYield(room.selfId, peer.id)) {
       me.player = renewPlayerId()
@@ -271,6 +283,28 @@ async function enterRoom(code, nick) {
     location.href = location.pathname
   })
   addEventListener('pagehide', () => { void room.leave() })
+
+  /**
+   * Four at most. Everyone ranks the room the same way — by when each player
+   * came in, then by player id — so whoever is fifth knows it without being
+   * told, and leaves by themselves.
+   */
+  function overCapacity() {
+    const entries = [{ player: me.player, since: room.presence.since },
+      ...[...room.peers.values()].filter((p) => p.presence.player).map((p) => ({ player: p.presence.player, since: p.presence.since ?? 0 }))]
+    entries.sort((a, b) => a.since - b.since || (a.player < b.player ? -1 : 1))
+    return entries.findIndex((e) => e.player === me.player) >= CAPACITY
+  }
+
+  async function roomFull() {
+    await room.leave()
+    media.stop()
+    $('#app').hidden = true
+    $('#landing').hidden = false
+    $('#join-button').disabled = false
+    $('#landing-error').textContent = `${code} is full — four is the most a room holds. Try another room.`
+    delete window.recreo
+  }
 
   chat.system(`welcome to ${code} — invite friends with the button up top`)
   refreshFaces()

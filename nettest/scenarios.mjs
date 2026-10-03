@@ -24,6 +24,24 @@ async function roomUp(run, labels, ms = 90000) {
 
 const js = (run, label, code) => run.cmd(label, code, 20000)
 
+/** Make a move, failing loudly if the table refuses it. */
+async function play(run, label, id, col) {
+  const ok = await js(run, label, `recreo.tables.play(${JSON.stringify(id)}, { col: ${col} })`)
+  if (!ok) throw new Error(`${label} could not play column ${col}`)
+}
+
+/** Sit someone down and wait until everyone has seen it. */
+async function sit(run, labels, label, id, seat) {
+  await js(run, label, `recreo.tables.sit(${JSON.stringify(id)}, ${seat})`)
+  const deadline = Date.now() + 15000
+  for (;;) {
+    const views = await Promise.all(labels.map((l) => js(run, l, 'tables')))
+    if (views.every((v) => v.find((t) => t.id === id)?.seats[seat] === label)) return
+    if (Date.now() > deadline) throw new Error(`${label}'s seat never reached everyone`)
+    await sleep(300)
+  }
+}
+
 /** Every peer's tables, which must be identical. */
 async function agree(run, labels, what) {
   const views = await Promise.all(labels.map((l) => js(run, l, 'tables')))
@@ -82,8 +100,7 @@ export const scenarios = {
     await roomUp(run, labels)
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, labels, 'after opening')
-    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
-    await converge(run, labels, 'after seating')
+    await sit(run, labels, 'tomo', id, 1)
 
     for (const [seat, col] of WINNING) {
       const who = seat === 0 ? 'ana' : 'tomo'
@@ -121,9 +138,9 @@ export const scenarios = {
     await roomUp(run, ['ana', 'tomo'])
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, ['ana', 'tomo'], 'after opening')
-    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
     for (const [seat, col] of WINNING.slice(0, 4)) {
-      await js(run, seat === 0 ? 'ana' : 'tomo', `recreo.tables.play(${JSON.stringify(id)}, { col: ${col} })`)
+      await play(run, seat === 0 ? 'ana' : 'tomo', id, col)
       await converge(run, ['ana', 'tomo'], 'mid-game')
     }
     run.peer('pau', {}, app)
@@ -144,9 +161,9 @@ export const scenarios = {
     await roomUp(run, labels)
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, labels, 'after opening')
-    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
     for (const [seat, col] of WINNING.slice(0, 3)) {
-      await js(run, seat === 0 ? 'ana' : 'tomo', `recreo.tables.play(${JSON.stringify(id)}, { col: ${col} })`)
+      await play(run, seat === 0 ? 'ana' : 'tomo', id, col)
       await converge(run, labels, 'before the drop')
     }
 
@@ -177,7 +194,7 @@ export const scenarios = {
     await roomUp(run, ['ana', 'tomo'])
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, ['ana', 'tomo'], 'after opening')
-    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
     await js(run, 'ana', `recreo.tables.play(${JSON.stringify(id)}, { col: 3 })`)
     await converge(run, ['ana', 'tomo'], 'before the reload')
     const before = await js(run, 'tomo', 'recreo.me.player')
@@ -205,9 +222,9 @@ export const scenarios = {
     await roomUp(run, ['ana', 'tomo'])
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, ['ana', 'tomo'], 'after opening')
-    await js(run, 'tomo', `recreo.tables.sit(${JSON.stringify(id)}, 1)`)
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
     for (const [seat, col] of WINNING) {
-      await js(run, seat === 0 ? 'ana' : 'tomo', `recreo.tables.play(${JSON.stringify(id)}, { col: ${col} })`)
+      await play(run, seat === 0 ? 'ana' : 'tomo', id, col)
       await converge(run, ['ana', 'tomo'], 'mid-game')
     }
     await js(run, 'ana', `recreo.tables.open('connect4').id`)
@@ -224,5 +241,58 @@ export const scenarios = {
     await sleep(700)
     shots.push(await shoot(run, 'tomo', 'phone'))
     return { shots }
+  },
+
+  /**
+   * A browser here against Chromium on a phone (ssh phone, Termux): a game,
+   * the phone going dark for forty seconds mid-game, and the game carrying on.
+   * On mobile data this crosses a real carrier network.
+   */
+  async 'phone-c4'(run) {
+    run.localPeer('ana', {}, app)
+    run.phonePeer('tomo', {}, app)
+    const roomMs = await roomUp(run, ['ana', 'tomo'], 120000)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, ['ana', 'tomo'], 'after opening')
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
+    for (const [seat, col] of WINNING.slice(0, 3)) {
+      await play(run, seat === 0 ? 'ana' : 'tomo', id, col)
+      await converge(run, ['ana', 'tomo'], 'before the freeze')
+    }
+    const frozeAt = Date.now()
+    run.freezePhone()
+    await run.waitFor('ana to see the phone go', (e) => e.t > frozeAt && e.label === 'ana' && e.ev === 'peer:interrupted', 40000)
+    await sleep(Math.max(0, 40000 - (Date.now() - frozeAt)))
+    run.thawPhone()
+    const thawedAt = Date.now()
+    const back = await run.waitFor('ana to have the phone back', (e) => e.t > thawedAt && e.label === 'ana'
+      && (e.ev === 'peer:reconnected' || e.ev === 'peer:join'), 90000)
+    await converge(run, ['ana', 'tomo'], 'after the thaw', 30000)
+    const ok = await js(run, 'tomo', `recreo.tables.play(${JSON.stringify(id)}, { col: 1 })`)
+    if (!ok) throw new Error('the phone could not carry on')
+    const [table] = await converge(run, ['ana', 'tomo'], 'after the phone moved')
+    return { roomUpMs: roomMs, how: back.ev, backAfterThawMs: back.t - thawedAt, moves: table.moves }
+  },
+
+  /** Five people try one room; the last to arrive is told it is full and leaves. */
+  async 'full-room'(run) {
+    const first = ['ana', 'tomo', 'lu', 'ivo']
+    players(run, first)
+    await roomUp(run, first)
+    run.peer('pau', {}, app)
+    const told = await run.waitFor('pau to be turned away', (e) => e.label === 'pau' && e.ev === 'driver-joined', 60000)
+      .then(async () => {
+        const deadline = Date.now() + 20000
+        for (;;) {
+          const text = await js(run, 'pau', `document.querySelector('#landing-error').textContent`)
+          if (/full/.test(text)) return text
+          if (Date.now() > deadline) throw new Error('pau was never told the room is full')
+          await sleep(500)
+        }
+      })
+    await sleep(3000)
+    const counts = await Promise.all(first.map((l) => js(run, l, 'recreo.players.list().length')))
+    if (counts.some((n) => n !== 4)) throw new Error(`the four see ${counts} people`)
+    return { told, counts }
   },
 }

@@ -31,7 +31,14 @@ const RECONNECT_MS = 4000
 const URGENT_RETRY_MS = 1000
 const MAX_BACKOFF_MS = 60000
 const ANNOUNCE_MS = 20000
-const OFFERS_PER_ANNOUNCE = 3
+/**
+ * How many offers an announce carries, and so how many peers it can reach:
+ * a tracker hands each offer to a different peer. Three meant a newcomer to a
+ * room of four met only three of them until the next routine announce,
+ * twenty seconds on. Six covers a room of that size and more in one round
+ * while keeping an announce well under what trackers accept.
+ */
+const OFFERS_PER_ANNOUNCE = 6
 
 /** Trackers that answered a full offer/answer round trip when last measured. */
 export const DEFAULT_TRACKERS = [

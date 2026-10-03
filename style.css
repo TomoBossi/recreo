@@ -462,3 +462,15 @@ button, input, select { font: inherit; color: inherit; }
   #desk { margin: 0 8px 8px; flex: none; }
   .wordmark.big { font-size: 48px; }
 }
+
+/* Touch: dragging a floating window must not scroll the page, and a board
+   takes taps without the browser waiting to see whether they are zooms. */
+.floating .win-title, .gutter { touch-action: none; }
+.stage svg { touch-action: manipulation; }
+@media (pointer: coarse) {
+  .wbtn { width: 28px; height: 28px; }
+  .wbtn.collapse::before { left: 6px; right: 6px; top: 11px; }
+  .wbtn.close::before, .wbtn.close::after { left: 11px; top: 4px; bottom: 4px; }
+  .win.collapsed .wbtn.collapse::after { top: 6px; bottom: 6px; left: 11px; }
+  .btn.small { padding: 6px 12px; }
+}
