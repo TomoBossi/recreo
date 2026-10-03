@@ -7,9 +7,9 @@ import { devicePickers } from './devices.js'
  * It opens in a layer of its own, so a small window never clips it.
  */
 const LAYOUTS = [
-  { value: 'auto', label: 'auto', hint: 'whoever speaks takes the big tile, then the grid comes back' },
-  { value: 'grid', label: 'grid', hint: 'everyone the same size' },
-  { value: 'spotlight', label: 'spotlight', hint: 'always a big tile, for whoever spoke last' },
+  { value: 'auto', label: 'auto' },
+  { value: 'grid', label: 'grid' },
+  { value: 'spotlight', label: 'spotlight' },
 ]
 
 const DOTS = `<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><circle cx="3.5" cy="8" r="1.8"/><circle cx="8" cy="8" r="1.8"/><circle cx="12.5" cy="8" r="1.8"/></g></svg>`
@@ -32,11 +32,8 @@ export function peersMenuButton({ media, faces }) {
       <span class="segmented layouts">
         ${LAYOUTS.map((l) => `<button class="btn small" data-layout="${l.value}">${l.label}</button>`).join('')}
       </span>
-      <p class="hint"></p>
     </section>
-    <section class="devices">
-      <h3>devices</h3>
-    </section></div>`
+    <section class="devices"></section></div>`
   // One set of pickers for the life of the room; they keep themselves current.
   const pickers = devicePickers(media)
   pop.querySelector('.devices').append(pickers.el)
@@ -45,7 +42,6 @@ export function peersMenuButton({ media, faces }) {
   const show = () => {
     const mode = faces()?.mode ?? 'auto'
     for (const b of pop.querySelectorAll('[data-layout]')) b.setAttribute('aria-pressed', String(b.dataset.layout === mode))
-    pop.querySelector('.hint').textContent = LAYOUTS.find((l) => l.value === mode)?.hint ?? ''
     pop.querySelector('.devices').hidden = pickers.el.hidden
   }
   const place = () => {
