@@ -25,6 +25,8 @@ export class Faces {
   #tiles = new Map() // id -> {el, video, stream}
   #speaking = new Set()
   #focus = null      // who holds the big tile now, if anyone
+  #streams = new Map() // id -> the stream whose voice we may measure
+  #metered = new Map() // id -> the stream being measured now
   #lastSpeaker = null
   #holdTimer = null
 
@@ -49,15 +51,33 @@ export class Faces {
     new ResizeObserver(() => this.render()).observe(body)
   }
 
-  /** Track a peer's camera stream for speaking detection. */
+  /** A peer's (or our own) camera stream, for speaking detection. */
   stream(peerId, stream) {
-    if (stream) this.speakers.add(peerId, stream)
-    else this.speakers.remove(peerId)
+    if (stream) this.#streams.set(peerId, stream)
+    else this.#streams.delete(peerId)
     this.render()
+  }
+
+  /**
+   * Measure only voices that can be heard: a muted microphone cannot be
+   * speaking, and measuring it costs a wake-up ten times a second.
+   */
+  #syncMeters(people) {
+    for (const person of people) {
+      const stream = this.#streams.get(person.id) ?? null
+      const want = !person.muted && stream ? stream : null
+      if (this.#metered.get(person.id) === want) continue
+      if (want) this.speakers.add(person.id, want)
+      else this.speakers.remove(person.id)
+      if (want) this.#metered.set(person.id, want)
+      else this.#metered.delete(person.id)
+    }
   }
 
   forget(peerId) {
     this.speakers.remove(peerId)
+    this.#streams.delete(peerId)
+    this.#metered.delete(peerId)
     if (this.#focus === peerId) this.#focus = null
     if (this.#lastSpeaker === peerId) this.#lastSpeaker = null
   }
@@ -104,6 +124,7 @@ export class Faces {
       })),
     ]
 
+    this.#syncMeters(people)
     const box = this.el.getBoundingClientRect()
     let positions
     // In spotlight, somebody must hold it even before anyone has spoken.

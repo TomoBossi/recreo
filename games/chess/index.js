@@ -226,16 +226,23 @@ function view(el, ctx) {
 
   // The running clock ticks; at zero on our own move, we say so.
   // Redrawn only when what they show changes: a still clock costs nothing.
+  // It runs only while a clock is counting down: a waiting game, a game
+  // with no clock and a finished game wake nothing.
   let shown = ''
-  const ticker = setInterval(() => {
-    if (!state?.clock || state.result) return
+  let ticker = null
+  const tick = () => {
     const now = [0, 1].map((seat) => format(timeLeft(seat))).join() + turn(state) + Object.keys(info.names ?? {}).length
     if (now !== shown) { shown = now; drawClocks() }
     if (myTurn() && state.clock.moves >= 2 && timeLeft(info.mySeat) <= 0 && flagged !== state.clock.moves) {
       flagged = state.clock.moves
       ctx.play({ timeout: true })
     }
-  }, 100)
+  }
+  const counting = () => !!state?.clock && !state.result && state.clock.moves >= 2 && Object.keys(info.names ?? {}).length === 2
+  const keepTime = () => {
+    if (counting() && !ticker) ticker = setInterval(tick, 100)
+    if (!counting() && ticker) { clearInterval(ticker); ticker = null }
+  }
 
   /** Make a move, saying how long we thought about it. */
   const send = (move) => ctx.play({ ...move, spent: Math.round(performance.now() - receivedAt) })
@@ -350,6 +357,7 @@ function view(el, ctx) {
       if (wasMyTurn && !myTurn()) { picked = null; promoting = null }
       svg.classList.toggle('my-turn', myTurn())
       frame()
+      keepTime()
       // Our turn came round with a premove queued: play it if it is still legal.
       if (myTurn() && premove) {
         const queued = premove
@@ -359,7 +367,7 @@ function view(el, ctx) {
       }
       draw()
     },
-    destroy() { clearInterval(ticker); svg.remove() },
+    destroy() { clearInterval(ticker); ticker = null; svg.remove() },
   }
 }
 

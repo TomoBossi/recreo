@@ -216,6 +216,9 @@ button, input, select { font: inherit; color: inherit; }
 }
 #topbar .wordmark { font-size: 30px; line-height: 1; margin-right: 6px; }
 #topbar .spacer { flex: 1; }
+/* One height for every button in the bar, icon or text. */
+#topbar .btn.small { height: 27px; padding-top: 0; padding-bottom: 0; }
+#topbar #settings .gear { width: 17px; height: 17px; }
 
 .anchor { position: relative; }
 .popover {

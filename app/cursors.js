@@ -79,7 +79,6 @@ export class Cursors {
 
     room.on('peer:leave', (peer) => this.#forget(peer.id))
     room.on('peer:interrupted', (peer) => this.#forget(peer.id))
-    setInterval(() => this.#sweep(), 250)
     new ResizeObserver(() => this.#redraw()).observe(desk)
   }
 
@@ -195,6 +194,11 @@ export class Cursors {
     })
     entry.el.classList.toggle('touch', entry.touch)
     entry.el.classList.remove('idle')
+    // A pointer that stops fades away: one timer per cursor, set on each
+    // move, instead of a sweep that wakes the page whether or not anyone
+    // is pointing at anything.
+    clearTimeout(entry.idleTimer)
+    if (!entry.touch) entry.idleTimer = setTimeout(() => entry.el.classList.add('idle'), IDLE_MS)
     const shown = this.#place(entry)
     if (!shown) return
     // A jump fades rather than glides: across tables, controls, or the board.
@@ -301,18 +305,12 @@ export class Cursors {
     for (const entry of this.#remote.values()) if (entry.shown) this.#place(entry)
   }
 
-  #sweep() {
-    const now = Date.now()
-    for (const entry of this.#remote.values()) {
-      if (!entry.touch) entry.el.classList.toggle('idle', now - entry.at > IDLE_MS)
-    }
-  }
-
   #forget(peerId) {
     const entry = this.#remote.get(peerId)
     if (!entry) return
     clearTimeout(entry.movingTimer)
     clearTimeout(entry.parkTimer)
+    clearTimeout(entry.idleTimer)
     entry.el.remove()
     this.#remote.delete(peerId)
   }

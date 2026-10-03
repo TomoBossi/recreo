@@ -52,8 +52,8 @@ export class Tables extends Emitter {
     this.games = games
     this.present = present
 
-    // An authority runs its games' clocks: rounds that end, turns that pass.
-    this.#ticker = setInterval(() => this.#tick(), TICK_MS)
+    // An authority runs its games' clocks — rounds that end, turns that
+    // pass — but only while such a game is open (see emit).
 
     this.channel = room.channel('recreo:tables')
     this.channel.on('message', (msg, peerId) => this.#receive(msg, peerId))
@@ -66,6 +66,20 @@ export class Tables extends Emitter {
     const sync = (peer) => void this.syncWith(peer.id)
     room.on('peer:join', sync)
     room.on('peer:reconnected', sync)
+  }
+
+  /**
+   * Every change passes through here, so this is where the clock is wound or
+   * stopped: it runs only while a game that keeps time by itself is open, so
+   * a room of turn-based games wakes nothing.
+   */
+  emit(event, ...args) {
+    if (event === 'change' || event === 'closed') {
+      const timed = [...this.tables.values()].some((t) => !t.closed && this.games[t.game]?.tick)
+      if (timed && !this.#ticker) this.#ticker = setInterval(() => this.#tick(), TICK_MS)
+      if (!timed && this.#ticker) { clearInterval(this.#ticker); this.#ticker = null }
+    }
+    return super.emit(event, ...args)
   }
 
   /** Ask one peer for everything it knows about tables, and merge it. */
