@@ -9,7 +9,7 @@
  */
 
 const PREFIX = 'recreo:'
-const MAX_ROOMS = 8
+const MAX_ROOMS = 5
 
 export const store = {
   get(key, fallback = null) {

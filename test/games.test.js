@@ -288,3 +288,28 @@ test('a rolling ball slows steadily: twice the speed, about four times the dista
   const ratio = far(600) / far(300)
   assert.ok(ratio > 3.2 && ratio < 4.4, `ratio ${ratio}`)
 })
+
+test('chess clocks: thinking time counts after both first moves, the increment always, and running out loses', () => {
+  let s = chess.init({ options: { time: '1m', increment: '+2' } })
+  assert.deepEqual(s.clock.left, [60000, 60000])
+  const go = (from, to, spent, seat) => { assert.ok(chess.legal(s, { from, to, spent }, seat), `${from}-${to}`); s = chess.apply(s, { from, to, spent }, seat) }
+  go(12, 28, 9000, 0) // e4: first moves are free
+  go(52, 36, 9000, 1) // e5
+  assert.deepEqual(s.clock.left, [62000, 62000], 'only the increment so far')
+  go(6, 21, 5000, 0) // Nf3: 5s thought, 2s back
+  assert.equal(s.clock.left[0], 59000)
+  assert.equal(chess.legal(s, { from: 57, to: 42 }, 1), false, 'with a clock, a move must say how long it took')
+  go(57, 42, 70000, 1) // Nc6, far too slowly
+  assert.deepEqual(chess.outcome(s, { 0: 'ana', 1: 'tomo' }), { winners: [0], reason: 'tomo ran out of time' })
+})
+
+test('chess: running out against a lone king is a draw, and no clock means no timing at all', () => {
+  const none = chess.init({ options: { time: 'none', increment: '+0' } })
+  assert.equal(none.clock, null)
+  assert.ok(chess.legal(none, { from: 12, to: 28 }, 0), 'no time needed without a clock')
+  const bare = { ...chess.init({ options: { time: '1m' } }), board: Array(64).fill(null) }
+  bare.board[4] = 'wK'; bare.board[60] = 'bK'; bare.board[0] = 'wR'
+  bare.clock.moves = 4
+  const after = chess.apply({ ...bare, turn: 'w' }, { timeout: true }, 0)
+  assert.equal(chess.outcome(after, {}).draw, true, 'black, with a bare king, could never have mated')
+})

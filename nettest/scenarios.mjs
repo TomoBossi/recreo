@@ -403,35 +403,55 @@ export const scenarios = {
   },
 
   /**
-   * Chess with a spectator: a fool's mate, every move compared across all
-   * three peers, the result agreed everywhere. Pictures of black's view
-   * (the board turns round for them) and of the end from the spectator's.
+   * Chess with a spectator and a clock: a fool's mate at 1+1, every move
+   * compared across all three peers. Each move carries its thinking time,
+   * and black's mate is a premove clicked on tomo's own board while ana is
+   * still thinking — it must fire by itself the moment her move lands. The
+   * clocks must agree everywhere to the millisecond.
    */
   async 'chess-game'(run) {
     const labels = ['ana', 'tomo', 'lu']
     players(run, labels)
     await roomUp(run, labels)
     const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('chess'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    const T = JSON.stringify(id)
     await converge(run, labels, 'after opening')
     await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
-    const moves = [['ana', 13, 21], ['tomo', 52, 36], ['ana', 14, 30], ['tomo', 59, 31]]
-    let shotBlack = null
-    for (const [who, from, to] of moves) {
-      const ok = await js(run, who, `recreo.tables.play(${JSON.stringify(id)}, { from: ${from}, to: ${to} })`)
+    await js(run, 'ana', `recreo.tables.setOption(${T}, 'time', '1m') && recreo.tables.setOption(${T}, 'increment', '+1')`)
+    await converge(run, labels, 'after choosing the clock')
+    const play = async (who, from, to, spent) => {
+      const ok = await js(run, who, `recreo.tables.play(${T}, { from: ${from}, to: ${to}, spent: ${spent} })`)
       if (!ok) throw new Error(`${who} could not play ${from}-${to}`)
       await converge(run, labels, `after ${who} played ${from}-${to}`)
-      if (from === 14) {
-        await js(run, 'tomo', 'ntViewport(1280, 800)')
-        await sleep(400)
-        shotBlack = await shoot(run, 'tomo', 'chess-black')
-      }
     }
-    const [table] = await agree(run, labels, 'at the end')
+    await play('ana', 13, 21, 1500) // f3: first moves are free
+    await play('tomo', 52, 36, 2000) // e5
+
+    // tomo queues Qh4 on his own board while ana thinks.
+    const click = (sq) => js(run, 'tomo', `(() => {
+      const rect = document.querySelector('.win[data-id="table:' + ${T} + '"] [data-sq="${sq}"]')
+      rect.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      return true
+    })()`)
+    await click(59)
+    await click(31)
+    await js(run, 'tomo', 'ntViewport(1280, 800)')
+    await sleep(400)
+    const shotBlack = await shoot(run, 'tomo', 'chess-premove')
+    await play('ana', 14, 30, 3000) // g4 — and the premove answers it
+    const deadline = Date.now() + 10000
+    while ((await js(run, 'lu', `recreo.tables.tables.get(${T}).moves.length`)) < 4) {
+      if (Date.now() > deadline) throw new Error('the premove never fired')
+      await sleep(200)
+    }
+    const [table] = await converge(run, labels, 'after the premove')
     const state = JSON.parse(table.board)
     if (state.result?.winner !== 'b') throw new Error(`expected black to win: ${JSON.stringify(state.result)}`)
+    if (state.clock.left[0] !== 59000) throw new Error(`white's clock: ${state.clock.left[0]}`)
+    if (state.clock.left[1] <= 59000 || state.clock.left[1] > 62000) throw new Error(`black's clock: ${state.clock.left[1]}`)
     await js(run, 'lu', 'ntViewport(1280, 800)')
     await sleep(400)
-    return { result: 'black wins by checkmate', shots: [shotBlack, await shoot(run, 'lu', 'chess-mate-lu')] }
+    return { result: 'black wins by checkmate', clocks: state.clock.left, shots: [shotBlack, await shoot(run, 'lu', 'chess-mate-lu')] }
   },
 
   /**

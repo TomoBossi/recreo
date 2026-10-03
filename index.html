@@ -60,10 +60,13 @@
       <div class="field">
         <label for="room-input">room</label>
         <span class="row">
-          <input id="room-input" class="input" autocomplete="off" spellcheck="false" required>
+          <span class="combo">
+            <input id="room-input" class="input" autocomplete="off" spellcheck="false" required
+              role="combobox" aria-expanded="false" aria-controls="room-list" aria-autocomplete="list">
+            <ul id="room-list" class="combo-list" role="listbox" hidden></ul>
+          </span>
           <button id="regenerate" type="button" class="btn small" title="a new room">new</button>
         </span>
-        <div id="recent" class="recent" hidden></div>
       </div>
       <button id="join-button" type="submit" class="btn sun big">let's play</button>
       <p id="landing-error" class="error" role="alert"></p>

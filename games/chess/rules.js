@@ -251,6 +251,16 @@ function insufficient(board) {
   return rest.length === 0 || (rest.length === 1 && 'BN'.includes(rest[0][1]))
 }
 
+/**
+ * Whether a side can never mate whatever happens: a bare king, or a king
+ * with a single bishop or knight. Running out of time against such a side
+ * is a draw, not a loss.
+ */
+export function cannotMate(board, colour) {
+  const own = board.filter((p) => p && p[0] === colour && p[1] !== 'K')
+  return own.length === 0 || (own.length === 1 && 'BN'.includes(own[0][1]))
+}
+
 /** Count leaf positions to a depth — the standard check of a move generator. */
 export function perft(s, depth) {
   if (depth === 0) return 1

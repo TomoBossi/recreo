@@ -70,31 +70,78 @@ $('#name-row').prepend(colourButton({ value: colour, onPick: setColour }))
 roomInput.value = roomFromUrl() ?? generateRoomCode()
 $('#regenerate').addEventListener('click', () => { roomInput.value = generateRoomCode() })
 
-/** Rooms you have been in, one tap away. */
+/**
+ * The room field is also a list of the rooms you were in last, newest
+ * first: it opens when the field is clicked or focused, narrows as you
+ * type, and each room can be forgotten from it.
+ */
+const roomList = $('#room-list')
+let roomActive = -1
 function showRecent() {
-  const recent = $('#recent')
-  const rooms = store.rooms()
-  recent.hidden = rooms.length === 0
-  recent.textContent = ''
-  for (const r of rooms.slice(0, 5)) {
-    const chip = document.createElement('span')
-    chip.className = 'chip recent-room'
-    const pick = document.createElement('button')
-    pick.type = 'button'
-    pick.textContent = r.code
-    pick.title = `last here ${ago(r.at)}`
-    pick.addEventListener('click', () => { roomInput.value = r.code; roomInput.focus() })
-    const forget = document.createElement('button')
-    forget.type = 'button'
-    forget.className = 'forget'
-    forget.textContent = '×'
-    forget.setAttribute('aria-label', `forget ${r.code}`)
-    forget.addEventListener('click', () => { store.forget(r.code); showRecent() })
-    chip.append(pick, forget)
-    recent.append(chip)
+  const typed = roomInput.value.trim().toLowerCase()
+  const rooms = store.rooms().filter((r) => !typed || r.code.includes(typed) || document.activeElement !== roomInput || roomList.dataset.all)
+  roomList.textContent = ''
+  rooms.forEach((r, i) => {
+    const li = document.createElement('li')
+    li.role = 'option'
+    li.className = i === roomActive ? 'active' : ''
+    li.dataset.code = r.code
+    li.innerHTML = '<span class="code"></span><span class="when"></span><button type="button" class="forget">×</button>'
+    li.querySelector('.code').textContent = r.code
+    li.querySelector('.when').textContent = ago(r.at)
+    li.querySelector('.forget').setAttribute('aria-label', `forget ${r.code}`)
+    roomList.append(li)
+  })
+  return rooms.length
+}
+function openRooms(all) {
+  roomList.dataset.all = all ? '1' : ''
+  roomActive = -1
+  const any = showRecent()
+  roomList.hidden = !any
+  roomInput.setAttribute('aria-expanded', String(any > 0))
+  // Open upward when the page has no room for the list below the field.
+  if (any) {
+    roomList.classList.remove('up')
+    const below = innerHeight - roomInput.getBoundingClientRect().bottom
+    if (roomList.offsetHeight + 12 > below && roomInput.getBoundingClientRect().top > below) roomList.classList.add('up')
   }
 }
-showRecent()
+function closeRooms() {
+  roomList.hidden = true
+  roomInput.setAttribute('aria-expanded', 'false')
+}
+roomInput.addEventListener('focus', () => openRooms(true))
+roomInput.addEventListener('click', () => { if (roomList.hidden) openRooms(true) })
+roomInput.addEventListener('input', () => openRooms(false))
+roomInput.addEventListener('blur', () => setTimeout(closeRooms, 120))
+roomInput.addEventListener('keydown', (e) => {
+  const items = [...roomList.children]
+  if (e.key === 'Escape') return closeRooms()
+  if (!items.length || roomList.hidden) return
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    roomActive = (roomActive + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+    items.forEach((li, i) => li.classList.toggle('active', i === roomActive))
+  } else if (e.key === 'Enter' && roomActive >= 0) {
+    e.preventDefault()
+    roomInput.value = items[roomActive].dataset.code
+    closeRooms()
+  }
+})
+// pointerdown, so the choice lands before the field's blur closes the list.
+roomList.addEventListener('pointerdown', (e) => {
+  e.preventDefault()
+  const li = e.target.closest('li')
+  if (!li) return
+  if (e.target.closest('.forget')) {
+    store.forget(li.dataset.code)
+    if (!showRecent()) closeRooms()
+    return
+  }
+  roomInput.value = li.dataset.code
+  closeRooms()
+})
 
 {
   const anchor = $('#landing-settings')
