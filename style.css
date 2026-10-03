@@ -388,7 +388,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------- games */
 
-.table { display: flex; flex-direction: column; height: 100%; }
+.table { position: relative; display: flex; flex-direction: column; height: 100%; }
 .seats {
   display: flex;
   align-items: center;
@@ -568,18 +568,6 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------ cursors */
 
-.cursor {
-  position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none;
-  display: flex; align-items: flex-start; gap: 2px;
-  transition: transform 60ms linear, opacity 300ms;
-  filter: drop-shadow(1px 1px 0 rgb(36 28 58 / 0.4));
-}
-.cursor.idle { opacity: 0.25; }
-.cursor-name {
-  margin-top: 16px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;
-  background: #fffaf0; color: #241c3a; font-weight: 800; font-size: 11px; white-space: nowrap;
-}
-
 /* --------------------------------------------------------------- settings */
 
 .settings { width: 330px; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 90px); overflow-y: auto; }
@@ -713,6 +701,14 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .cursor.moving .arrow { transform: scale(1.12); }
 .cursor.idle { opacity: 0.3; }
 .cursor.lifted { opacity: 0; transition: opacity 700ms ease 150ms; }
+/* Arriving or jumping: into place at once, then fading in. */
+.cursor.jumping { transition: none; }
+.cursor.entering { animation: cursor-in 180ms ease both; }
+@keyframes cursor-in { from { opacity: 0; } }
+/* Gone off the shared space: waiting dimmed where it crossed, then fading. */
+.cursor.parked { opacity: 0.45; }
+.cursor.parked .arrow { transform: scale(0.8); }
+.cursor.gone { opacity: 0; transition: opacity 450ms ease; }
 .cursor.touch .arrow { transform: scale(1.05); }
 .cursor-name {
   margin-top: 17px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;

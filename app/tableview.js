@@ -30,7 +30,7 @@ export class TableView {
         </div>
         <div class="seats"></div>
         <div class="stage"><div class="outcome" hidden></div></div>
-        <div class="status"><span class="text"></span><button class="btn small sun rematch" hidden>rematch</button></div>
+        <div class="status" data-cursor-anchor="status"><span class="text"></span><button class="btn small sun rematch" data-cursor-anchor="rematch" hidden>rematch</button></div>
       </div>`
     this.seatsEl = body.querySelector('.seats')
     this.statusText = body.querySelector('.status .text')
@@ -112,6 +112,7 @@ export class TableView {
       const claim = table.seats[seat]
       const chip = document.createElement('span')
       chip.className = 'seat'
+      chip.dataset.cursorAnchor = `seat-${seat}`
       chip.innerHTML = `<span class="piece"></span><span class="who"></span>`
       chip.querySelector('.piece').style.background = this.colours()[seat]
       if (!claim?.player && playing) {
@@ -195,6 +196,7 @@ export class TableView {
     for (const option of game.options) {
       const group = document.createElement('span')
       group.className = 'table-option'
+      group.dataset.cursorAnchor = `option-${option.id}`
       const label = document.createElement('span')
       label.className = 'label'
       label.textContent = option.label
@@ -254,6 +256,7 @@ export class TableView {
     else if (who.length) { title = `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'}!`; mood = 'win' }
     else { title = 'game over'; mood = 'draw' }
     this.outcomeEl.className = `outcome ${mood}`
+    this.outcomeEl.dataset.cursorAnchor = 'outcome'
     this.outcomeEl.innerHTML = '<button class="close" aria-label="close">×</button><b class="title"></b><span class="reason"></span>'
     this.outcomeEl.querySelector('.title').textContent = title
     this.outcomeEl.querySelector('.reason').textContent = result.reason ?? ''

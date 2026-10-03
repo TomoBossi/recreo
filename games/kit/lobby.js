@@ -11,6 +11,7 @@ import { escape } from './svg.js'
 export function startPanel(el, { onStart, startLabel = 'start!', againLabel = 'play again' }) {
   const box = document.createElement('div')
   box.className = 'game-lobby'
+  box.dataset.cursorAnchor = 'lobby' // the same panel for everyone: pointers over it are shared
   box.hidden = true
   el.append(box)
   box.addEventListener('click', (e) => { if (e.target.closest('[data-start]')) onStart() })

@@ -270,7 +270,7 @@ function view(el, ctx) {
   el.innerHTML = `
     <div class="draw">
       <div class="draw-top">
-        <span class="draw-word"></span>
+        <span class="draw-word" data-cursor-anchor="word"></span>
         <span class="draw-clock"></span>
       </div>
       <div class="draw-main">
@@ -282,8 +282,8 @@ function view(el, ctx) {
           <div class="draw-overlay"></div>
         </div>
         <div class="draw-side">
-          <div class="draw-scores"></div>
-          <div class="draw-log"></div>
+          <div class="draw-scores" data-cursor-anchor="scores"></div>
+          <div class="draw-log" data-cursor-anchor="log"></div>
           <form class="draw-guess"><input class="input" maxlength="60" placeholder="your guess" aria-label="guess"><button class="btn small sun">guess</button></form>
         </div>
       </div>
