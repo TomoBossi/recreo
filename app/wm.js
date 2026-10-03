@@ -82,13 +82,17 @@ export class WindowManager {
         this.layout()
       },
       close: () => this.remove(win),
+      /** Show or hide the close button: a game offers it only to its players. */
+      setClosable: (on) => { const b = el.querySelector('.wbtn.close'); if (b) b.hidden = !on },
     }
     win.setTitle(title)
     win.setMeta(meta)
 
     el.querySelector('.wbtn.collapse').addEventListener('click', (e) => { e.stopPropagation(); win.collapse() })
     el.querySelector('.wbtn.close')?.addEventListener('click', (e) => { e.stopPropagation(); win.onClose ? win.onClose() : win.close() })
-    el.addEventListener('pointerdown', () => this.focus(win))
+    // Pressing a window's own buttons does what they say, not "focus": a
+    // focus would rearrange the desk under the press and swallow the click.
+    el.addEventListener('pointerdown', (e) => { if (!e.target.closest('.wbtn, .tools button')) this.focus(win) })
     el.querySelector('.win-title').addEventListener('dblclick', (e) => { if (!e.target.closest('button')) win.collapse() })
     this.#dragWindow(win)
     this.#resizeWindow(win)

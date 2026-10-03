@@ -16,6 +16,15 @@
  * sit text noticeably below the middle of a pill or a button. The same local
  * font with corrected ascent and descent centres it. Nothing is downloaded.
  */
+/* Nunito, for systems with no rounded face of their own (Android, Linux,
+   Windows) — fetched only where the faces before it in --font are missing. */
+@font-face {
+  font-family: "recreo nunito";
+  src: url("vendor/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-display: swap;
+}
+
 @font-face {
   font-family: "recreo rounded";
   src: local("Arial Rounded MT Bold"), local("ArialRoundedMTBold");
@@ -33,7 +42,6 @@
   --panel-2: #f3ecdc;      /* strips inside panels */
   --field: #ffffff;        /* inputs, scores, cards inside panels */
   --page: #59c3ef;
-  --page-dots: rgb(255 255 255 / 0.22);
   --on-accent: #241c3a;    /* text on a bright fill */
   --on-strong: #ffffff;    /* text on berry and grape */
   --tint-sky: #e3f6fe;
@@ -56,7 +64,7 @@
   --round-small: 6px;
   --lift: 3px 3px 0 var(--ink);
   --lift-small: 2px 2px 0 var(--ink);
-  --font: ui-rounded, "recreo rounded", "Nunito", "Varela Round", "Trebuchet MS", system-ui, sans-serif;
+  --font: ui-rounded, "recreo rounded", "recreo nunito", system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -70,7 +78,6 @@
   --panel-2: #221d3a;
   --field: #1a1630;
   --page: #182544;
-  --page-dots: rgb(255 255 255 / 0.07);
   --tint-sky: #1f3a52;
   --tint-grape: #34295a;
   --tint-berry: #4a2238;
@@ -89,8 +96,6 @@ html, body {
   font-family: var(--font);
   color: var(--text);
   background-color: var(--page);
-  background-image: radial-gradient(var(--page-dots) 2px, transparent 2.5px);
-  background-size: 22px 22px;
   overflow: hidden;
 }
 
@@ -169,15 +174,17 @@ button, input, select { font: inherit; color: inherit; }
   font-weight: 900;
   letter-spacing: 0.5px;
   color: var(--sun);
-  -webkit-text-stroke: 2px #241c3a;
-  paint-order: stroke fill;
-  text-shadow: 3px 3px 0 #241c3a;
+  /* The outline is a ring of shadows rather than text-stroke, which some
+     browsers draw over the letters or not at all. The drop shadow sits
+     under the ring. */
+  --ring: #241c3a;
+  --drop: #241c3a;
+  text-shadow: 2px 0px 0 var(--ring), -2px 0px 0 var(--ring), 0px 2px 0 var(--ring), 0px -2px 0 var(--ring), 1.4px 1.4px 0 var(--ring), -1.4px 1.4px 0 var(--ring), 1.4px -1.4px 0 var(--ring), -1.4px -1.4px 0 var(--ring), 4px 4px 0 var(--drop);
 }
 
 /* At night the logo keeps its cartoon edge: a black outline, and a purple
    shadow where a dark one would vanish into the page. */
-:root[data-theme="dark"] .wordmark { -webkit-text-stroke-color: #06040d; text-shadow: 3px 3px 0 #7b5fd6; }
-:root[data-theme="dark"] .wordmark.big { text-shadow: 4px 4px 0 #7b5fd6; }
+:root[data-theme="dark"] .wordmark { --ring: #06040d; --drop: #7b5fd6; }
 
 /* ------------------------------------------------------------------ chrome */
 
@@ -253,6 +260,7 @@ button, input, select { font: inherit; color: inherit; }
 .win.tone-sky .win-title { background: #a9e4fb; }
 
 /* Title-bar buttons, drawn rather than glyphed. */
+.wbtn[hidden] { display: none; }
 .wbtn {
   width: 20px;
   height: 20px;
@@ -334,7 +342,10 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   color: var(--text);
   font-weight: 800;
   font-size: 12px;
+  max-width: calc(100% - 12px);
+  white-space: nowrap;
 }
+.face .tag .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .face .tag .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--who, var(--sky)); flex: none; }
 .face .face-state {
   position: absolute; right: 6px; top: 6px; font-size: 11px; font-weight: 800; line-height: 1.2;
@@ -347,7 +358,11 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* A face drawn where there is no camera: a head, two eyes and a smile. */
 .avatar { position: absolute; inset: 0; display: grid; place-items: center; }
-.avatar-face { width: 40%; min-width: 44px; max-width: 150px; aspect-ratio: 1; display: block; }
+.avatar { container-type: size; }
+/* In a tile the face is centred in the room above the name tag, not under it. */
+.face .avatar { padding: 6px 8px 32px; box-sizing: border-box; }
+/* As big as the tile allows either way: a wide, short tile must not crop it. */
+.avatar-face { width: min(42cqw, 94cqh, 150px); aspect-ratio: 1; display: block; }
 
 /* -------------------------------------------------------------------- chat */
 
@@ -597,7 +612,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   box-shadow: var(--lift);
 }
 .landing-card { display: flex; flex-direction: column; gap: 14px; }
-.wordmark.big { font-size: 92px; margin: 4px 0 6px; text-align: center; line-height: 1; letter-spacing: 1px; -webkit-text-stroke-width: 3px; text-shadow: 4px 4px 0 #241c3a; }
+.wordmark.big { font-size: 92px; margin: 4px 0 6px; text-align: center; line-height: 1; letter-spacing: 2px;
+  text-shadow: 3px 0px 0 var(--ring), -3px 0px 0 var(--ring), 0px 3px 0 var(--ring), 0px -3px 0 var(--ring), 2.1px 2.1px 0 var(--ring), -2.1px 2.1px 0 var(--ring), 2.1px -2.1px 0 var(--ring), -2.1px -2.1px 0 var(--ring), 5px 5px 0 var(--drop), 6px 6px 0 var(--drop); }
 .tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
 .preview {
   position: relative; aspect-ratio: 4 / 3; border: var(--line) solid var(--ink); border-radius: var(--round-small);
@@ -638,13 +654,20 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 @media (max-width: 760px) {
   html, body { overflow: auto; }
-  #topbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  /* Two rows: the room on top, the actions beneath it, nothing left over. */
+  #topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 8px 10px; }
+  #topbar .spacer { display: none; }
+  #topbar #room-chip { min-width: 0; max-width: 100%; justify-self: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #topbar #invite { grid-column: 3 / 5; justify-self: end; }
+  #topbar > .anchor:has(#new-table) { grid-column: 1 / 3; grid-row: 2; justify-self: start; }
+  #topbar > .anchor:has(#settings) { grid-column: 3; grid-row: 2; }
+  #topbar #leave { grid-column: 4; grid-row: 2; }
   #topbar .wordmark { font-size: 24px; }
   #app { height: auto; min-height: 100%; }
   #desk { margin: 0 8px 8px; flex: none; }
   .wordmark.big { font-size: 64px; }
   /* Popovers span the screen rather than hanging off their buttons. */
-  .popover { position: fixed; left: 8px; right: 8px; top: 96px; max-width: none; width: auto; }
+  .popover { position: fixed; left: 8px; right: 8px; top: var(--pop-top, 96px); max-width: none; width: auto; max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
   .settings { width: auto; }
   .shelf { justify-content: center; }
   .draw-main { flex-direction: column; }
@@ -701,6 +724,9 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .cursor.moving .arrow { transform: scale(1.12); }
 .cursor.idle { opacity: 0.3; }
 .cursor.lifted { opacity: 0; transition: opacity 700ms ease 150ms; }
+/* Where other people's cursors are drawn over a table: clipped, never in the way. */
+.cursor-layer { position: absolute; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
+.cursor.flip .cursor-name { left: auto; right: calc(100% - 6px); }
 /* Arriving or jumping: into place at once, then fading in. */
 .cursor.jumping { transition: none; }
 .cursor.entering { animation: cursor-in 180ms ease both; }
@@ -711,7 +737,7 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .cursor.gone { opacity: 0; transition: opacity 450ms ease; }
 .cursor.touch .arrow { transform: scale(1.05); }
 .cursor-name {
-  margin-top: 17px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;
+  position: absolute; left: 16px; top: 17px; padding: 1px 7px; line-height: 1.2; border: 2px solid #241c3a; border-radius: 999px;
   background: #fffaf0; color: #241c3a; font-weight: 800; font-size: 11px; white-space: nowrap;
 }
 

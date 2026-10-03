@@ -96,7 +96,12 @@ export class Cursors {
       // that turns round for one player, say — and positions travel in those.
       const space = svg.querySelector('[data-cursor-space]') ?? svg
       const p = toSpace(space, e)
-      return p && { t: table, x: Math.round(p.x), y: Math.round(p.y) }
+      // Only the drawing is shared. The margin round it is letterboxing,
+      // shaped differently on every screen: being there is having left.
+      const box = bounds(space)
+      const pad = Math.max(box.width, box.height) * 0.04
+      if (!p || p.x < box.x - pad || p.y < box.y - pad || p.x > box.x + box.width + pad || p.y > box.y + box.height + pad) return null
+      return { t: table, x: Math.round(p.x), y: Math.round(p.y) }
     }
     const anchor = target.closest('[data-cursor-anchor]')
     if (anchor && win.contains(anchor)) {
@@ -138,7 +143,7 @@ export class Cursors {
       const space = svg?.querySelector('[data-cursor-space]') ?? svg
       const p = space && toSpace(space, e)
       if (p) {
-        const box = space.getBBox()
+        const box = bounds(space)
         const x = Math.round(Math.min(box.x + box.width, Math.max(box.x, p.x)))
         const y = Math.round(Math.min(box.y + box.height, Math.max(box.y, p.y)))
         return this.#send({ t: last.t, x, y, out: 1, ...(last.touch ? { touch: 1 } : {}) }, true)
@@ -241,8 +246,16 @@ export class Cursors {
    */
   #place(entry) {
     const win = this.desk.querySelector(`.win[data-id="table:${CSS.escape(entry.table)}"]`)
-    const host = win?.querySelector('.table')
-    if (!host || win.classList.contains('collapsed')) { entry.el.remove(); entry.shown = false; return false }
+    const table = win?.querySelector('.table')
+    if (!table || win.classList.contains('collapsed')) { entry.el.remove(); entry.shown = false; return false }
+    // Cursors live in a layer of their own that clips them, so one near an
+    // edge can never stretch the window or make it scroll.
+    let host = table.querySelector(':scope > .cursor-layer')
+    if (!host) {
+      host = document.createElement('div')
+      host.className = 'cursor-layer'
+      table.append(host)
+    }
     let x
     let y
     if (entry.a != null) {
@@ -269,6 +282,8 @@ export class Cursors {
     entry.screen = { x, y }
     entry.el.style.setProperty('--x', `${x - origin.left}px`)
     entry.el.style.setProperty('--y', `${y - origin.top}px`)
+    // Near the right edge the name goes on the other side, to stay in view.
+    entry.el.classList.toggle('flip', x - origin.left > origin.width - 90)
     entry.shown = true
     return true
   }
@@ -292,6 +307,16 @@ export class Cursors {
     entry.el.remove()
     this.#remote.delete(peerId)
   }
+}
+
+/** A drawing's extent, measured at most once a second — it rarely changes. */
+const measured = new WeakMap()
+function bounds(space) {
+  const hit = measured.get(space)
+  if (hit && performance.now() - hit.at < 1000) return hit.box
+  const box = space.getBBox()
+  measured.set(space, { box, at: performance.now() })
+  return box
 }
 
 /** A pointer event's position in an SVG element's own coordinates. */

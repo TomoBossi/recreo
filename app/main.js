@@ -49,6 +49,8 @@ for (const b of document.querySelectorAll('.settings-button')) b.innerHTML = GEA
 function popover(button, pop, fill) {
   const toggle = (open = pop.hidden) => {
     if (open) fill?.(pop)
+    // On a phone a popover spans the screen; it starts just below its button.
+    if (open) pop.style.setProperty('--pop-top', `${Math.round(button.getBoundingClientRect().bottom + 10)}px`)
     pop.hidden = !open
     button.setAttribute('aria-expanded', String(open))
   }
@@ -356,13 +358,21 @@ async function enterRoom(code, nick) {
     })
     const view = new TableView(body, { tables, table, players, me })
     views.set(table.id, { win, view })
-    win.setMeta(view.summary())
+    dress(table)
+  }
+
+  /** A game window's title line, and its close button — only for its players. */
+  function dress(table) {
+    const entry = views.get(table.id)
+    if (!entry) return
+    entry.win.setMeta(entry.view.summary())
+    entry.win.setClosable(tables.seatOf(table, me.player) != null)
   }
 
   function renderGames() {
-    for (const { win, view } of views.values()) {
+    for (const [id, { view }] of views) {
       view.render()
-      win.setMeta(view.summary())
+      dress(tables.tables.get(id))
     }
   }
 
@@ -415,7 +425,7 @@ async function enterRoom(code, nick) {
     const entry = views.get(table.id)
     if (!entry) return
     entry.view.render()
-    entry.win.setMeta(entry.view.summary())
+    dress(table)
   })
   tables.on('closed', (table, by) => {
     const entry = views.get(table.id)
