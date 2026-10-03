@@ -36,12 +36,17 @@ export class Tables extends Emitter {
   tables = new Map()
   #clock = 0
   #pending = new Map() // tableId -> moves that arrived ahead of their turn
+  #ticker = null
 
-  constructor({ room, me, games }) {
+  constructor({ room, me, games, present = () => true }) {
     super()
     this.room = room
     this.me = me
     this.games = games
+    this.present = present
+
+    // An authority runs its games' clocks: rounds that end, turns that pass.
+    this.#ticker = setInterval(() => this.#tick(), TICK_MS)
 
     this.channel = room.channel('recreo:tables')
     this.channel.on('message', (msg, peerId) => this.#receive(msg, peerId))
@@ -104,6 +109,7 @@ export class Tables extends Emitter {
     const table = this.tables.get(tableId)
     if (!table || table.closed) return false
     const game = this.games[table.game]
+    if (game.mode === 'authoritative') return this.intend(tableId, move)
     const seat = this.seatOf(table, this.me.player)
     // Nobody moves until every seat is taken: a game against an empty chair
     // is just one person clicking.
@@ -114,6 +120,37 @@ export class Tables extends Emitter {
     this.channel.send({ t: 'move', id: tableId, gen: table.gen, ...record })
     return true
   }
+
+  /**
+   * Ask an authoritative game to do something: a guess, a stroke, a start.
+   * Everyone hears it; only the authority acts on it, by turning it into
+   * moves that everyone then applies in the order the authority gave them.
+   */
+  intend(tableId, intent) {
+    const table = this.tables.get(tableId)
+    if (!table || table.closed) return false
+    const seat = this.seatOf(table, this.me.player)
+    if (seat == null) return false
+    if (this.isAuthority(table)) this.#decide(table, intent, seat)
+    else this.channel.send({ t: 'intent', id: tableId, gen: table.gen, intent, seat, player: this.me.player })
+    return true
+  }
+
+  /**
+   * Who runs an authoritative table: whatever the game says, given who is
+   * seated and who is here — so every peer works out the same answer, and
+   * when the authority leaves the next one takes over without discussion.
+   */
+  authorityOf(table) {
+    const game = this.games[table.game]
+    if (game.mode !== 'authoritative') return null
+    const seated = this.seated(table)
+    const here = Object.keys(seated).map(Number).filter((seat) => this.present(seated[seat]))
+    const seat = game.authority(table.state, here)
+    return seat == null ? null : seated[seat] ?? null
+  }
+
+  isAuthority(table) { return this.authorityOf(table) === this.me.player }
 
   rematch(tableId) {
     const table = this.tables.get(tableId)
@@ -189,6 +226,10 @@ export class Tables extends Emitter {
         }
         this.#offerMove(table, { n: msg.n, seat: msg.seat, move: msg.move, player: msg.player }, peerId)
         return
+      case 'intent':
+        if (!table || msg.gen !== table.gen) return
+        if (this.isAuthority(table) && table.seats[msg.seat]?.player === msg.player) this.#decide(table, msg.intent, msg.seat)
+        return
       case 'rematch':
         if (!table) return void this.syncWith(peerId)
         if (msg.gen > table.gen) this.#rematch(table, { gen: msg.gen, seed: msg.seed })
@@ -221,9 +262,39 @@ export class Tables extends Emitter {
     this.#pending.set(table.id, waiting.filter((m) => m.n >= table.moves.length))
   }
 
+  /** As the authority: turn an intent into moves, apply them, send them. */
+  #decide(table, intent, seat) {
+    const game = this.games[table.game]
+    for (const move of game.decide(table.state, intent, seat, this.#context(table)) ?? []) this.#append(table, move)
+  }
+
+  #append(table, move) {
+    const record = { n: table.moves.length, seat: null, move, player: this.me.player }
+    this.#applyMove(table, record)
+    this.channel.send({ t: 'move', id: table.id, gen: table.gen, ...record })
+  }
+
+  #context(table) {
+    const seated = this.seated(table)
+    return {
+      now: Date.now(),
+      seated: Object.keys(seated).map(Number).sort((a, b) => a - b),
+      here: Object.keys(seated).map(Number).filter((seat) => this.present(seated[seat])).sort((a, b) => a - b),
+    }
+  }
+
+  #tick() {
+    for (const table of this.tables.values()) {
+      const game = this.games[table.game]
+      if (table.closed || game.mode !== 'authoritative' || !game.tick || !this.isAuthority(table)) continue
+      for (const move of game.tick(table.state, this.#context(table)) ?? []) this.#append(table, move)
+    }
+  }
+
   #applyMove(table, record) {
     const game = this.games[table.game]
-    if (!game.legal(table.state, record.move, record.seat)) return
+    // An authoritative game's moves come from its authority, already decided.
+    if (game.mode !== 'authoritative' && !game.legal(table.state, record.move, record.seat)) return
     table.moves.push(record)
     table.state = game.apply(table.state, record.move, record.seat)
     this.emit('moved', table, record)
@@ -302,6 +373,9 @@ export class Tables extends Emitter {
 function later(a, b) {
   return a.clock > b.clock || (a.clock === b.clock && String(a.who) > String(b.who))
 }
+
+/** How often an authority runs its games' clocks. */
+const TICK_MS = 400
 
 function randomSeed() {
   return crypto.getRandomValues(new Uint32Array(1))[0]

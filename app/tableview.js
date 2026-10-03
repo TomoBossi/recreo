@@ -36,6 +36,7 @@ export class TableView {
     this.view = this.game.view.mount(body.querySelector('.stage'), {
       colours: this.game.seatColours,
       play: (move) => tables.play(table.id, move),
+      intend: (intent) => tables.intend(table.id, intent),
       get mySeat() { return tables.seatOf(table, me.player) },
     })
     this.render()
@@ -55,7 +56,7 @@ export class TableView {
     const names = this.names()
     const seated = Object.values(names)
     const watching = this.watchers().length
-    const who = seated.length ? seated.join(' vs ') : 'empty — take a seat'
+    const who = seated.length ? seated.join(this.game.seats === 2 ? ' vs ' : ', ') : 'empty — take a seat'
     return watching ? `${who} · ${watching} watching` : who
   }
 
@@ -99,7 +100,7 @@ export class TableView {
       this.seatsEl.append(chip)
       if (seat < game.seats - 1) {
         const vs = document.createElement('b')
-        vs.textContent = 'vs'
+        vs.textContent = game.seats === 2 ? 'vs' : '·'
         this.seatsEl.append(vs)
       }
     }
@@ -109,15 +110,18 @@ export class TableView {
     w.textContent = watchers.length ? `watching: ${watchers.map((p) => p.nick).join(', ')}` : ''
     this.seatsEl.append(w)
 
-    const everyoneSeated = Object.keys(this.tables.seated(table)).length === game.seats
+    const enough = Object.keys(this.tables.seated(table)).length >= (game.minSeats ?? game.seats)
+    const everyoneSeated = game.mode === 'authoritative' || enough
     let status = game.status(table.state, names)
     const toMove = turn != null ? table.seats[turn]?.player : null
     const away = toMove && this.players.stateOf(toMove)
-    if (!everyoneSeated && table.moves.length === 0) status = 'waiting for players'
+    if (!enough && table.moves.length === 0) status = 'waiting for players'
     else if (turn != null && turn === mySeat) status = 'your turn!'
     else if (away && away !== 'here') status = `waiting for ${names[turn]} to come back…`
     this.statusText.textContent = status
-    this.rematchBtn.hidden = !(turn === null && mySeat != null)
+    // Turn-based games end when nobody is to move; a game that runs itself
+    // offers its own way to play again.
+    this.rematchBtn.hidden = !(game.mode !== 'authoritative' && turn === null && mySeat != null)
 
     this.view.update(table.state, {
       mySeat: everyoneSeated ? mySeat : null,

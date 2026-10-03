@@ -327,4 +327,74 @@ export const scenarios = {
     await sleep(400)
     return { result: 'black wins by checkmate', shots: [shotBlack, await shoot(run, 'lu', 'chess-mate-lu')] }
   },
+
+  /**
+   * Draw & guess, authoritative: ana draws while tomo guesses wrong and lu
+   * right; the clock passes the pencil to tomo; tomo's network dies while
+   * drawing, the authority passes to ana, who ends the round and hands the
+   * pencil on. Every peer's state — strokes and all — must agree throughout.
+   */
+  async 'draw-game'(run) {
+    const labels = ['ana', 'tomo', 'lu']
+    players(run, labels)
+    await roomUp(run, labels)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('draw'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening')
+    await sit(run, labels, 'tomo', id, 1)
+    await sit(run, labels, 'lu', id, 2)
+    const T = JSON.stringify(id)
+    const phase = (label) => js(run, label, `recreo.tables.tables.get(${T}).state.phase`)
+    const state = (label) => js(run, label, `recreo.tables.tables.get(${T}).state`)
+    const until = async (what, cond, ms = 30000) => {
+      const deadline = Date.now() + ms
+      for (;;) {
+        if (await cond()) return
+        if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
+        await sleep(400)
+      }
+    }
+
+    await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'start' })`)
+    await until('the game to start', async () => (await phase('ana')) === 'choosing')
+    const { choices, drawer } = await state('ana')
+    if (drawer !== 0) throw new Error(`expected ana to draw first, got seat ${drawer}`)
+    await js(run, 'ana', `recreo.tables.intend(${T}, { type: 'choose', word: ${JSON.stringify(choices[0])} })`)
+    await until('drawing to begin', async () => (await phase('lu')) === 'drawing')
+
+    // A little drawing: a house-ish zigzag in three batches.
+    for (const pts of [[200, 500, 200, 300, 500, 150], [800, 300, 800, 500], [200, 500, 800, 500]]) {
+      await js(run, 'ana', `recreo.tables.intend(${T}, { type: 'stroke', id: 'house', c: '#241c3a', w: 10, pts: ${JSON.stringify(pts)} })`)
+    }
+    await js(run, 'ana', `recreo.tables.intend(${T}, { type: 'stroke', id: 'sun', c: '#ffd23f', w: 22, pts: [850, 120, 870, 100, 900, 120, 870, 150, 850, 120] })`)
+    await converge(run, labels, 'after drawing')
+    await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'guess', text: 'a hat?' })`)
+    await converge(run, labels, 'after a wrong guess')
+    const shots = [await shoot(run, 'tomo', 'draw-guesser'), await shoot(run, 'ana', 'draw-drawer')]
+    await js(run, 'lu', `recreo.tables.intend(${T}, { type: 'guess', text: ${JSON.stringify(choices[0])} })`)
+    await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'guess', text: ${JSON.stringify(choices[0])} })`)
+    await until('the round to end with everyone right', async () => (await phase('ana')) === 'reveal')
+    const scored = (await state('lu')).scores
+    if (scored[2] !== 10 || scored[1] !== 8 || scored[0] !== 6) throw new Error(`scores: ${JSON.stringify(scored)}`)
+
+    // The clock hands the pencil to tomo.
+    await until('tomo to be choosing', async () => { const st = await state('ana'); return st.phase === 'choosing' && st.drawer === 1 }, 20000)
+    const second = (await state('tomo')).choices[0]
+    await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'choose', word: ${JSON.stringify(second)} })`)
+    await until('tomo drawing', async () => (await phase('lu')) === 'drawing')
+    await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'stroke', id: 'x', c: '#ff5d8f', w: 10, pts: [100, 100, 300, 300] })`)
+    await converge(run, labels, 'tomo drew')
+
+    const cutAt = Date.now()
+    run.cut('tomo')
+    await until('ana to end the round tomo can no longer run', async () => {
+      const st = await state('ana')
+      return st.phase !== 'drawing' && st.log.some((l) => /the drawer left/.test(l.text))
+    }, 45000)
+    const handedOverMs = Date.now() - cutAt
+    await until('the pencil to reach lu', async () => { const st = await state('lu'); return st.phase === 'choosing' && st.drawer === 2 }, 20000)
+    run.restore('tomo')
+    await run.waitFor('tomo back', (e) => e.t > cutAt && e.label === 'ana' && (e.ev === 'peer:reconnected' || e.ev === 'peer:join') && e.peer === 'tomo', 60000)
+    await converge(run, labels, 'after tomo came back', 20000)
+    return { scores: scored, handedOverAfterCutMs: handedOverMs, shots }
+  },
 }

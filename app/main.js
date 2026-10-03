@@ -114,7 +114,7 @@ async function enterRoom(code, nick) {
   const chat = new Chat(chatBody, { room })
   chat.selfPlayer = me.player
 
-  const tables = new Tables({ room, me, games })
+  const tables = new Tables({ room, me, games, present: (player) => players.stateOf(player) === 'here' })
   const views = new Map() // table id -> {win, view}
 
   const refreshFaces = () => {

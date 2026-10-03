@@ -55,3 +55,73 @@ test('connect four refuses a full column and the wrong seat', () => {
   assert.equal(connect4.legal(s, { col: 0 }, s.turn), false)
   assert.equal(connect4.legal(s, { col: 1 }, 1 - s.turn), false)
 })
+
+import draw from '../games/draw.js'
+
+/** Run intents through decide and apply, as an authority would. */
+function act(s, intent, seat, ctx) {
+  for (const move of draw.decide(s, intent, seat, ctx)) s = draw.apply(s, move)
+  return s
+}
+
+test('a round of draw & guess, start to finish', () => {
+  const ctx = { now: 1000, seated: [0, 1, 2], here: [0, 1, 2] }
+  let s = draw.init({ seed: 42 })
+  assert.equal(draw.authority(s, [1, 2]), 1, 'before a drawer, the first seat here runs it')
+  s = act(s, { type: 'start' }, 2, ctx)
+  assert.equal(s.phase, 'choosing')
+  assert.equal(s.drawer, 0)
+  assert.equal(draw.authority(s, [0, 1, 2]), 0, 'the drawer runs the round')
+  assert.equal(s.choices.length, 3)
+
+  // Only the drawer chooses, and only from the choices.
+  assert.equal(act(s, { type: 'choose', word: s.choices[0] }, 1, ctx).phase, 'choosing')
+  assert.equal(act(s, { type: 'choose', word: 'nonsense' }, 0, ctx).phase, 'choosing')
+  const word = s.choices[1]
+  s = act(s, { type: 'choose', word }, 0, ctx)
+  assert.equal(s.phase, 'drawing')
+
+  s = act(s, { type: 'stroke', id: 'a', c: '#000', w: 8, pts: [1, 2, 3, 4] }, 0, ctx)
+  s = act(s, { type: 'stroke', id: 'a', c: '#000', w: 8, pts: [5, 6] }, 0, ctx)
+  assert.deepEqual(s.strokes[0].pts, [1, 2, 3, 4, 5, 6], 'a stroke continues across batches')
+  assert.equal(act(s, { type: 'stroke', id: 'b', c: '#000', w: 8, pts: [1, 1] }, 1, ctx).strokes.length, 1, 'a guesser cannot draw')
+
+  s = act(s, { type: 'guess', text: 'definitely not it' }, 1, ctx)
+  assert.equal(s.log.at(-1).kind, 'guess')
+  s = act(s, { type: 'guess', text: word.slice(0, -1) }, 1, ctx)
+  assert.equal(s.log.at(-1).kind, 'close', 'one letter off is close')
+  s = act(s, { type: 'guess', text: ` ${word.toUpperCase()} ` }, 2, ctx)
+  assert.equal(s.scores[2], 10)
+  assert.equal(s.scores[0], 3)
+  assert.equal(act(s, { type: 'guess', text: word }, 2, ctx).scores[2], 10, 'nobody scores twice')
+  s = act(s, { type: 'guess', text: word }, 1, ctx)
+  assert.equal(s.phase, 'reveal', 'everyone guessing ends the round')
+  assert.equal(s.scores[1], 8)
+
+  // The clock moves things on; three drawers, then it is over.
+  for (let i = 0; i < 2; i++) {
+    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
+    assert.equal(s.phase, 'choosing')
+    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 16000, here: [0, 1, 2] })[0]) // auto-pick
+    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 81000, here: [0, 1, 2] })[0]) // time up
+  }
+  s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
+  assert.equal(s.phase, 'over')
+  assert.match(draw.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins with/)
+})
+
+test('when the drawer leaves, the next player takes over and ends the round', () => {
+  const ctx = { now: 0, seated: [0, 1, 2], here: [0, 1, 2] }
+  let s = act(draw.init({ seed: 7 }), { type: 'start' }, 0, ctx)
+  s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
+  assert.equal(draw.authority(s, [1, 2]), 1)
+  const moves = draw.tick(s, { now: 10, here: [1, 2] })
+  assert.equal(moves[0].type, 'end')
+  assert.equal(draw.apply(s, moves[0]).phase, 'reveal')
+})
+
+test('draw & guess picks the same words everywhere from the same seed', () => {
+  const a = act(draw.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
+  const b = act(draw.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
+  assert.deepEqual(a.choices, b.choices)
+})
