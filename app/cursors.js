@@ -22,9 +22,12 @@ import { arrow } from './pointer.js'
  * far side of the board — fades out and back in rather than streaking
  * across squares nobody crossed.
  *
- * Mice and fingers both count. A finger is followed while it touches and its
- * cursor fades once it lifts; only one finger is followed, the first one
- * down. A cursor grows a little while it moves and settles when it stops.
+ * Mice and fingers both count. A finger is followed while it touches —
+ * taps and drags alike — and its cursor fades once it lifts; only one finger
+ * is followed, the first one down. Fingers are read from touch events: a
+ * phone cancels a finger's pointer events the moment a drag turns into a
+ * scroll, but its touch events keep coming. A cursor grows a little while it
+ * moves and settles when it stops.
  *
  * Sent over an unreliable channel a few times a second: a late position is
  * worth nothing, and a lost one is replaced by the next.
@@ -51,22 +54,28 @@ export class Cursors {
     this.channel = room.dataChannel('recreo:cursors', { ordered: false, maxRetransmits: 0 })
     this.channel.on('message', (peerId, data) => this.#receive(peerId, data))
 
-    // Mouse and pen hover; a finger only counts while it touches.
-    desk.addEventListener('pointermove', (e) => this.#move(e))
-    desk.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'touch') return
-      if (this.#touchId == null && e.isPrimary) this.#touchId = e.pointerId
-      this.#move(e)
-    })
-    const lift = (e) => {
-      if (e.pointerType === 'touch' && e.pointerId === this.#touchId) {
-        this.#touchId = null
-        if (this.#last.t) this.#send({ ...this.#last, up: 1 }, true)
-      }
-    }
-    desk.addEventListener('pointerup', lift)
-    desk.addEventListener('pointercancel', lift)
+    // Mouse and pen, by pointer events: they hover.
+    desk.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') this.#move(e) })
     desk.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') this.#leave(e) })
+
+    // Fingers, by touch events: followed through taps and drags, scrolling or not.
+    const finger = (e) => [...e.changedTouches].find((t) => t.identifier === this.#touchId)
+    desk.addEventListener('touchstart', (e) => {
+      if (this.#touchId == null) this.#touchId = e.changedTouches[0].identifier
+      const t = finger(e)
+      if (t) this.#move(touchPoint(t))
+    }, { passive: true })
+    desk.addEventListener('touchmove', (e) => {
+      const t = finger(e)
+      if (t) this.#move(touchPoint(t))
+    }, { passive: true })
+    const lift = (e) => {
+      if (!finger(e)) return
+      this.#touchId = null
+      if (this.#last.t) this.#send({ ...this.#last, up: 1 }, true)
+    }
+    desk.addEventListener('touchend', lift, { passive: true })
+    desk.addEventListener('touchcancel', lift, { passive: true })
 
     room.on('peer:leave', (peer) => this.#forget(peer.id))
     room.on('peer:interrupted', (peer) => this.#forget(peer.id))
@@ -119,8 +128,8 @@ export class Cursors {
 
   #move(e) {
     if (!this.enabled) return
-    if (e.pointerType === 'touch' && e.pointerId !== this.#touchId) return // one finger only
-    const target = e.pointerType === 'touch' ? document.elementFromPoint(e.clientX, e.clientY) ?? e.target : e.target
+    // A finger's target is whatever is under it now, not where it went down.
+    const target = e.pointerType === 'touch' ? document.elementFromPoint(e.clientX, e.clientY) : e.target
     const place = this.#placeOf(target, e)
     if (!place) return this.#leave(e)
     if (e.pointerType === 'touch') place.touch = 1
@@ -317,6 +326,11 @@ function bounds(space) {
   const box = space.getBBox()
   measured.set(space, { box, at: performance.now() })
   return box
+}
+
+/** A touch, shaped like the pointer events the rest of this reads. */
+function touchPoint(t) {
+  return { clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }
 }
 
 /** A pointer event's position in an SVG element's own coordinates. */

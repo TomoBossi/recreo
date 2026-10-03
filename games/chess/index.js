@@ -216,10 +216,12 @@ function view(el, ctx) {
         <text x="${x + CARD.w - 14}" y="${mid + 13}" text-anchor="end" class="clock-time" fill="${ink}">${format(ms)}</text>
       </g>`
     }
-    const x = layout === 'side' ? 800 + CARD.gap : 800 - CARD.w
+    // Beside the board both stack in one column; above and below it the
+    // other side's clock sits at the left and yours at the right, across
+    // the board from each other.
     g.innerHTML = layout === 'side'
-      ? card(top, x, 0) + card(bottom, x, 800 - CARD.h)
-      : card(top, x, -STACK) + card(bottom, x, 800 + STACK - CARD.h)
+      ? card(top, 800 + CARD.gap, 0) + card(bottom, 800 + CARD.gap, 800 - CARD.h)
+      : card(top, 0, -STACK) + card(bottom, 800 - CARD.w, 800 + STACK - CARD.h)
   }
 
   // The running clock ticks; at zero on our own move, we say so.
