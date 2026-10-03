@@ -38,9 +38,6 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
           </span>
           ${wm.mode === 'floating' ? '<button class="btn small reset">reset windows</button>' : ''}
         </div>
-        <p class="hint">${wm.mode === 'floating'
-          ? 'drag windows by their title; resize them from any corner'
-          : 'drag the dividers between windows to resize them'}</p>
       </section>` : ''}
 
       ${cursors ? `
@@ -49,7 +46,6 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
         <span class="segmented cursors">
           ${['show', 'hide'].map((v) => `<button class="btn small" data-cursors="${v}" aria-pressed="${cursors.enabled === (v === 'show')}">${v}</button>`).join('')}
         </span>
-        <p class="hint">everyone's pointer, over the games</p>
       </section>` : ''}
 
       <section>
@@ -60,7 +56,6 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
           <button class="btn small berry clear">clear</button>
           <input type="file" accept="application/json,.json" hidden>
         </div>
-        <p class="hint">your name, colour, theme, layout and recent rooms, kept in this browser only</p>
       </section>`
 
     el.querySelector('[name=nick]').value = savedNick()

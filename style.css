@@ -563,7 +563,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 }
 .c4 .disc .ring { display: none; }
 .c4 .disc.winning .ring { display: inline; }
-.c4 .disc.winning { animation: c4-win 650ms ease-in-out infinite alternate; }
+.c4 .disc.winning { animation: c4-win 650ms ease-in-out 6 alternate both; }
 @keyframes c4-win { from { transform: scale(0.92); } to { transform: scale(1.06); } }
 .c4.my-turn .hits rect { cursor: pointer; }
 
@@ -575,7 +575,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* Tic-tac-toe */
 .ttt.my-turn .hits rect { cursor: pointer; }
-.ttt .winning { animation: c4-win 650ms ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.ttt .winning { animation: c4-win 650ms ease-in-out 6 alternate both; transform-box: fill-box; transform-origin: center; }
 
 /* Pictionary */
 .draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
@@ -614,7 +614,9 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .golf .water { fill: #59c3ef; stroke: #241c3a; stroke-width: 3; }
 .golf.my-turn { cursor: crosshair; }
 .golf .power { font: 900 22px var(--font); fill: #241c3a; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
-.golf .spin { animation: golf-spin 3s linear infinite; transform-box: fill-box; transform-origin: center; }
+/* Nothing loops forever: an endless animation repaints the board every
+   frame for as long as it is on screen. These play a few times and rest. */
+.golf .spin { animation: golf-spin 3s linear 3; transform-box: fill-box; transform-origin: center; }
 @keyframes golf-spin { to { transform: rotate(360deg); } }
 
 /* Scorecard, shown in the lobby panel at the end of a round. */
@@ -838,3 +840,8 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 
 /* A small phone by the name of someone on a touchscreen. */
 .phone-mark { width: 9px; height: 13px; display: block; flex: none; }
+
+/* Asked for less motion: none of the flourishes. */
+@media (prefers-reduced-motion: reduce) {
+  .c4 .disc.winning, .ttt .winning, .golf .spin, .c4 .disc.falling, .outcome { animation: none; }
+}
