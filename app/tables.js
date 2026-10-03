@@ -111,10 +111,12 @@ export class Tables extends Emitter {
     const game = this.games[table.game]
     if (game.mode === 'authoritative') return this.intend(tableId, move)
     const seat = this.seatOf(table, this.me.player)
-    // Nobody moves until every seat is taken: a game against an empty chair
-    // is just one person clicking.
-    if (Object.keys(this.seated(table)).length < game.seats) return false
-    if (seat == null || game.turn(table.state) !== seat || !game.legal(table.state, move, seat)) return false
+    // Nobody moves until the table has its players: a game against an empty
+    // chair is just one person clicking.
+    if (Object.keys(this.seated(table)).length < (game.minSeats ?? game.seats)) return false
+    // 'any' is a game saying anyone seated may move now — to start it, say.
+    const turn = game.turn(table.state)
+    if (seat == null || (turn !== 'any' && turn !== seat) || !game.legal(table.state, move, seat)) return false
     const record = { n: table.moves.length, seat, move, player: this.me.player }
     this.#applyMove(table, record)
     this.channel.send({ t: 'move', id: tableId, gen: table.gen, ...record })

@@ -77,6 +77,7 @@ export default {
   seats: 4,
   minSeats: 2,
   mode: 'authoritative',
+  ownRestart: true,
   seatColours: ['#ff5d8f', '#3c7ff0', '#6bd66b', '#ff9a3c'],
 
   init({ seed }) {

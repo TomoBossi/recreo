@@ -68,7 +68,8 @@ export class TableView {
   render() {
     const { table, game, tables, me } = this
     const mySeat = tables.seatOf(table, me.player)
-    const turn = game.turn(table.state)
+    const rawTurn = game.turn(table.state)
+    const turn = rawTurn === 'any' ? undefined : rawTurn
     const names = this.names()
 
     this.seatsEl.textContent = ''
@@ -121,7 +122,7 @@ export class TableView {
     this.statusText.textContent = status
     // Turn-based games end when nobody is to move; a game that runs itself
     // offers its own way to play again.
-    this.rematchBtn.hidden = !(game.mode !== 'authoritative' && turn === null && mySeat != null)
+    this.rematchBtn.hidden = !(!game.ownRestart && game.mode !== 'authoritative' && turn === null && mySeat != null)
 
     this.view.update(table.state, {
       mySeat: everyoneSeated ? mySeat : null,

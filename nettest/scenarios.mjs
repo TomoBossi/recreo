@@ -397,4 +397,42 @@ export const scenarios = {
     await converge(run, labels, 'after tomo came back', 20000)
     return { scores: scored, handedOverAfterCutMs: handedOverMs, shots }
   },
+
+  /**
+   * Minigolf with a spectator: ana and tomo play the whole course, every
+   * shot aimed at the cup, and all three peers must agree on every ball's
+   * resting place after every shot — the point of integer physics.
+   */
+  async 'golf-game'(run) {
+    const labels = ['ana', 'tomo', 'lu']
+    players(run, labels)
+    await roomUp(run, labels)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('golf'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening')
+    await sit(run, labels, 'tomo', id, 1)
+    const T = JSON.stringify(id)
+    if (!await js(run, 'ana', `recreo.tables.play(${T}, { type: 'start', order: [0, 1] })`)) throw new Error('could not tee off')
+    await converge(run, labels, 'after teeing off')
+
+    const cups = [[870, 300], [860, 120], [880, 470], [890, 300]]
+    let shots = 0
+    let picture = null
+    for (;;) {
+      const st = await js(run, 'ana', `recreo.tables.tables.get(${T}).state`)
+      if (st.phase === 'over') break
+      if (++shots > 80) throw new Error('the course never finished')
+      const who = st.turn === 0 ? 'ana' : 'tomo'
+      const [x, y] = st.balls[st.turn].pos
+      const [cx, cy] = cups[st.hole]
+      const dx = Math.trunc((cx * 100 - x) / 45)
+      const dy = Math.trunc((cy * 100 - y) / 45)
+      if (!await js(run, who, `recreo.tables.play(${T}, { type: 'shot', dx: ${dx}, dy: ${dy} })`)) throw new Error(`${who} could not putt`)
+      await converge(run, labels, `after shot ${shots}`)
+      if (st.hole === 2 && !picture) { await sleep(1200); picture = await shoot(run, 'lu', 'golf-island') }
+    }
+    const [table] = await agree(run, labels, 'at the end')
+    await sleep(500)
+    const card = await shoot(run, 'tomo', 'golf-card')
+    return { shots, cards: JSON.parse(table.board).cards, shotsTaken: [picture, card] }
+  },
 }

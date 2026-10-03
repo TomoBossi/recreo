@@ -125,3 +125,31 @@ test('draw & guess picks the same words everywhere from the same seed', () => {
   const b = act(draw.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
   assert.deepEqual(a.choices, b.choices)
 })
+
+import golf, { roll, clampShot } from '../games/golf.js'
+
+test('minigolf physics is integer arithmetic, so every machine agrees', () => {
+  const hole = { tee: [120, 300], cup: [870, 300], walls: [[400, 200, 40, 200]], water: [] }
+  const a = roll(hole, [12000, 30000], [1400, 37])
+  const b = roll(JSON.parse(JSON.stringify(hole)), [12000, 30000], [1400, 37])
+  assert.deepEqual(a, b)
+  for (const [x, y] of a.path) assert.ok(Number.isInteger(x) && Number.isInteger(y), 'a position was not an integer')
+  assert.deepEqual(clampShot(3000, 4000), [840, 1120], 'clamped to the strongest shot, keeping direction')
+})
+
+test('a straight putt on the first hole drops, and the turn passes', () => {
+  let s = golf.init()
+  assert.equal(golf.turn(s), 'any')
+  assert.ok(golf.legal(s, { type: 'start', order: [1, 0] }, 0))
+  s = golf.apply(s, { type: 'start', order: [1, 0] }, 0)
+  assert.equal(s.turn, 0)
+  // Straight at the cup, firmly; it should sink within a stroke or two.
+  for (let i = 0; i < 3 && !s.balls[0].done; i++) {
+    const [x, y] = s.balls[0].pos
+    s = golf.apply(s, { type: 'shot', dx: Math.trunc((87000 - x) / 60), dy: Math.trunc((30000 - y) / 60) }, 0)
+    if (!s.balls[0].done) assert.equal(s.turn, 1, 'the other player is further away and goes next')
+    if (!s.balls[0].done) s = golf.apply(s, { type: 'shot', dx: 10, dy: 0 }, 1)
+  }
+  assert.ok(s.balls[0].done && s.balls[0].strokes <= 3, `ball 0: ${JSON.stringify(s.balls[0])}`)
+  assert.equal(golf.legal(s, { type: 'shot', dx: 100, dy: 0 }, 0), false, 'a holed ball does not putt again')
+})

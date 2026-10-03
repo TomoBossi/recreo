@@ -14,7 +14,10 @@ export default {
   seatColours: ['var(--berry)', 'var(--sun)'],
 
   init({ seed, seats }),     // -> the starting state
-  turn(state),               // -> the seat to move, or null once the game is over
+  turn(state),               // -> the seat to move, 'any' if any seated player may,
+                             //    or null once the game is over
+  minSeats,                  // optional: fewest players to begin (defaults to seats)
+  ownRestart,                // optional: true if the game offers its own "play again"
   legal(state, move, seat),  // -> may this seat make this move now?
   apply(state, move, seat),  // -> the next state; never mutates its argument
   status(state, names),      // -> one line for the bar under the board

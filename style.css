@@ -521,3 +521,21 @@ button, input, select { font: inherit; color: inherit; }
   .draw-main { flex-direction: column; }
   .draw-side { width: auto; flex: 0 0 170px; }
 }
+
+/* ------------------------------------------------------------------ minigolf */
+
+.golf .wall { fill: #c9884f; stroke: var(--ink); stroke-width: 3; }
+.golf .water { fill: #59c3ef; stroke: var(--ink); stroke-width: 3; }
+.golf.my-turn { cursor: crosshair; }
+.golf .power { font: 900 22px var(--font); fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.golf .spin { animation: golf-spin 3s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes golf-spin { to { transform: rotate(360deg); } }
+.golf-over {
+  position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgb(255 250 240 / 0.82); border-radius: var(--round-small); font-weight: 900; text-align: center;
+}
+.golf-over .card { border-collapse: collapse; background: #fff; border: var(--line) solid var(--ink); font-weight: 800; }
+.golf-over .card th, .golf-over .card td { border: 2px solid var(--ink); padding: 4px 10px; text-align: center; }
+.golf-over .card .par { color: var(--ink-soft); }
+.golf-over .card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; }
+.stage svg.golf { touch-action: none; }
