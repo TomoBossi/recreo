@@ -435,4 +435,41 @@ export const scenarios = {
     const card = await shoot(run, 'tomo', 'golf-card')
     return { shots, cards: JSON.parse(table.board).cards, shotsTaken: [picture, card] }
   },
+
+  /**
+   * Cursors land on the same square for everyone, even when the board is
+   * turned round: ana (white) points at e4; on tomo's board (black, flipped)
+   * the cursor must sit over e4 too.
+   */
+  async cursors(run) {
+    players(run, ['ana', 'tomo'])
+    await roomUp(run, ['ana', 'tomo'])
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('chess'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, ['ana', 'tomo'], 'after opening')
+    await sit(run, ['ana', 'tomo'], 'tomo', id, 1)
+    await sleep(800)
+    const E4 = 28
+    // ana's pointer over e4, as a real pointer event at that square's centre.
+    for (let i = 0; i < 3; i++) {
+      await js(run, 'ana', `(() => {
+        const r = document.querySelector('.win[data-id^="table:"] rect[data-sq="${E4}"]')
+        const b = r.getBoundingClientRect()
+        r.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: b.left + b.width / 2 + ${i}, clientY: b.top + b.height / 2 }))
+        return true
+      })()`)
+      await sleep(120)
+    }
+    await sleep(600)
+    // Where does the arrow's tip sit on tomo's board?
+    const landed = await js(run, 'tomo', `(() => {
+      const c = document.querySelector('.cursor')
+      if (!c) return null
+      const tip = c.querySelector('svg').getBoundingClientRect()
+      const space = document.querySelector('.win[data-id^="table:"] [data-cursor-space]')
+      const p = new DOMPoint(tip.left + 2, tip.top + 2).matrixTransform(space.getScreenCTM().inverse())
+      return (7 - Math.floor(p.y / 100)) * 8 + Math.floor(p.x / 100)
+    })()`)
+    if (landed !== E4) throw new Error(`ana pointed at square ${E4}; on tomo's board the cursor sits on ${landed}`)
+    return { square: 'e4', shot: await shoot(run, 'tomo', 'cursor-black') }
+  },
 }

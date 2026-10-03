@@ -539,3 +539,20 @@ button, input, select { font: inherit; color: inherit; }
 .golf-over .card .par { color: var(--ink-soft); }
 .golf-over .card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; }
 .stage svg.golf { touch-action: none; }
+
+/* ------------------------------------------------------------------ cursors */
+
+.stage { overflow: hidden; }
+.cursor {
+  position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none;
+  display: flex; align-items: flex-start; gap: 2px;
+  transition: transform 60ms linear, opacity 300ms;
+  filter: drop-shadow(1px 1px 0 rgb(36 28 58 / 0.4));
+}
+.cursor.idle { opacity: 0.25; }
+.cursor-name {
+  margin-top: 16px; padding: 0 7px; border: 2px solid var(--ink); border-radius: 999px;
+  background: var(--paper); font-weight: 800; font-size: 11px; white-space: nowrap;
+}
+#cursors[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (pointer: coarse) { #cursors { display: none; } }

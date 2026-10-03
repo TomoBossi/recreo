@@ -76,18 +76,18 @@ export default {
       let picked = null
       let promoting = null
 
+      // Black sees the board turned round. The whole board is rotated as one
+      // group, pieces turned back upright, so a square sits at the same place
+      // in the board's own coordinates for both players — which is what lets
+      // a cursor over e4 land on e4 for everyone.
       const flipped = () => info.mySeat === 1
-      const at = (sq) => {
-        const f = flipped() ? 7 - file(sq) : file(sq)
-        const r = flipped() ? rank(sq) : 7 - rank(sq)
-        return { x: f * 100, y: r * 100 }
-      }
+      const at = (sq) => ({ x: file(sq) * 100, y: (7 - rank(sq)) * 100 })
       const myTurn = () => info.mySeat != null && info.turn === info.mySeat
 
       function draw() {
         const moves = picked != null ? legalMoves(state).filter((m) => m.from === picked) : []
         const targets = new Set(moves.map((m) => m.to))
-        let html = `<rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/>`
+        let html = ''
         for (let sq = 0; sq < 64; sq++) {
           const { x, y } = at(sq)
           const dark = (file(sq) + rank(sq)) % 2 === 0
@@ -112,7 +112,8 @@ export default {
           const fill = p[0] === 'w' ? WHITE : BLACK
           const line = p[0] === 'w' ? 'var(--ink)' : '#120d22'
           const detail = p[0] === 'w' ? 'var(--ink)' : WHITE
-          html += `<g transform="translate(${x} ${y})" pointer-events="none" class="piece"
+          const upright = flipped() ? ' rotate(180 50 50)' : ''
+          html += `<g transform="translate(${x} ${y})${upright}" pointer-events="none" class="piece"
             fill="${fill}" stroke="${line}" stroke-width="4" stroke-linejoin="round" style="--detail:${detail}">${PIECES[p[1]]}</g>`
         }
         for (const sq of targets) {
@@ -121,6 +122,8 @@ export default {
             ? `<circle cx="${x + 50}" cy="${y + 50}" r="44" fill="none" stroke="var(--ink)" stroke-width="6" opacity="0.5" pointer-events="none"/>`
             : `<circle cx="${x + 50}" cy="${y + 50}" r="14" fill="var(--ink)" opacity="0.4" pointer-events="none"/>`
         }
+        html = `<rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/>
+          <g data-cursor-space transform="${flipped() ? 'rotate(180 400 400)' : ''}">${html}</g>`
         if (promoting) {
           html += `<rect x="150" y="300" width="500" height="200" rx="18" fill="var(--paper)" stroke="var(--ink)" stroke-width="6"/>`
           ;['Q', 'R', 'B', 'N'].forEach((kind, i) => {

@@ -8,6 +8,7 @@ import { Tables } from './tables.js'
 import { TableView } from './tableview.js'
 import { Players } from './players.js'
 import { shelf } from './shelf.js'
+import { Cursors } from './cursors.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming } from '../games/index.js'
 
@@ -116,6 +117,12 @@ async function enterRoom(code, nick) {
 
   const tables = new Tables({ room, me, games, present: (player) => players.stateOf(player) === 'here' })
   const views = new Map() // table id -> {win, view}
+  const cursors = new Cursors({ room, desk: $('#desk'), players })
+  $('#cursors').setAttribute('aria-pressed', String(cursors.enabled))
+  $('#cursors').addEventListener('click', () => {
+    cursors.setEnabled(!cursors.enabled)
+    $('#cursors').setAttribute('aria-pressed', String(cursors.enabled))
+  })
 
   const refreshFaces = () => {
     facesWin.setMeta(`${room.peers.size + 1} here`)
@@ -310,7 +317,7 @@ async function enterRoom(code, nick) {
   refreshFaces()
 
   // A handle for the console, and for the test harness.
-  window.recreo = { room, tables, wm, players, me, media }
+  window.recreo = { room, tables, wm, players, me, media, cursors }
 }
 
 function mediaPresence() {
