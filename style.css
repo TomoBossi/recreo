@@ -418,6 +418,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .seat.empty { border-style: dashed; background: transparent; color: var(--text-soft); cursor: pointer; }
 .seat.empty:hover { background: var(--field); color: var(--text); }
 .seat.away { opacity: 0.6; }
+.seat.empty.closed { cursor: default; opacity: 0.55; }
+.seat.empty.closed:hover { background: transparent; color: var(--text-soft); }
 .seat .piece { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); flex: none; }
 .seat .btn { height: 20px; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
 .seat .btn:hover { transform: none; background: var(--panel-2); }
@@ -658,13 +660,13 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 }
 .settings .colour-button { width: 31px; height: 31px; }
 .colour-pop { left: 0; right: auto; top: calc(100% + 8px); padding: 10px; }
-.colour-picker { display: flex; flex-direction: column; gap: 10px; }
+.colour-picker { display: flex; flex-direction: column; gap: 10px; width: 196px; }
 .colour-picker .swatches { display: grid; grid-template-columns: repeat(5, 28px); gap: 7px; justify-content: space-between; }
-.colour-picker .pad { position: relative; height: 44px; border: var(--line) solid var(--ink); border-radius: var(--round-small); cursor: crosshair; touch-action: none; }
-.colour-picker .pad canvas { display: block; width: 100%; height: 100%; border-radius: calc(var(--round-small) - var(--line)); }
-.colour-picker .pad:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
-.colour-picker .thumb { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--ink); pointer-events: none; }
-.colour-picker .thumb[hidden] { display: none; }
+.colour-picker .strip { position: relative; height: 26px; border: var(--line) solid var(--ink); border-radius: var(--round-small); cursor: pointer; touch-action: none; }
+.colour-picker .strip canvas { display: block; width: 100%; height: 100%; border-radius: calc(var(--round-small) - var(--line)); }
+.colour-picker .strip:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+.colour-picker .thumb { position: absolute; top: 50%; width: 16px; height: 30px; margin: -15px 0 0 -8px; border: 3px solid var(--ink); border-radius: 6px; box-shadow: inset 0 0 0 2px #fff; pointer-events: none; opacity: 0.45; }
+.colour-picker .strip.chosen .thumb { opacity: 1; }
 .colour-picker .swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
 
 /* --------------------------------------------------------------- pointers */

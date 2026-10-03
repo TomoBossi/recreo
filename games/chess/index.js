@@ -12,26 +12,40 @@ const DARK = '#b79be8'
 const WHITE = '#fffaf0'
 const BLACK = '#3b2f5c'
 
-/** Each piece as shapes in a 100×100 box, outlined in ink. */
+/**
+ * Each piece as shapes in a 100×100 box, outlined in ink: a Staunton set,
+ * every piece on the same two-tier base and collar, with a waisted stem
+ * and its own head. Detail lines use currentColor, which the board sets to
+ * a shade that reads on that side's colour.
+ */
+const BASE = `<path d="M23 86 H77 Q81 86 81 82 V79 Q81 75 77 75 H23 Q19 75 19 79 V82 Q19 86 23 86 Z"/>
+  <rect x="29" y="69" width="42" height="7" rx="3"/>`
+const STEM = (top, half) => `<path d="M${50 - half} ${top} Q${50 - half + 2} ${(top + 69) / 2} ${50 - half - 9} 69 H${50 + half + 9} Q${50 + half - 2} ${(top + 69) / 2} ${50 + half} ${top} Z"/>`
 const PIECES = {
-  P: `<circle cx="50" cy="33" r="13"/>
-      <path d="M38 48 Q50 42 62 48 L66 72 H34 Z"/>
-      <rect x="26" y="72" width="48" height="12" rx="4"/>`,
-  R: `<path d="M30 20 H38 V28 H46 V20 H54 V28 H62 V20 H70 V36 H30 Z"/>
-      <rect x="35" y="36" width="30" height="34"/>
-      <rect x="26" y="70" width="48" height="14" rx="4"/>`,
-  N: `<path d="M32 84 L33 66 C34 54 44 50 46 42 L36 46 C30 48 26 44 27 39 L36 28 C40 18 50 14 60 16 C72 19 76 34 74 52 L72 84 Z"/>
-`,
-  B: `<circle cx="50" cy="17" r="6"/>
-      <path d="M50 24 C64 34 66 50 58 62 H42 C34 50 36 34 50 24 Z"/>
-      <rect x="36" y="62" width="28" height="9" rx="3"/>
-      <rect x="26" y="71" width="48" height="13" rx="4"/>`,
-  Q: `<circle cx="24" cy="24" r="5"/><circle cx="37" cy="17" r="5"/><circle cx="50" cy="14" r="5"/><circle cx="63" cy="17" r="5"/><circle cx="76" cy="24" r="5"/>
-      <path d="M24 28 L34 58 L37 22 L45 56 L50 19 L55 56 L63 22 L66 58 L76 28 L70 68 H30 Z"/>
-      <rect x="26" y="68" width="48" height="16" rx="4"/>`,
-  K: `<path d="M46 8 H54 V16 H62 V24 H54 V32 H46 V24 H38 V16 H46 Z"/>
-      <path d="M30 40 C30 30 44 30 50 38 C56 30 70 30 70 40 C70 52 62 60 62 66 H38 C38 60 30 52 30 40 Z"/>
-      <rect x="26" y="66" width="48" height="18" rx="4"/>`,
+  P: `${BASE}${STEM(46, 8)}
+      <rect x="37" y="40" width="26" height="7" rx="3.5"/>
+      <circle cx="50" cy="28" r="12"/>`,
+  R: `${BASE}<path d="M36 36 L38 69 H62 L64 36 Z"/>
+      <rect x="31" y="31" width="38" height="7" rx="2"/>
+      <path d="M31 14 H39 V20 H46 V14 H54 V20 H61 V14 H69 V31 H31 Z"/>`,
+  N: `${BASE}
+      <path d="M33 69 C33 60 37 53 44 48 C39 47 33 49 28 47 C22 45 21 38 26 34 L39 22 C41 16 45 12 51 11 L54 4 L58 12 C69 15 75 28 73 44 C72 54 69 62 67 69 Z"/>
+      <path class="detail" d="M59 15 C66 24 68 36 66 50" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <circle class="detail" cx="47" cy="24" r="2.6" fill="currentColor" stroke="none"/>
+      <circle class="detail" cx="29.5" cy="40" r="1.6" fill="currentColor" stroke="none"/>`,
+  B: `${BASE}${STEM(53, 7)}
+      <rect x="38" y="47" width="24" height="7" rx="3.5"/>
+      <path d="M50 18 C62 26 64 39 57 47 H43 C36 39 38 26 50 18 Z"/>
+      <path class="detail" d="M54 27 L46 37" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="50" cy="13" r="5"/>`,
+  Q: `${BASE}${STEM(53, 9)}
+      <rect x="35" y="47" width="30" height="7" rx="3.5"/>
+      <path d="M31 25 L38 43 L43 20 L50 40 L57 20 L62 43 L69 25 L65 48 H35 Z"/>
+      <circle cx="31" cy="22" r="4.5"/><circle cx="43" cy="17" r="4.5"/><circle cx="57" cy="17" r="4.5"/><circle cx="69" cy="22" r="4.5"/>`,
+  K: `${BASE}${STEM(53, 9)}
+      <rect x="35" y="47" width="30" height="7" rx="3.5"/>
+      <path d="M38 48 L35 34 Q50 25 65 34 L62 48 Z"/>
+      <path d="M46.5 5 H53.5 V10.5 H59 V17.5 H53.5 V27.5 H46.5 V17.5 H41 V10.5 H46.5 Z"/>`,
 }
 
 let uid = 0
@@ -114,9 +128,10 @@ function view(el, ctx) {
       const { x, y } = at(sq)
       const fill = p[0] === 'w' ? WHITE : BLACK
       const line = p[0] === 'w' ? 'var(--ink)' : '#120d22'
+      const detail = p[0] === 'w' ? 'var(--ink)' : '#c9bdf0'
       const upright = flipped() ? ' rotate(180 50 50)' : ''
       html += `<g transform="translate(${x} ${y})${upright}" pointer-events="none" class="piece"
-        fill="${fill}" stroke="${line}" stroke-width="4" stroke-linejoin="round">${PIECES[p[1]]}</g>`
+        fill="${fill}" stroke="${line}" color="${detail}" stroke-width="4" stroke-linejoin="round">${PIECES[p[1]]}</g>`
     }
     for (const sq of targets) {
       const { x, y } = at(sq)
@@ -131,7 +146,7 @@ function view(el, ctx) {
       ;['Q', 'R', 'B', 'N'].forEach((kind, i) => {
         const colour = state.turn === 'w' ? WHITE : BLACK
         html += `<g transform="translate(${180 + i * 115} 345)" class="piece promo" data-promo="${kind}"
-          fill="${colour}" stroke="var(--ink)" stroke-width="4" stroke-linejoin="round">
+          fill="${colour}" stroke="var(--ink)" color="${state.turn === 'w' ? 'var(--ink)' : '#c9bdf0'}" stroke-width="4" stroke-linejoin="round">
           <rect width="100" height="100" fill="transparent" stroke="none"/>${PIECES[kind]}</g>`
       })
     }

@@ -190,6 +190,39 @@ export class Tables extends Emitter {
 
   isAuthority(table) { return this.authorityOf(table) === this.me.player }
 
+  /**
+   * A player has gone for good: they closed their tab and did not come
+   * back, or dropped and stayed away too long. At every table they sit at
+   * they forfeit — on their behalf, by the game's rules — and their seat is
+   * freed; a table left with nobody seated closes.
+   *
+   * Every peer calls this for the same departure, and what it does settles
+   * the same way whoever gets there first. In an authority game only the
+   * authority writes the forfeit, and the seat waits for it.
+   */
+  depart(player) {
+    for (const table of this.tables.values()) {
+      if (table.closed) continue
+      const seat = this.seatOf(table, player)
+      if (seat == null) continue
+      if (this.inProgress(table) && !this.forfeited(table).has(seat)) {
+        if (this.games[table.game].mode === 'authoritative') {
+          if (!this.isAuthority(table)) continue // the authority's forfeit comes first
+          this.#append(table, { forfeit: seat, at: Date.now() })
+        } else {
+          const record = { ...this.#record(table, seat, { forfeit: seat, at: Date.now() }) }
+          this.#applyMove(table, record)
+          this.channel.send({ t: 'move', id: table.id, gen: table.gen, ...record })
+        }
+      }
+      this.#claim(table.id, seat, null)
+      if (Object.keys(this.seated(table)).length === 0) {
+        this.#close(table, null)
+        this.channel.send({ t: 'close', id: table.id, by: null })
+      }
+    }
+  }
+
   rematch(tableId) {
     const table = this.tables.get(tableId)
     if (!table || table.closed) return
@@ -271,12 +304,17 @@ export class Tables extends Emitter {
     if (seat < 0 || seat >= game.seats) return
     // One seat per player per table: standing up from any other comes first.
     if (player) {
+      // A game under way plays with whoever started it.
+      if (this.inProgress(table)) return
       const current = this.seatOf(table, player)
       if (current === seat) return
       if (current != null) this.#claim(tableId, current, null)
       if (table.seats[seat]?.player) return // taken; ask them to stand
     }
-    const claim = { player, clock: ++this.#clock, who: this.me.player }
+    // The claim carries the player's name, so anyone can name the seat
+    // even after its player has gone.
+    const nick = player === this.me.player ? this.me.nick : player ? null : table.seats[seat]?.nick ?? null // a freed seat remembers who sat there
+    const claim = { player, clock: ++this.#clock, who: this.me.player, nick }
     this.#applyClaim(table, seat, claim)
     this.channel.send({ t: 'seat', id: tableId, seat, ...claim })
   }
@@ -294,7 +332,7 @@ export class Tables extends Emitter {
       case 'seat':
         if (!table) return void this.syncWith(peerId)
         this.#clock = Math.max(this.#clock, msg.clock ?? 0)
-        this.#applyClaim(table, msg.seat, { player: msg.player ?? null, clock: msg.clock, who: msg.who })
+        this.#applyClaim(table, msg.seat, { player: msg.player ?? null, clock: msg.clock, who: msg.who, nick: msg.nick ?? null })
         return
       case 'option':
         if (!table) return void this.syncWith(peerId)
@@ -531,12 +569,17 @@ function same(a, b) {
   return a && b && a.player === b.player && a.seat === b.seat && JSON.stringify(a.move) === JSON.stringify(b.move)
 }
 
-/** For one move number: a forfeit beats an ordinary move, and the lower seat's forfeit another. */
+/**
+ * For one move number: a forfeit beats an ordinary move, and the lower
+ * seat's forfeit another. Two peers forfeiting for the same departed
+ * player settle on the lower player id.
+ */
 function beats(a, b) {
   const fa = a?.move?.forfeit
   const fb = b?.move?.forfeit
   if (fa == null) return false
-  return fb == null || fa < fb
+  if (fb == null || fa < fb) return true
+  return fa === fb && String(a.player) < String(b.player)
 }
 
 /** Is claim a later than claim b? Logical clock first, player id to break ties. */

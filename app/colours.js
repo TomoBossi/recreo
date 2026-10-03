@@ -117,10 +117,11 @@ function hexOf(rgb) {
 
 /**
  * The small popup for choosing a colour, used on the landing page and in
- * the settings alike: the presets, and a pad for any other colour. The pad
- * is drawn from the readable band itself — hue across, lightness down — so
- * there is nothing on it that would not read on both themes.
- * `onPick` is called with the colour as it will be shown.
+ * the settings alike: the presets, then two strips for any other colour —
+ * every hue, and below it the shades of the chosen one, light to dark.
+ * Both are drawn from the readable band itself, so there is nothing on
+ * them that would not read on both themes. `onPick` is called with the
+ * colour as it will be shown.
  */
 export function colourPicker({ value, onPick }) {
   const el = document.createElement('div')
@@ -129,73 +130,94 @@ export function colourPicker({ value, onPick }) {
     <div class="swatches">
       ${PRESETS.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
     </div>
-    <div class="pad" role="slider" aria-label="any colour" tabindex="0">
-      <canvas></canvas><span class="thumb"></span>
-    </div>`
-  const pad = el.querySelector('.pad')
-  const canvas = pad.querySelector('canvas')
-  const thumb = pad.querySelector('.thumb')
+    <div class="strip hue" role="slider" aria-label="hue" tabindex="0"><canvas></canvas><span class="thumb"></span></div>
+    <div class="strip shade" role="slider" aria-label="lightness" tabindex="0"><canvas></canvas><span class="thumb"></span></div>`
+  const hueStrip = el.querySelector('.hue')
+  const shadeStrip = el.querySelector('.shade')
+  const MID = (L_MIN + L_MAX) / 2
   let current = value
+  // The thumbs keep their own positions: hue wraps round (both ends are
+  // red), so a position worked back from the colour could jump ends.
+  const start = padPlace(value)
+  let hue = start.hue
+  let light = PRESETS.includes(value) ? MID : start.L
 
-  // Paint the band once, at the pad's own resolution.
-  const W = 180
-  const H = 40
-  canvas.width = W
-  canvas.height = H
-  const g = canvas.getContext('2d')
-  const img = g.createImageData(W, H)
-  for (let y = 0; y < H; y++) {
+  /** Paint a strip from a function of 0..1 along it to a colour. */
+  const paint = (strip, colourAt) => {
+    const canvas = strip.querySelector('canvas')
+    const W = 240
+    canvas.width = W
+    canvas.height = 1
+    const g = canvas.getContext('2d')
+    const img = g.createImageData(W, 1)
     for (let x = 0; x < W; x++) {
-      const hex = bandColour((x / (W - 1)) * 360, L_MAX - (y / (H - 1)) * (L_MAX - L_MIN))
-      const n = parseInt(hex.slice(1), 16)
-      const i = (y * W + x) * 4
-      img.data[i] = n >> 16
-      img.data[i + 1] = (n >> 8) & 255
-      img.data[i + 2] = n & 255
-      img.data[i + 3] = 255
+      const n = parseInt(colourAt(x / (W - 1)).slice(1), 16)
+      img.data.set([n >> 16, (n >> 8) & 255, n & 255, 255], x * 4)
     }
+    g.putImageData(img, 0, 0)
   }
-  g.putImageData(img, 0, 0)
+  paint(hueStrip, (f) => bandColour(f * 360, MID))
+  const lightAt = (f) => L_MAX - f * (L_MAX - L_MIN)
 
   const show = () => {
     for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b.dataset.colour === current))
+    paint(shadeStrip, (f) => bandColour(hue, lightAt(f)))
     const custom = !PRESETS.includes(current)
-    thumb.hidden = !custom
-    if (custom) {
-      const { hue, L } = padPlace(current)
-      thumb.style.left = `${(hue / 360) * 100}%`
-      thumb.style.top = `${((L_MAX - L) / (L_MAX - L_MIN)) * 100}%`
-      thumb.style.background = current
-    }
+    for (const strip of [hueStrip, shadeStrip]) strip.classList.toggle('chosen', custom)
+    const ht = hueStrip.querySelector('.thumb')
+    ht.style.left = `${(hue / 360) * 100}%`
+    ht.style.background = bandColour(hue, MID)
+    const st = shadeStrip.querySelector('.thumb')
+    st.style.left = `${((L_MAX - light) / (L_MAX - L_MIN)) * 100}%`
+    st.style.background = bandColour(hue, light)
   }
-  const choose = (c) => { current = c; show(); onPick(c) }
+  const choose = () => { current = bandColour(hue, light); show(); onPick(current) }
 
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-colour]')
-    if (b) choose(b.dataset.colour)
+    if (!b) return
+    current = b.dataset.colour
+    const at = padPlace(current)
+    hue = at.hue
+    light = at.L
+    show()
+    onPick(current)
   })
-  const fromPointer = (e) => {
-    const box = pad.getBoundingClientRect()
-    const fx = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
-    const fy = Math.min(1, Math.max(0, (e.clientY - box.top) / box.height))
-    choose(bandColour(fx * 360, L_MAX - fy * (L_MAX - L_MIN)))
+
+  // Drag along a strip; the pointer may wander off it and the value clamps.
+  const drag = (strip, set) => {
+    const at = (e) => {
+      const box = strip.getBoundingClientRect()
+      set(Math.min(1, Math.max(0, (e.clientX - box.left) / box.width)))
+      choose()
+    }
+    strip.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      strip.setPointerCapture(e.pointerId)
+      at(e)
+      const move = (ev) => at(ev)
+      const up = () => { strip.removeEventListener('pointermove', move); strip.removeEventListener('pointerup', up) }
+      strip.addEventListener('pointermove', move)
+      strip.addEventListener('pointerup', up)
+    })
   }
-  pad.addEventListener('pointerdown', (e) => {
-    e.preventDefault()
-    pad.setPointerCapture(e.pointerId)
-    fromPointer(e)
-    const move = (ev) => fromPointer(ev)
-    const up = () => { pad.removeEventListener('pointermove', move); pad.removeEventListener('pointerup', up) }
-    pad.addEventListener('pointermove', move)
-    pad.addEventListener('pointerup', up)
-  })
-  // Arrow keys walk the pad: left and right for hue, up and down for lightness.
-  pad.addEventListener('keydown', (e) => {
-    const step = { ArrowLeft: [-6, 0], ArrowRight: [6, 0], ArrowUp: [0, 0.01], ArrowDown: [0, -0.01] }[e.key]
+  drag(hueStrip, (f) => { hue = f * 360 })
+  drag(shadeStrip, (f) => { light = lightAt(f) })
+
+  // Arrow keys step either strip.
+  hueStrip.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -6, ArrowRight: 6 }[e.key]
     if (!step) return
     e.preventDefault()
-    const { hue, L } = padPlace(current)
-    choose(bandColour((hue + step[0] + 360) % 360, L + step[1]))
+    hue = Math.min(360, Math.max(0, hue + step))
+    choose()
+  })
+  shadeStrip.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: 0.01, ArrowRight: -0.01 }[e.key]
+    if (!step) return
+    e.preventDefault()
+    light = Math.min(L_MAX, Math.max(L_MIN, light + step))
+    choose()
   })
   show()
   return el

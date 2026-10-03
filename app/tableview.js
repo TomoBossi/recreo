@@ -112,7 +112,11 @@ export class TableView {
       chip.className = 'seat'
       chip.innerHTML = `<span class="piece"></span><span class="who"></span>`
       chip.querySelector('.piece').style.background = this.colours()[seat]
-      if (!claim?.player) {
+      if (!claim?.player && playing) {
+        // Mid-game the game plays on with whoever started it.
+        chip.classList.add('empty', 'closed')
+        chip.querySelector('.who').textContent = out.has(seat) ? `${claim?.nick ?? 'player'} left` : 'empty'
+      } else if (!claim?.player) {
         chip.classList.add('empty')
         chip.querySelector('.who').textContent = 'join'
         chip.setAttribute('role', 'button')

@@ -21,6 +21,11 @@ export class Players {
     if (player && peer.presence.colour) this.#colours.set(player, clampColour(peer.presence.colour))
   }
 
+  /** Remember a name met elsewhere — on a seat claim, say — for a player not here. */
+  remember(player, nick) {
+    if (player && nick && !this.#known.has(player)) this.#known.set(player, nick)
+  }
+
   /** Everyone in the room now, self first. */
   list() {
     const out = [{ player: this.me.player, nick: this.me.nick || 'you', self: true, peerId: null }]

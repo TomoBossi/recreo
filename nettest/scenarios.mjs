@@ -177,6 +177,54 @@ export const scenarios = {
     return { moves: table.moves, cards, chat: [said[0], ended[0]], shots }
   },
 
+  /**
+   * Leaving for good: ana sits alone at connect four and plays minigolf
+   * with tomo and lu, then leaves the room. Within seconds her empty table
+   * closes, and minigolf drops her — forfeited, card frozen — and plays on.
+   * The chat names her, and nobody is told about arrivals from before
+   * their own.
+   */
+  async 'leave-for-good'(run) {
+    const labels = ['ana', 'tomo', 'lu']
+    players(run, labels)
+    await roomUp(run, labels)
+    const c4 = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    const golf = await js(run, 'tomo', `(() => { const t = recreo.tables.open('minigolf'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening')
+    await sit(run, labels, 'ana', golf, 1)
+    await sit(run, labels, 'lu', golf, 2)
+    const G = JSON.stringify(golf)
+    await js(run, 'lu', `recreo.tables.play(${G}, { type: 'start', order: [0, 1, 2] })`)
+    await converge(run, labels, 'after teeing off')
+
+    const leftAt = Date.now()
+    await js(run, 'ana', `recreo.room.leave().then(() => true)`)
+    const stay = ['tomo', 'lu']
+    const deadline = Date.now() + 30000
+    for (;;) {
+      const views = await Promise.all(stay.map((l) => js(run, l, `(() => {
+        const t = recreo.tables
+        const golf = t.tables.get(${G})
+        return { c4Closed: t.tables.get(${JSON.stringify(c4)}).closed, seat1: golf.seats[1]?.player ?? null, out: golf.state.out, phase: golf.state.phase }
+      })()`)))
+      if (views.every((v) => v.c4Closed && v.seat1 === null && v.out.includes(1) && v.phase === 'playing')) break
+      if (Date.now() > deadline) throw new Error(`ana never left: ${JSON.stringify(views)}`)
+      await sleep(500)
+    }
+    const goneAfterMs = Date.now() - leftAt
+    await converge(run, stay, 'after ana left')
+    const chat = await js(run, 'lu', `[...document.querySelectorAll('.chat-line.system')].map((l) => l.textContent)`)
+    if (!chat.includes('the game of connect four closed — nobody was left playing')) throw new Error(`chat: ${JSON.stringify(chat)}`)
+    if (chat.some((l) => /someone/.test(l))) throw new Error(`a nameless line: ${JSON.stringify(chat)}`)
+    const seatLabel = await js(run, 'lu', `document.querySelectorAll('.win[data-id="table:' + ${G} + '"] .seat')[1].textContent.trim()`)
+
+    // Whoever arrived last was told of nobody joining: they were all here first.
+    const arrivals = await Promise.all(stay.map((l) => js(run, l, `({ since: recreo.room.presence.since, joined: [...document.querySelectorAll('.chat-line.system')].filter((x) => / joined$/.test(x.textContent)).length })`)))
+    const last = arrivals[0].since > arrivals[1].since ? arrivals[0] : arrivals[1]
+    if (last.joined !== 0) throw new Error(`the last arrival was told of ${last.joined} earlier arrivals`)
+    return { goneAfterMs, seatLabel, shot: await shoot(run, 'lu', 'left-for-good') }
+  },
+
   /** Two people grab the same seat at the same moment; everyone agrees who got it. */
   async 'c4-seat-race'(run) {
     const labels = ['ana', 'tomo', 'lu']

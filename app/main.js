@@ -248,9 +248,12 @@ async function enterRoom(code, nick) {
 
   // ----------------------------------------------------------- people
 
+  // The chat starts when we arrive: someone already here when we came in
+  // is not news, so only later arrivals are announced.
   const greeted = new Set()
   const greet = (peer) => {
     if (!peer.nick || greeted.has(peer.id)) return
+    if ((peer.presence.since ?? 0) < room.presence.since) return
     greeted.add(peer.id)
     chat.system(`${peer.nick} joined`)
   }
@@ -278,6 +281,7 @@ async function enterRoom(code, nick) {
     faces.forget(peer.id)
     greeted.delete(peer.id)
     const dropped = peer.net?.state === 'failed'
+    if (!dropped && peer.presence.player) goodbyes.set(peer.presence.player, Date.now())
     chat.system(`${peer.nick || 'someone'} ${dropped ? 'dropped' : 'left'}`)
     refreshFaces()
     renderGames()
@@ -327,14 +331,20 @@ async function enterRoom(code, nick) {
    * per ending, by every peer from the same state.
    */
   const announced = new Map() // table id -> the ending last told
+  const seen = new Set() // tables we have looked at: endings from before we came are not news
   const list = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0] ?? 'nobody')
   function announceEnding(table) {
     const game = games[table.game]
     const seated = tables.seated(table)
     const names = Object.fromEntries(Object.entries(seated).map(([seat, player]) => [seat, players.nameOf(player)]))
     const result = !table.closed && game.outcome(table.state, names)
-    if (!result) return
     const key = `${table.gen}:${table.moves.length}`
+    if (!seen.has(table.id)) {
+      seen.add(table.id)
+      if (result) announced.set(table.id, key)
+      return
+    }
+    if (!result) return
     if (announced.get(table.id) === key) return
     announced.set(table.id, key)
     const title = gameName(table).toLowerCase()
@@ -352,6 +362,7 @@ async function enterRoom(code, nick) {
   }
 
   tables.on('change', (table) => {
+    for (const claim of Object.values(table.seats)) players.remember(claim.player, claim.nick)
     if (!views.has(table.id)) showGame(table)
     announceEnding(table)
     const entry = views.get(table.id)
@@ -368,8 +379,37 @@ async function enterRoom(code, nick) {
     // A finished game already has its line in the chat; ending one in
     // progress says who ended it.
     if (games[table.game].outcome(table.state, {})) return
-    chat.system(`the game of ${gameName(table).toLowerCase()} was ended${by ? ` by ${players.nameOf(by)}` : ''}`)
+    const title = gameName(table).toLowerCase()
+    chat.system(by ? `the game of ${title} was ended by ${players.nameOf(by)}` : `the game of ${title} closed — nobody was left playing`)
   })
+
+  // ----------------------------------------------------------- departures
+
+  /**
+   * Telling someone who stepped away from someone who has gone. A player
+   * who closed their tab said goodbye: if they are not back within a few
+   * seconds — a reload comes back sooner — they have left. One who dropped
+   * without a word gets longer to come back. Either way, once gone they
+   * forfeit and lose their seats; see Tables.depart.
+   */
+  const LEFT_MS = 10_000
+  const DROPPED_MS = 120_000
+  const goodbyes = new Map() // player -> when they said goodbye
+  const absent = new Map() // seated player -> since when we have not seen them
+  setInterval(() => {
+    const now = Date.now()
+    const seated = new Set()
+    for (const table of tables.tables.values()) {
+      if (!table.closed) for (const player of Object.values(tables.seated(table))) seated.add(player)
+    }
+    for (const player of [...absent.keys()]) if (!seated.has(player)) absent.delete(player)
+    for (const player of seated) {
+      if (players.stateOf(player) === 'here') { absent.delete(player); goodbyes.delete(player); continue }
+      if (!absent.has(player)) absent.set(player, now)
+      const left = goodbyes.get(player)
+      if (left != null ? now - left > LEFT_MS : now - absent.get(player) > DROPPED_MS) tables.depart(player)
+    }
+  }, 2000)
 
   // ----------------------------------------------------------- top bar
 
