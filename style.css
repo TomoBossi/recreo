@@ -476,9 +476,14 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .table-option .segmented .btn { height: 26px; padding: 0 10px; font-size: 12.5px; }
 .watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text-soft); }
 
+/* On a touchscreen a drag over a game is input, never a scroll or a zoom;
+   the parts of a game that do scroll (Pictionary's log) keep scrolling. */
+.stage, .stage svg { touch-action: none; }
+.stage .draw-log, .stage .draw-scores { touch-action: pan-y; }
+
 /* The board fits whatever room the window leaves it, keeping its shape. */
 .stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-.stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; touch-action: manipulation; }
+.stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; }
 
 .status {
   display: flex; align-items: center; justify-content: center; gap: 10px;

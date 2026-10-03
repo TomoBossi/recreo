@@ -280,7 +280,7 @@ function view(el, ctx) {
         : `<circle cx="${x + 50}" cy="${y + 50}" r="14" fill="var(--ink)" opacity="0.4" pointer-events="none"/>`
     }
     html = `<rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/>
-      <g data-cursor-space transform="${flipped() ? 'rotate(180 400 400)' : ''}">${html}</g><g class="clocks"></g>`
+      <g data-cursor-space transform="${flipped() ? 'rotate(180 400 400)' : ''}"><g clip-path="url(#chess-clip-${id})">${html}</g></g><g class="clocks"></g>`
     if (promoting) {
       html += `<rect x="150" y="300" width="500" height="200" rx="18" fill="#fffaf0" stroke="var(--ink)" stroke-width="6"/>`
       ;['Q', 'R', 'B', 'N'].forEach((kind, i) => {
