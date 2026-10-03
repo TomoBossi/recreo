@@ -40,6 +40,34 @@ function setColour(next, { chosen = true } = {}) {
   $('#preview-placeholder')?.style.setProperty('--who', colour)
 }
 
+/**
+ * Centre the wordmark on what you see, not on its box. "recreo" has no tall
+ * letters, so its ink sits low in the line, and its drop shadow adds weight
+ * below; measured from the font in use, it is nudged so the letters and
+ * their shadow sit on the centre line of whatever they share a row with.
+ */
+function centreWordmark(el) {
+  const cs = getComputedStyle(el)
+  const ctx = document.createElement('canvas').getContext('2d')
+  ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+  const m = ctx.measureText(el.textContent)
+  const size = parseFloat(cs.fontSize)
+  const lineHeight = parseFloat(cs.lineHeight) || size
+  const ascent = m.fontBoundingBoxAscent
+  const descent = m.fontBoundingBoxDescent
+  if (!ascent || !m.actualBoundingBoxAscent) return
+  const baseline = (lineHeight - (ascent + descent)) / 2 + ascent
+  const inkTop = baseline - m.actualBoundingBoxAscent
+  const inkBottom = baseline + m.actualBoundingBoxDescent
+  // The drop shadow is a solid copy offset down: count half of it as ink.
+  const drop = parseFloat((cs.textShadow.match(/(-?[\d.]+)px (-?[\d.]+)px 0px[^,]*$/) ?? [])[2] ?? 0)
+  const shift = lineHeight / 2 - (inkTop + inkBottom + drop / 2) / 2
+  el.style.transform = `translateY(${shift.toFixed(2)}px)`
+}
+const centreWordmarks = () => document.querySelectorAll('.wordmark').forEach(centreWordmark)
+document.fonts?.ready.then(centreWordmarks)
+addEventListener('resize', centreWordmarks)
+
 /** On a touchscreen, recreo says so to the others, who see a phone by your name. */
 const TOUCH = matchMedia('(pointer: coarse)').matches
 
@@ -243,6 +271,7 @@ async function enterRoom(code, nick) {
 
   $('#landing').hidden = true
   $('#app').hidden = false
+  centreWordmarks()
   $('#room-name').textContent = code
 
   const wm = new WindowManager($('#desk'))
@@ -537,8 +566,16 @@ async function enterRoom(code, nick) {
     }).el)
   })
 
+  // On a phone an invite goes out through the share sheet — the messaging
+  // apps are where friends are. Elsewhere, or if sharing is declined, the
+  // link is copied.
   const copyInvite = async () => {
     const url = inviteUrl(code)
+    if (TOUCH && navigator.share) {
+      try { await navigator.share({ title: 'recreo', text: `come play in ${code}`, url }); return } catch (err) {
+        if (err?.name === 'AbortError') return
+      }
+    }
     try {
       await navigator.clipboard.writeText(url)
       toast('invite link copied — send it to your friends')
@@ -585,7 +622,7 @@ async function enterRoom(code, nick) {
     renderGames()
   }
 
-  chat.system(`welcome to ${code} — invite friends with the button up top`)
+  chat.system(`welcome to ${code} — ${TOUCH ? 'tap the room name up top to invite friends' : 'invite friends with the button up top'}`)
   refreshFaces()
 
   // A handle for the console, and for the test harness.
