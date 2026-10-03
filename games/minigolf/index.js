@@ -5,7 +5,10 @@
 import { defineGame } from '../kit/define.js'
 import { board, escape, INK } from '../kit/svg.js'
 import { startPanel } from '../kit/lobby.js'
-import { HOLES, outer, roll, clampShot, UNIT, W, H, BALL, CUP, MAX_SPEED, MAX_STROKES } from './physics.js'
+import { HOLES, roll, clampShot, UNIT, W, H, BALL, CUP, BORDER, MAX_SPEED, MAX_STROKES } from './physics.js'
+
+/** How far, in course units, a pull reaches for the strongest shot. */
+const PULL = 260
 
 // ------------------------------------------------------------------ rules
 
@@ -114,7 +117,7 @@ const rules = {
 // ------------------------------------------------------------------- view
 
 function view(el, ctx) {
-  const svg = board(el, { viewBox: `-8 -8 ${W + 16} ${H + 16}`, className: 'golf' })
+  const svg = board(el, { viewBox: `-2 -2 ${W + 4} ${H + 4}`, className: 'golf' })
   const lobby = startPanel(el, {
     onStart: () => ctx.play({ type: 'start', order: Object.keys(info.names ?? {}).map(Number) }),
     startLabel: 'tee off!',
@@ -127,22 +130,25 @@ function view(el, ctx) {
   let aim = null          // pulled-back vector while dragging
 
   const myTurn = () => state?.phase === 'playing' && info.mySeat != null && state.turn === info.mySeat
+  /** A pointer's position in course units, through the board's own transform. */
   const toCourse = (e) => {
-    const box = svg.getBoundingClientRect()
-    const scale = Math.max((W + 16) / box.width, (H + 16) / box.height)
-    const ox = (box.width * scale - (W + 16)) / 2
-    const oy = (box.height * scale - (H + 16)) / 2
-    return [((e.clientX - box.left) * scale - ox - 8) * UNIT, ((e.clientY - box.top) * scale - oy - 8) * UNIT]
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse())
+    return [p.x, p.y]
   }
 
   function course(hole) {
     const rect = ([x, y, w, h], cls) => `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`
+    // The border is one wooden frame round the green, outlined once inside
+    // and once out, so its lines are as thin as every other line.
+    const B = BORDER
     return `
-      <rect x="-8" y="-8" width="${W + 16}" height="${H + 16}" rx="18" fill="var(--ink)"/>
-      <rect x="0" y="0" width="${W}" height="${H}" rx="12" fill="#5fc85f"/>
-      <g class="stripes">${Array.from({ length: 10 }, (_, i) => `<rect x="${i * 100}" y="0" width="50" height="${H}" fill="#6bd66b"/>`).join('')}</g>
+      <rect x="${B}" y="${B}" width="${W - 2 * B}" height="${H - 2 * B}" fill="#5fc85f"/>
+      <g class="stripes">${Array.from({ length: 10 }, (_, i) => [Math.max(B, i * 100), Math.min(W - B, i * 100 + 50)])
+        .filter(([a, b]) => b > a).map(([a, b]) => `<rect x="${a}" y="${B}" width="${b - a}" height="${H - 2 * B}" fill="#6bd66b"/>`).join('')}</g>
       ${hole.water.map((r) => rect(r, 'water')).join('')}
-      ${[...outer, ...hole.walls].map((r) => rect(r, 'wall')).join('')}
+      ${hole.walls.map((r) => rect(r, 'wall')).join('')}
+      <path class="wall" fill-rule="evenodd" d="M12 0 H${W - 12} Q${W} 0 ${W} 12 V${H - 12} Q${W} ${H} ${W - 12} ${H} H12 Q0 ${H} 0 ${H - 12} V12 Q0 0 12 0 Z
+        M${B} ${B} V${H - B} H${W - B} V${B} Z"/>
       <circle cx="${hole.tee[0]}" cy="${hole.tee[1]}" r="16" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 5" opacity="0.8"/>
       <circle cx="${hole.cup[0]}" cy="${hole.cup[1]}" r="${CUP}" fill="var(--ink)"/>
       <line x1="${hole.cup[0]}" y1="${hole.cup[1]}" x2="${hole.cup[0]}" y2="${hole.cup[1] - 62}" stroke="var(--ink)" stroke-width="4"/>
@@ -157,27 +163,50 @@ function view(el, ctx) {
       const b = state.balls[seat]
       if (!b) continue
       let [x, y] = b.pos
-      if (animating && animating.seat === seat) [x, y] = animating.path[Math.min(animating.i, animating.path.length - 1)]
-      else if (b.done) continue
-      html += `<circle cx="${x / UNIT}" cy="${y / UNIT}" r="${BALL}" fill="${ctx.colours[seat]}" stroke="var(--ink)" stroke-width="3"/>
-        <circle cx="${x / UNIT - 3.5}" cy="${y / UNIT - 3.5}" r="3" fill="#fff" opacity="0.7"/>`
+      let r = BALL
+      if (animating && animating.seat === seat) {
+        [x, y] = animating.path[animating.i]
+        if (animating.sinking !== null) {
+          const hole = HOLES[shownHole]
+          x += (hole.cup[0] * UNIT - x) * animating.sinking
+          y += (hole.cup[1] * UNIT - y) * animating.sinking
+          r = BALL * (1 - 0.55 * animating.sinking)
+        }
+      } else if (b.done) continue
+      html += `<circle cx="${x / UNIT}" cy="${y / UNIT}" r="${r}" fill="${ctx.colours[seat]}" stroke="var(--ink)" stroke-width="3"/>
+        <circle cx="${x / UNIT - r * 0.32}" cy="${y / UNIT - r * 0.32}" r="${r * 0.27}" fill="#fff" opacity="0.7"/>`
       if (seat === state.turn && !animating) html += `<circle cx="${x / UNIT}" cy="${y / UNIT}" r="${BALL + 8}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="5 4" class="spin"/>`
     }
     g.innerHTML = html
   }
 
+  /** The pull, drawn from the ball to the pointer — as far as the strongest shot reaches. */
   function drawAim() {
     const g = svg.querySelector('.aim')
     if (!aim || !myTurn()) { g.innerHTML = ''; return }
-    const [bx, by] = state.balls[state.turn].pos
-    const [dx, dy] = clampShot(aim[0], aim[1])
-    const power = Math.round(Math.hypot(dx, dy) / MAX_SPEED * 100)
-    const ex = bx / UNIT + dx / 6
-    const ey = by / UNIT + dy / 6
+    const [bx, by] = state.balls[state.turn].pos.map((v) => v / UNIT)
+    const [px, py] = aim.pointer
+    const len = Math.hypot(px - bx, py - by)
+    const k = len > PULL ? PULL / len : 1
+    const ex = bx + (px - bx) * k
+    const ey = by + (py - by) * k
+    const power = Math.round(Math.min(1, len / PULL) * 100)
     g.innerHTML = `
-      <line x1="${bx / UNIT}" y1="${by / UNIT}" x2="${ex}" y2="${ey}" stroke="var(--ink)" stroke-width="9" stroke-linecap="round"/>
-      <line x1="${bx / UNIT}" y1="${by / UNIT}" x2="${ex}" y2="${ey}" stroke="${power > 80 ? 'var(--berry)' : 'var(--sun)'}" stroke-width="5" stroke-linecap="round"/>
-      <text x="${ex + 10}" y="${ey - 10}" class="power">${power}%</text>`
+      <line x1="${bx}" y1="${by}" x2="${ex}" y2="${ey}" stroke="var(--ink)" stroke-width="9" stroke-linecap="round"/>
+      <line x1="${bx}" y1="${by}" x2="${ex}" y2="${ey}" stroke="${power > 80 ? 'var(--berry)' : 'var(--sun)'}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="${ex}" cy="${ey}" r="7" fill="#fff" stroke="var(--ink)" stroke-width="3"/>
+      <text x="${ex + 14}" y="${ey - 12}" class="power">${power}%</text>`
+  }
+
+  /** The shot a pull makes: away from the pointer, as hard as the pull is long. */
+  function shotOf(pointer) {
+    const [bx, by] = state.balls[state.turn].pos.map((v) => v / UNIT)
+    const dx = bx - pointer[0]
+    const dy = by - pointer[1]
+    const len = Math.hypot(dx, dy)
+    if (len < 12) return null
+    const speed = Math.min(1, len / PULL) * MAX_SPEED
+    return clampShot((dx / len) * speed, (dy / len) * speed)
   }
 
   // Pull back from the ball like a slingshot and let go to putt.
@@ -185,21 +214,19 @@ function view(el, ctx) {
     if (!myTurn() || animating) return
     e.preventDefault()
     svg.setPointerCapture(e.pointerId)
-    const start = toCourse(e)
+    // A slingshot: the line runs from the ball to the pointer, and the
+    // ball goes the other way, harder the further it is pulled.
     const move = (ev) => {
-      const p = toCourse(ev)
-      // A slingshot: the shot goes opposite the pull, scaled up.
-      aim = [(start[0] - p[0]) * 1.6 / UNIT * 10, (start[1] - p[1]) * 1.6 / UNIT * 10]
+      aim = { pointer: toCourse(ev) }
       drawAim()
     }
-    const up = () => {
+    move(e)
+    const up = (ev) => {
       svg.removeEventListener('pointermove', move)
       svg.removeEventListener('pointerup', up)
       svg.removeEventListener('pointercancel', up)
-      if (aim) {
-        const [dx, dy] = clampShot(aim[0], aim[1])
-        if (dx * dx + dy * dy > 40 * 40) ctx.play({ type: 'shot', dx, dy })
-      }
+      const shot = ev.type === 'pointerup' && aim ? shotOf(aim.pointer) : null
+      if (shot) ctx.play({ type: 'shot', dx: shot[0], dy: shot[1] })
       aim = null
       drawAim()
     }
@@ -208,14 +235,16 @@ function view(el, ctx) {
     svg.addEventListener('pointercancel', up)
   })
 
-  function animate(last) {
+  function animate(last, done) {
     const result = roll(HOLES[last.hole ?? state.hole], last.from, last.shot)
-    animating = { seat: last.seat, path: result.path, i: 0 }
+    animating = { seat: last.seat, path: result.path, i: 0, sinking: result.sunk ? 0 : null }
     const step = () => {
       if (!animating) return
-      animating.i += 3
+      if (animating.i < animating.path.length - 1) animating.i = Math.min(animating.path.length - 1, animating.i + 3)
+      // A sunk ball drops into the cup before it disappears.
+      else if (animating.sinking !== null && animating.sinking < 1) animating.sinking = Math.min(1, animating.sinking + 0.08)
+      else { animating = null; done?.(); return }
       drawBalls()
-      if (animating.i >= animating.path.length) { animating = null; drawBalls(); return }
       requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
@@ -238,8 +267,13 @@ function view(el, ctx) {
       const holeOfShot = fresh ? previous.hole : state.hole
       if (shownHole !== holeOfShot) { svg.innerHTML = course(HOLES[holeOfShot]); shownHole = holeOfShot }
       if (fresh) {
-        animate({ ...state.last, hole: previous.hole })
-        if (state.hole !== previous.hole) setTimeout(() => { svg.innerHTML = course(HOLES[state.hole]); shownHole = state.hole; drawBalls() }, 1600)
+        // Play the shot out in full on its own hole; only then move on to
+        // the next hole, or show the end of the round.
+        animate({ ...state.last, hole: previous.hole }, () => {
+          if (shownHole !== state.hole && state.phase === 'playing') { svg.innerHTML = course(HOLES[state.hole]); shownHole = state.hole }
+          drawBalls()
+          overlay()
+        })
       }
       drawBalls()
       overlay()
@@ -250,7 +284,7 @@ function view(el, ctx) {
   // The start button, and the scorecard at the end, over the course.
   function overlay() {
     lobby.update({
-      open: state.phase !== 'playing',
+      open: state.phase !== 'playing' && !animating,
       seated: Object.keys(info.names ?? {}).length,
       min: 1,
       mine: info.mySeat != null,

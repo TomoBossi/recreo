@@ -272,3 +272,19 @@ test('pictionary: a drawer who forfeits ends the round, keeps their points, and 
   assert.equal(s.phase, 'over')
   assert.deepEqual(result.winners, [1], 'the forfeiter with more points still cannot win')
 })
+
+test('the cup takes a ball that is slow and true, and lips out a fast one', () => {
+  const hole = { tee: [120, 300], cup: [870, 300], walls: [], water: [] }
+  assert.ok(roll(hole, [72000, 30000], [470, 0]).sunk, 'a firm putt straight at it drops')
+  assert.ok(roll(hole, [72000, 31100], [470, 0]).sunk, 'eleven off centre still drops')
+  assert.ok(!roll(hole, [72000, 31400], [470, 0]).sunk, 'fourteen off centre rolls past the edge')
+  const fast = roll(hole, [72000, 30000], [800, 0])
+  assert.ok(!fast.sunk && fast.end[0] > 87000, 'too fast, it runs over the cup and on')
+})
+
+test('a rolling ball slows steadily: twice the speed, about four times the distance', () => {
+  const hole = { tee: [0, 0], cup: [-100, -100], walls: [], water: [] }
+  const far = (v) => roll(hole, [5000, 30000], [v, 0]).end[0] - 5000
+  const ratio = far(600) / far(300)
+  assert.ok(ratio > 3.2 && ratio < 4.4, `ratio ${ratio}`)
+})

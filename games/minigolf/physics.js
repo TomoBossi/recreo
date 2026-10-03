@@ -14,10 +14,13 @@ export const H = 600
 export const BALL = 11            // radius, course units
 export const CUP = 17
 export const MAX_SPEED = 1400     // units per tick; walls are thicker than a tick's travel
-export const FRICTION = 984       // per mille kept each tick
-export const BOUNCE = 780         // per mille kept off a wall
-export const STOP = 18            // below this speed a ball rests
-export const SINK_SPEED = 900     // faster than this, a ball rides over the cup
+export const ROLL = 6             // speed a rolling ball loses each tick, as on a real green
+export const DRAG = 3             // and per mille more, so hard shots settle a little sooner
+export const BOUNCE = 760         // per mille kept off a wall
+export const STOP = 12            // below this speed a ball rests
+export const SINK_SPEED = 460     // faster than this, a ball catches the lip and runs on
+export const LIP = 820            // per mille kept by a ball that runs over the cup
+export const DROP = CUP - 5       // its centre must pass this close to the cup's to fall
 export const MAX_STROKES = 8
 export const MAX_TICKS = 2400
 
@@ -40,6 +43,29 @@ export const HOLES = [
 export const BORDER = 24
 export const outer = [[0, 0, W, BORDER], [0, H - BORDER, W, BORDER], [0, 0, BORDER, H], [W - BORDER, 0, BORDER, H]]
 
+/** Integer square root, so a length is the same on every machine. */
+export function isqrt(n) {
+  let r = Math.floor(Math.sqrt(n))
+  while (r * r > n) r--
+  while ((r + 1) * (r + 1) <= n) r++
+  return r
+}
+
+/** How close the move from (x, y) to (nx, ny) passes to (cx, cy), squared. */
+function nearest2(x, y, nx, ny, cx, cy) {
+  const dx = nx - x
+  const dy = ny - y
+  const len2 = dx * dx + dy * dy
+  let px = nx
+  let py = ny
+  if (len2 > 0) {
+    const along = Math.min(len2, Math.max(0, (cx - x) * dx + (cy - y) * dy))
+    px = x + Math.trunc(dx * along / len2)
+    py = y + Math.trunc(dy * along / len2)
+  }
+  return (px - cx) ** 2 + (py - cy) ** 2
+}
+
 const inRect = (x, y, [rx, ry, rw, rh], pad = 0) => x > (rx - pad) * UNIT && x < (rx + rw + pad) * UNIT && y > (ry - pad) * UNIT && y < (ry + rh + pad) * UNIT
 
 
@@ -53,6 +79,7 @@ export function roll(hole, [x, y], [vx, vy]) {
   const path = [[x, y]]
   const cx = hole.cup[0] * UNIT
   const cy = hole.cup[1] * UNIT
+  let lipped = false
   for (let t = 0; t < MAX_TICKS; t++) {
     let nx = x + vx
     let ny = y + vy
@@ -63,19 +90,24 @@ export function roll(hole, [x, y], [vx, vy]) {
         vx = -Math.trunc(vx * BOUNCE / 1000); vy = -Math.trunc(vy * BOUNCE / 1000); nx = x; ny = y
       }
     }
+    // The cup, checked along the whole move so a quick ball cannot hop it:
+    // slow and true, it drops; too fast, it catches the lip and runs on.
+    const speed = isqrt(vx * vx + vy * vy)
+    const over = nearest2(x, y, nx, ny, cx, cy) < (DROP * UNIT) ** 2
+    if (over && speed < SINK_SPEED) { path.push([nx, ny]); return { path, end: [cx, cy], sunk: true } }
+    if (over && !lipped) { vx = Math.trunc(vx * LIP / 1000); vy = Math.trunc(vy * LIP / 1000) }
+    lipped = over
     x = nx
     y = ny
-    vx = Math.trunc(vx * FRICTION / 1000)
-    vy = Math.trunc(vy * FRICTION / 1000)
     path.push([x, y])
-    const dx = x - cx
-    const dy = y - cy
-    const speed2 = vx * vx + vy * vy
-    if (dx * dx + dy * dy < (CUP * UNIT) ** 2 && speed2 < SINK_SPEED ** 2) return { path, end: [cx, cy], sunk: true }
     for (const pond of hole.water) {
       if (inRect(x, y, pond)) return { path, end: null, drowned: true }
     }
-    if (speed2 < STOP * STOP) break
+    // Rolling: a steady loss, plus a little drag at speed.
+    const slower = speed - ROLL - Math.trunc(speed * DRAG / 1000)
+    if (slower < STOP) break
+    vx = Math.trunc(vx * slower / speed)
+    vy = Math.trunc(vy * slower / speed)
   }
   return { path, end: [x, y] }
 }
@@ -86,9 +118,6 @@ export function clampShot(dx, dy) {
   dy = Math.trunc(dy)
   const len2 = dx * dx + dy * dy
   if (len2 <= MAX_SPEED * MAX_SPEED) return [dx, dy]
-  // Integer square root, so the length is the same everywhere.
-  let len = Math.floor(Math.sqrt(len2))
-  while (len * len > len2) len--
-  while ((len + 1) * (len + 1) <= len2) len++
+  const len = isqrt(len2)
   return [Math.trunc(dx * MAX_SPEED / len), Math.trunc(dy * MAX_SPEED / len)]
 }
