@@ -472,4 +472,17 @@ export const scenarios = {
     if (landed !== E4) throw new Error(`ana pointed at square ${E4}; on tomo's board the cursor sits on ${landed}`)
     return { square: 'e4', shot: await shoot(run, 'tomo', 'cursor-black') }
   },
+
+  /** Pictures of the games shelf, open, on a desktop and on a phone. */
+  async shelf(run) {
+    players(run, ['ana'])
+    await run.waitFor('ana', (e) => e.label === 'ana' && e.ev === 'driver-joined', 60000)
+    await js(run, 'ana', `document.querySelector('#new-table').click(), true`)
+    await sleep(400)
+    const shots = [await shoot(run, 'ana', 'shelf-desktop')]
+    await js(run, 'ana', 'ntViewport(390, 844)')
+    await sleep(600)
+    shots.push(await shoot(run, 'ana', 'shelf-phone'))
+    return { shots }
+  },
 }

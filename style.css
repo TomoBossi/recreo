@@ -462,6 +462,9 @@ button, input, select { font: inherit; color: inherit; }
   #app { height: auto; min-height: 100%; }
   #desk { margin: 0 8px 8px; flex: none; }
   .wordmark.big { font-size: 48px; }
+  /* The shelf spans the screen rather than hanging off its button. */
+  .popover { position: fixed; left: 8px; right: 8px; top: 96px; max-width: none; width: auto; }
+  .shelf { justify-content: center; }
 }
 
 /* Touch: dragging a floating window must not scroll the page, and a board
