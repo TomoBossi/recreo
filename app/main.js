@@ -434,22 +434,37 @@ async function enterRoom(code, nick) {
     })
     const view = new TableView(body, { tables, table, players, me })
     views.set(table.id, { win, view })
-    dress(table)
+    dressAll()
   }
 
-  /** A game window's title line, and its close button — only for its players. */
+  /**
+   * With two or more tables of one game open, each is told apart by who
+   * sits at it — in its title and in what the chat says of it. With one,
+   * the game's name is enough.
+   */
+  const siblings = (table) => [...tables.tables.values()].filter((t) => t.game === table.game && (!t.closed || t === table))
+  const label = (table) => (siblings(table).length > 1 ? views.get(table.id)?.view.who() ?? null : null)
+  /** The game as the chat names it: "chess", or "chess (ana vs tomo)". */
+  const called = (table) => {
+    const extra = label(table)
+    return `${gameName(table).toLowerCase()}${extra ? ` (${extra})` : ''}`
+  }
+
+  /** A game window's title, its title-bar line, and its close button — only for its players. */
   function dress(table) {
     const entry = views.get(table.id)
     if (!entry) return
-    entry.win.setMeta(entry.view.summary())
+    const extra = label(table)
+    entry.win.setTitle(extra ? `${gameName(table)} (${extra})` : gameName(table))
+    entry.win.setMeta(entry.view.summary({ withPlayers: !extra }))
     entry.win.setClosable(tables.seatOf(table, me.player) != null)
   }
+  /** Every game window: one table's change can change another's title. */
+  function dressAll() { for (const id of views.keys()) dress(tables.tables.get(id)) }
 
   function renderGames() {
-    for (const [id, { view }] of views) {
-      view.render()
-      dress(tables.tables.get(id))
-    }
+    for (const { view } of views.values()) view.render()
+    dressAll()
   }
 
   tables.on('opened', (table, by) => {
@@ -480,7 +495,7 @@ async function enterRoom(code, nick) {
     if (!result) return
     if (announced.get(table.id) === key) return
     announced.set(table.id, key)
-    const title = gameName(table).toLowerCase()
+    const title = called(table)
     const seats = Object.keys(seated).map(Number)
     const winners = (result.winners ?? []).map((seat) => names[seat]).filter(Boolean)
     const losers = seats.filter((seat) => !result.winners?.includes(seat)).map((seat) => names[seat])
@@ -501,18 +516,20 @@ async function enterRoom(code, nick) {
     const entry = views.get(table.id)
     if (!entry) return
     entry.view.render()
-    dress(table)
+    dressAll()
   })
   tables.on('closed', (table, by) => {
     const entry = views.get(table.id)
     if (!entry) return
+    // Named while it still counts among its siblings, before it goes.
+    const title = called(table)
     entry.view.destroy()
     wm.remove(entry.win)
     views.delete(table.id)
+    dressAll() // the last of its kind may lose its label
     // A finished game already has its line in the chat; ending one in
     // progress says who ended it.
     if (games[table.game].outcome(table.state, {})) return
-    const title = gameName(table).toLowerCase()
     chat.system(by ? `the game of ${title} was ended by ${players.nameOf(by)}` : `the game of ${title} closed — nobody was left playing`)
   })
 

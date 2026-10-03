@@ -84,12 +84,20 @@ export class TableView {
   }
 
   /** A short summary for the window's title bar. */
-  summary() {
-    const names = this.names()
-    const seated = Object.values(names)
+  /** Who is at the table: "ana vs tomo", "ana, tomo, lu", or that it waits. */
+  who() {
+    const seated = Object.values(this.names())
+    return seated.length ? seated.join(this.game.seats === 2 ? ' vs ' : ', ') : 'waiting for players'
+  }
+
+  /**
+   * The line in the window's title bar. When the title already names the
+   * players — several tables of one game — it says only who is watching.
+   */
+  summary({ withPlayers = true } = {}) {
     const watching = this.watchers().length
-    const who = seated.length ? seated.join(this.game.seats === 2 ? ' vs ' : ', ') : 'waiting for players'
-    return watching ? `${who} · ${watching} watching` : who
+    const parts = [withPlayers ? this.who() : null, watching ? `${watching} watching` : null].filter(Boolean)
+    return parts.join(' · ')
   }
 
   watchers() {

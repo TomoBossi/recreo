@@ -114,19 +114,16 @@ function view(el, ctx) {
 }
 
 /**
- * The shelf icon: the board as the game draws it — a paper square, a bold
- * rounded grid, marks in colour over an ink outline — mid-win on a diagonal.
+ * The shelf icon: a paper square, a bold rounded grid and flat marks,
+ * mid-win on a diagonal.
  */
 const icon = () => {
   const cx = [16.5, 28, 39.5]
   const cy = [10.5, 22, 33.5]
-  const x = (c, r) => {
-    const d = `M${cx[c] - 2.5} ${cy[r] - 2.5} L${cx[c] + 2.5} ${cy[r] + 2.5} M${cx[c] + 2.5} ${cy[r] - 2.5} L${cx[c] - 2.5} ${cy[r] + 2.5}`
-    return `<path d="${d}" fill="none" stroke="${INK}" stroke-width="4.4" stroke-linecap="round"/>
-      <path d="${d}" fill="none" stroke="${PINK}" stroke-width="2.2" stroke-linecap="round"/>`
-  }
-  const o = (c, r) => `<circle cx="${cx[c]}" cy="${cy[r]}" r="2.8" fill="none" stroke="${INK}" stroke-width="4.4"/>
-      <circle cx="${cx[c]}" cy="${cy[r]}" r="2.8" fill="none" stroke="${BLUE}" stroke-width="2.2"/>`
+  // Flat marks, colour only, small enough to keep clear of the grid.
+  const x = (c, r) => `<path d="M${cx[c] - 2.4} ${cy[r] - 2.4} L${cx[c] + 2.4} ${cy[r] + 2.4} M${cx[c] + 2.4} ${cy[r] - 2.4} L${cx[c] - 2.4} ${cy[r] + 2.4}"
+      fill="none" stroke="${PINK}" stroke-width="2.6" stroke-linecap="round"/>`
+  const o = (c, r) => `<circle cx="${cx[c]}" cy="${cy[r]}" r="2.6" fill="none" stroke="${BLUE}" stroke-width="2.4"/>`
   return `
     <rect x="9.5" y="3.5" width="37" height="37" rx="6" fill="${PAPER}" stroke="${INK}" stroke-width="2.5"/>
     <path d="M22.25 7.5 V36.5 M33.75 7.5 V36.5 M13.5 16.25 H42.5 M13.5 27.75 H42.5" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
