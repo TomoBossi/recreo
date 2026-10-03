@@ -1,0 +1,121 @@
+import { gridLayout, SpeakerTracker } from 'mirador'
+import { colourFor } from './identity.js'
+
+/**
+ * Everyone's face, in one window.
+ *
+ * Tiles are placed by mirador's grid layout, which answers "where do n tiles
+ * go in this box" and nothing else. A tile shows video when there is some and
+ * a drawn face when there is not: a camera that is off, one that has not
+ * arrived yet, a peer who never had one.
+ */
+export class Faces {
+  #tiles = new Map() // id -> {el, video, stream}
+  #speaking = new Set()
+
+  constructor(body, { room, media, me }) {
+    this.room = room
+    this.media = media
+    this.me = me
+    this.el = document.createElement('div')
+    this.el.className = 'faces-grid'
+    body.append(this.el)
+
+    this.speakers = new SpeakerTracker({
+      onChange: (_loudest, speaking) => {
+        this.#speaking = new Set(speaking ?? [])
+        this.render()
+      },
+    })
+
+    new ResizeObserver(() => this.render()).observe(body)
+  }
+
+  /** Track a peer's camera stream for speaking detection. */
+  stream(peerId, stream) {
+    if (stream) this.speakers.add(peerId, stream)
+    else this.speakers.remove(peerId)
+    this.render()
+  }
+
+  forget(peerId) { this.speakers.remove(peerId) }
+
+  render() {
+    const people = [
+      {
+        id: 'self',
+        player: this.me.player,
+        nick: this.me.nick || 'you',
+        stream: this.media.stream,
+        video: this.media.state().videoEnabled && !!this.media.stream?.getVideoTracks().length,
+        muted: !this.media.state().audioEnabled,
+        self: true,
+      },
+      ...[...this.room.peers.values()].map((p) => ({
+        id: p.id,
+        player: p.presence.player ?? p.id,
+        nick: p.nick || '…',
+        stream: p.streams.camera ?? null,
+        video: p.presence.video !== false && !!p.streams.camera?.getVideoTracks().length,
+        muted: p.presence.audio === false,
+        reconnecting: !!p.reconnecting,
+      })),
+    ]
+
+    const box = this.el.getBoundingClientRect()
+    const { positions } = gridLayout({
+      count: people.length, width: box.width, height: box.height, gap: 8, padding: 8, fill: true, aspect: 4 / 3,
+    })
+
+    const seen = new Set()
+    people.forEach((person, i) => {
+      seen.add(person.id)
+      const tile = this.#tile(person.id)
+      const pos = positions[i]
+      if (pos) Object.assign(tile.el.style, { left: `${pos.x}px`, top: `${pos.y}px`, width: `${pos.width}px`, height: `${pos.height}px` })
+
+      const colour = colourFor(person.player)
+      tile.el.style.setProperty('--who', colour)
+      tile.el.classList.toggle('speaking', this.#speaking.has(person.id))
+      tile.el.classList.toggle('reconnecting', !!person.reconnecting)
+      tile.el.classList.toggle('has-video', person.video)
+
+      if (tile.stream !== person.stream) {
+        tile.stream = person.stream
+        tile.video.srcObject = person.stream
+        tile.video.muted = !!person.self
+        if (person.stream) tile.video.play().catch(() => {})
+      }
+      tile.name.textContent = person.nick + (person.self ? ' (you)' : '')
+      tile.mute.hidden = !person.muted
+      tile.state.textContent = person.reconnecting ? 'reconnecting…' : ''
+    })
+
+    for (const [id, tile] of this.#tiles) {
+      if (!seen.has(id)) { tile.el.remove(); this.#tiles.delete(id) }
+    }
+  }
+
+  #tile(id) {
+    let tile = this.#tiles.get(id)
+    if (tile) return tile
+    const el = document.createElement('div')
+    el.className = 'face'
+    el.innerHTML = `
+      <div class="avatar"><div class="head"><div class="smile"></div></div></div>
+      <video autoplay playsinline></video>
+      <span class="tag"><span class="dot"></span><span class="name"></span><span class="muted-mark" hidden></span></span>
+      <span class="face-state"></span>`
+    this.el.append(el)
+    tile = {
+      el,
+      video: el.querySelector('video'),
+      name: el.querySelector('.name'),
+      mute: el.querySelector('.muted-mark'),
+      state: el.querySelector('.face-state'),
+      stream: undefined,
+    }
+    this.#tiles.set(id, tile)
+    return tile
+  }
+}

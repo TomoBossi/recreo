@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#59c3ef">
+<title>recreo</title>
+<meta name="description" content="A room for you and your friends: video, chat and little games. No account, no install, no server.">
+<link rel="stylesheet" href="style.css">
+
+<!--
+  Bare-name imports with no bundler. Both libraries are vendored; while
+  developing them alongside this app, point these at ../plaza/src/plaza.js
+  and ../mirador/src/mirador.js instead.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "plaza": "./vendor/plaza/src/plaza.js",
+    "mirador": "./vendor/mirador/src/mirador.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<main id="landing">
+  <div class="card landing-card">
+    <h1 class="wordmark big">recreo</h1>
+    <p class="tagline">a room for you and your friends — video, chat, and little games</p>
+
+    <div class="preview">
+      <video id="preview" autoplay muted playsinline></video>
+      <div id="preview-placeholder" class="avatar"><div class="head"><div class="smile"></div></div></div>
+      <div class="preview-controls">
+        <button id="preview-mic" type="button" class="btn small" aria-pressed="true">mic</button>
+        <button id="preview-cam" type="button" class="btn small" aria-pressed="true">camera</button>
+      </div>
+    </div>
+
+    <form id="join-form">
+      <label class="field">
+        <span>your name</span>
+        <input id="nick-input" class="input" maxlength="24" autocomplete="nickname" required>
+      </label>
+      <label class="field">
+        <span>room</span>
+        <span class="row">
+          <input id="room-input" class="input" autocomplete="off" spellcheck="false" required>
+          <button id="regenerate" type="button" class="btn small" title="a new room">new</button>
+        </span>
+      </label>
+      <button id="join-button" type="submit" class="btn sun big">let's play</button>
+      <p id="landing-error" class="error" role="alert"></p>
+    </form>
+  </div>
+</main>
+
+<div id="app" hidden>
+  <header id="topbar">
+    <span class="wordmark">recreo</span>
+    <button id="room-chip" class="chip" title="copy the invite link">room <b id="room-name"></b></button>
+    <button id="invite" class="btn small sun">invite</button>
+    <span class="spacer"></span>
+    <button id="mic" class="btn small" aria-pressed="true" title="microphone">mic</button>
+    <button id="cam" class="btn small" aria-pressed="true" title="camera">camera</button>
+    <span class="shelf-anchor">
+      <button id="new-table" class="btn small leaf" aria-expanded="false">+ new table</button>
+      <div id="shelf-pop" class="popover" hidden></div>
+    </span>
+    <span class="segmented" id="mode">
+      <button class="btn small" data-mode="tiled">tiled</button>
+      <button class="btn small" data-mode="floating">floating</button>
+    </span>
+    <button id="leave" class="btn small berry">leave</button>
+  </header>
+  <main id="desk"></main>
+  <div id="toast" class="toast" hidden></div>
+</div>
+
+<script type="module" src="app/main.js"></script>
+</body>
+</html>

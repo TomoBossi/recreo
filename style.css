@@ -1,0 +1,461 @@
+/*
+ * recreo — the look.
+ *
+ * Cartoonish in the OMGPOP manner: flat bright colours, dark outlines, hard
+ * offset shadows, chunky type. A little less rounded and a little thinner in
+ * the line than the original. Everything is drawn from shapes here; there
+ * are no images and no web fonts.
+ */
+
+:root {
+  --ink: #241c3a;
+  --ink-soft: #4a4166;
+  --paper: #fffaf0;
+  --paper-2: #f3ecdc;
+  --sky: #59c3ef;
+  --sky-deep: #3aa6d8;
+  --sun: #ffd23f;
+  --berry: #ff5d8f;
+  --leaf: #6bd66b;
+  --grape: #9a7bf2;
+  --tang: #ff9a3c;
+  --sea: #3c7ff0;
+  --line: 2.5px;
+  --round: 9px;
+  --round-small: 6px;
+  --lift: 3px 3px 0 var(--ink);
+  --lift-small: 2px 2px 0 var(--ink);
+  --font: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Varela Round",
+    "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font);
+  color: var(--ink);
+  background-color: var(--sky);
+  background-image: radial-gradient(rgb(255 255 255 / 0.22) 2px, transparent 2.5px);
+  background-size: 22px 22px;
+  overflow: hidden;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+/* ------------------------------------------------------------- primitives */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round-small);
+  background: var(--paper);
+  box-shadow: var(--lift-small);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 60ms, box-shadow 60ms;
+  white-space: nowrap;
+}
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+.btn.sun { background: var(--sun); }
+.btn.berry { background: var(--berry); color: #fff; }
+.btn.leaf { background: var(--leaf); }
+.btn.grape { background: var(--grape); color: #fff; }
+.btn.small { padding: 2px 9px; font-size: 13px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: var(--line) solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.input {
+  padding: 8px 12px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round-small);
+  background: #fff;
+  box-shadow: inset 2px 2px 0 rgb(36 28 58 / 0.12);
+  font-weight: 700;
+  outline: none;
+}
+.input:focus { border-color: var(--sea); }
+
+/* Outlined chunky lettering, the logo's voice. */
+.wordmark {
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: var(--sun);
+  -webkit-text-stroke: 2px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+/* ------------------------------------------------------------------ chrome */
+
+#app { display: flex; flex-direction: column; height: 100%; }
+
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  flex: none;
+}
+#topbar .wordmark { font-size: 30px; line-height: 1; margin-right: 6px; }
+#topbar .spacer { flex: 1; }
+.segmented { display: inline-flex; }
+.segmented .btn { border-radius: 0; box-shadow: none; }
+.segmented .btn + .btn { margin-left: calc(-1 * var(--line)); }
+.segmented .btn:first-child { border-radius: var(--round-small) 0 0 var(--round-small); }
+.segmented .btn:last-child { border-radius: 0 var(--round-small) var(--round-small) 0; }
+.segmented { box-shadow: var(--lift-small); border-radius: var(--round-small); }
+
+/* ------------------------------------------------------------------ desktop */
+
+#desk {
+  position: relative;
+  flex: 1;
+  margin: 0 14px 14px;
+  min-height: 0;
+}
+
+.win {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round);
+  background: var(--paper);
+  box-shadow: var(--lift);
+  overflow: hidden;
+  min-width: 160px;
+}
+.win.focused { box-shadow: 5px 5px 0 var(--ink); }
+.win.collapsed { height: auto !important; }
+.win.collapsed .win-body { display: none; }
+
+.win-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 12px;
+  border-bottom: var(--line) solid var(--ink);
+  background: var(--sun);
+  font-weight: 900;
+  font-size: 15px;
+  user-select: none;
+  flex: none;
+}
+.win.collapsed .win-title { border-bottom: none; }
+.win-title .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-title .meta { font-weight: 700; font-size: 12px; opacity: 0.75; }
+.win.tone-berry .win-title { background: var(--berry); color: #fff; }
+.win.tone-leaf .win-title { background: var(--leaf); }
+.win.tone-grape .win-title { background: var(--grape); color: #fff; }
+.win.tone-tang .win-title { background: var(--tang); }
+.win.tone-sky .win-title { background: #a9e4fb; }
+
+/* Title-bar buttons, drawn rather than glyphed. */
+.wbtn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: var(--paper);
+  position: relative;
+  cursor: pointer;
+  flex: none;
+}
+.wbtn::before, .wbtn::after { content: ""; position: absolute; background: var(--ink); }
+.wbtn.collapse::before { left: 4px; right: 4px; top: 7px; height: 2.5px; }
+.win.collapsed .wbtn.collapse::after { top: 3px; bottom: 3px; left: 7px; width: 2.5px; }
+.wbtn.close::before, .wbtn.close::after { left: 7px; top: 2px; bottom: 2px; width: 2.5px; }
+.wbtn.close::before { transform: rotate(45deg); }
+.wbtn.close::after { transform: rotate(-45deg); }
+
+.win-body { flex: 1; min-height: 0; position: relative; overflow: auto; }
+
+/* Floating mode: windows grow a grip and can be dragged by the title. */
+.floating .win-title { cursor: grab; }
+.floating .win::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 11px;
+  height: 11px;
+  background:
+    linear-gradient(135deg, transparent 45%, var(--ink) 45% 55%, transparent 55% 70%, var(--ink) 70% 80%, transparent 80%);
+  cursor: nwse-resize;
+}
+
+/* ------------------------------------------------------------------- faces */
+
+.faces { display: flex; flex-direction: column; gap: 8px; padding: 8px; height: 100%; }
+.face {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round-small);
+  overflow: hidden;
+  background: var(--ink-soft);
+}
+.face video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.face.speaking { outline: 3px solid var(--leaf); outline-offset: 1px; }
+.face .tag {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  font-weight: 800;
+  font-size: 12px;
+}
+.face .tag .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
+
+/* A muted microphone, from a capsule, a stand and a slash. */
+.muted-mark { position: relative; width: 12px; height: 13px; }
+.muted-mark::before {
+  content: ""; position: absolute; left: 3px; top: 0; width: 6px; height: 9px;
+  border: 2px solid var(--ink); border-radius: 4px;
+}
+.muted-mark::after {
+  content: ""; position: absolute; left: -1px; top: 5px; width: 15px; height: 2.5px;
+  background: var(--berry); transform: rotate(-45deg);
+}
+
+/* A face drawn where there is no camera: a head and two eyes. */
+.avatar {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.avatar .head {
+  position: relative;
+  width: 46%;
+  aspect-ratio: 1;
+  max-width: 90px;
+  border: var(--line) solid var(--ink);
+  border-radius: 50%;
+}
+.avatar .head::before, .avatar .head::after {
+  content: ""; position: absolute; top: 38%; width: 12%; height: 16%;
+  background: var(--ink); border-radius: 50%;
+}
+.avatar .head::before { left: 30%; }
+.avatar .head::after { right: 30%; }
+.avatar .head .smile {
+  position: absolute; left: 30%; right: 30%; top: 55%; height: 18%;
+  border: 2.5px solid var(--ink); border-top: none; border-radius: 0 0 40px 40px;
+}
+
+/* -------------------------------------------------------------------- chat */
+
+.chat { display: flex; flex-direction: column; height: 100%; }
+.chat-lines { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+.chat-line { font-size: 13.5px; line-height: 1.3; }
+.chat-line .who { font-weight: 900; }
+.chat-line.system { color: var(--ink-soft); font-style: italic; font-size: 12.5px; }
+.chat-form { display: flex; gap: 6px; padding: 6px; border-top: var(--line) solid var(--ink); background: var(--paper-2); }
+.chat-form .input { flex: 1; min-width: 0; padding: 5px 9px; font-size: 13.5px; }
+
+/* ------------------------------------------------------------------ shelf */
+
+.shelf { display: flex; gap: 10px; padding: 10px; flex-wrap: wrap; }
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 104px;
+  padding: 10px 6px 8px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round-small);
+  background: #fff;
+  box-shadow: var(--lift-small);
+  font-weight: 900;
+  font-size: 13px;
+  cursor: pointer;
+}
+.game-card:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.game-card .icon { width: 56px; height: 44px; position: relative; }
+
+/* ------------------------------------------------------------------ tables */
+
+.table { display: flex; flex-direction: column; height: 100%; }
+.seats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: var(--line) solid var(--ink);
+  background: var(--paper-2);
+  flex-wrap: wrap;
+}
+.seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border: var(--line) solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+.seat.turn { background: var(--sun); box-shadow: var(--lift-small); }
+.seat.empty { border-style: dashed; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.seat .piece { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+.watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 12px; }
+.status { padding: 6px 10px; font-weight: 800; font-size: 14px; text-align: center; border-top: var(--line) solid var(--ink); }
+
+/* -------------------------------------------------------------- landing */
+
+#landing {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.card {
+  width: min(420px, 100%);
+  padding: 22px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--round);
+  background: var(--paper);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+/* ------------------------------------------------------------- room extras */
+
+[hidden] { display: none !important; }
+
+.gutter { position: absolute; cursor: col-resize; z-index: 0; }
+.gutter::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 44px;
+  transform: translate(-50%, -50%); border-radius: 3px;
+  background: rgb(36 28 58 / 0.25);
+}
+.gutter:hover::after { background: rgb(36 28 58 / 0.5); }
+
+.faces-body, .chat-body, .table-body { height: 100%; }
+.faces-grid { position: relative; height: 100%; }
+.faces-grid .face { position: absolute; background: color-mix(in srgb, var(--who, var(--sky)) 30%, #fff); transition: left 120ms, top 120ms, width 120ms, height 120ms; }
+.face .avatar .head { background: var(--who, var(--sky)); }
+.face video { position: absolute; inset: 0; opacity: 0; }
+.face.has-video video { opacity: 1; }
+.face.has-video .avatar { display: none; }
+.face .tag .dot { background: var(--who, var(--sky)); }
+.face.reconnecting { filter: saturate(0.3); }
+.face .face-state {
+  position: absolute; right: 6px; top: 6px; font-size: 11px; font-weight: 800;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 0 7px;
+}
+.face .face-state:empty { display: none; }
+.muted-mark[hidden] { display: none; }
+
+.shelf-anchor { position: relative; }
+.popover {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 10000;
+  width: max-content; max-width: min(480px, 92vw);
+  border: var(--line) solid var(--ink); border-radius: var(--round);
+  background: var(--paper); box-shadow: 5px 5px 0 var(--ink);
+}
+.game-card[disabled] { cursor: default; opacity: 0.55; box-shadow: none; }
+.game-card[disabled]:hover { transform: none; }
+.game-card .soon { font-size: 11px; font-weight: 800; color: var(--ink-soft); margin-top: -4px; }
+.game-card.tone-sky { background: #e3f6fe; }
+.game-card.tone-grape { background: #ece5ff; }
+.game-card.tone-berry { background: #ffe3ec; }
+.game-card.tone-leaf { background: #e2f8e2; }
+
+.table .ask {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; background: #ffe3ec; border-bottom: var(--line) solid var(--ink); font-weight: 800;
+}
+.seat.away { opacity: 0.6; }
+.seat .btn { margin-left: 4px; }
+.status { display: flex; align-items: center; justify-content: center; gap: 10px; }
+/* The board fits whatever room the window leaves it, keeping its shape. */
+.stage { position: relative; display: block; padding: 0; }
+.stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; }
+
+.c4 .disc.falling { animation: c4-fall 380ms cubic-bezier(.4, 0, .9, .6) both; }
+@keyframes c4-fall {
+  0% { transform: translateY(var(--fall)); }
+  80% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+.c4 .disc.winning > circle:first-child { stroke: var(--paper); stroke-width: 4; }
+.c4 .disc.winning { animation: c4-win 700ms ease-in-out infinite alternate; }
+@keyframes c4-win { to { transform: scale(1.12); } }
+.c4.my-turn .hits rect { cursor: pointer; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20000;
+  padding: 8px 16px; border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  background: var(--sun); box-shadow: var(--lift); font-weight: 800;
+}
+
+/* ------------------------------------------------------------------ landing */
+
+.landing-card { display: flex; flex-direction: column; gap: 14px; }
+.wordmark.big { font-size: 64px; margin: 0; text-align: center; line-height: 1; }
+.tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--ink-soft); }
+.preview {
+  position: relative; aspect-ratio: 4 / 3; border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  overflow: hidden; background: #ffd9a8;
+}
+.preview video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.preview .avatar .head { background: var(--tang); }
+.preview-controls { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; }
+#join-form { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-weight: 800; font-size: 13px; }
+.field .row { display: flex; gap: 6px; }
+.field .row .input { flex: 1; min-width: 0; }
+.btn.big { justify-content: center; padding: 10px; font-size: 18px; }
+.error { margin: 0; color: #c2185b; font-weight: 800; min-height: 1em; }
+
+/* Toggles read as on when pressed. */
+#mic[aria-pressed="false"], #cam[aria-pressed="false"],
+#preview-mic[aria-pressed="false"], #preview-cam[aria-pressed="false"] {
+  background: var(--berry); color: #fff; text-decoration: line-through;
+}
+#mic[aria-pressed="true"], #cam[aria-pressed="true"],
+#preview-mic[aria-pressed="true"], #preview-cam[aria-pressed="true"] {
+  background: var(--paper); color: var(--ink);
+}
+
+/* ------------------------------------------------------------- narrow screens */
+
+@media (max-width: 760px) {
+  html, body { overflow: auto; }
+  #topbar { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  #topbar .wordmark { font-size: 24px; }
+  #topbar .spacer { display: none; }
+  #mode { display: none; }
+  #desk { margin: 0 8px 8px; }
+  .wordmark.big { font-size: 48px; }
+}
