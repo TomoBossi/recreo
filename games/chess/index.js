@@ -147,7 +147,11 @@ function view(el, ctx) {
   // group, pieces turned back upright, so a square sits at the same place
   // in the board's own coordinates for both players — which is what lets
   // a cursor over e4 land on e4 for everyone.
-  const flipped = () => info.mySeat === 1
+  // Which way up follows the seat you hold, started or not (info.mySeat is
+  // only set once the game can begin): black sees black at the bottom from
+  // the moment they sit; watchers see white at the bottom.
+  const seat = () => ctx.mySeat
+  const flipped = () => seat() === 1
   const at = (sq) => ({ x: file(sq) * 100, y: (7 - rank(sq)) * 100 })
   const myTurn = () => info.mySeat != null && info.turn === info.mySeat
   const myColour = () => (info.mySeat === 0 ? 'w' : 'b')
@@ -191,7 +195,7 @@ function view(el, ctx) {
     const g = svg.querySelector('.clocks')
     if (!g) return
     if (!layout) { g.innerHTML = ''; return }
-    const bottom = info.mySeat ?? 0
+    const bottom = seat() ?? 0
     const top = 1 - bottom
     // A clock is only "running" once the game is: both seated, not over.
     const started = !state.result && Object.keys(info.names ?? {}).length === 2
