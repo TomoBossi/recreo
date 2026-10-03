@@ -329,16 +329,17 @@ export const scenarios = {
   },
 
   /**
-   * Draw & guess, authoritative: ana draws while tomo guesses wrong and lu
+   * Pictionary, authoritative: lu switches the words to Spanish before the
+   * start and everyone sees it; ana draws while tomo guesses wrong and lu
    * right; the clock passes the pencil to tomo; tomo's network dies while
    * drawing, the authority passes to ana, who ends the round and hands the
    * pencil on. Every peer's state — strokes and all — must agree throughout.
    */
-  async 'draw-game'(run) {
+  async 'pictionary-game'(run) {
     const labels = ['ana', 'tomo', 'lu']
     players(run, labels)
     await roomUp(run, labels)
-    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('draw'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('pictionary'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, labels, 'after opening')
     await sit(run, labels, 'tomo', id, 1)
     await sit(run, labels, 'lu', id, 2)
@@ -354,8 +355,19 @@ export const scenarios = {
       }
     }
 
+    // An option set by one seated player reaches everyone before the start.
+    await js(run, 'lu', `recreo.tables.setOption(${T}, 'words', 'es')`)
+    await until('everyone to see Spanish', async () => {
+      for (const label of labels) if ((await js(run, label, `recreo.tables.optionsOf(recreo.tables.tables.get(${T})).words`)) !== 'es') return false
+      return true
+    })
     await js(run, 'tomo', `recreo.tables.intend(${T}, { type: 'start' })`)
     await until('the game to start', async () => (await phase('ana')) === 'choosing')
+    for (const label of labels) {
+      const st = await state(label)
+      if (st.language !== 'es') throw new Error(`${label} started in ${st.language}`)
+    }
+    if (await js(run, 'ana', `recreo.tables.setOption(${T}, 'words', 'en')`)) throw new Error('options changed mid-game')
     const { choices, drawer } = await state('ana')
     if (drawer !== 0) throw new Error(`expected ana to draw first, got seat ${drawer}`)
     await js(run, 'ana', `recreo.tables.intend(${T}, { type: 'choose', word: ${JSON.stringify(choices[0])} })`)
@@ -403,11 +415,11 @@ export const scenarios = {
    * shot aimed at the cup, and all three peers must agree on every ball's
    * resting place after every shot — the point of integer physics.
    */
-  async 'golf-game'(run) {
+  async 'minigolf-game'(run) {
     const labels = ['ana', 'tomo', 'lu']
     players(run, labels)
     await roomUp(run, labels)
-    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('golf'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('minigolf'); recreo.tables.sit(t.id, 0); return t.id })()`)
     await converge(run, labels, 'after opening')
     await sit(run, labels, 'tomo', id, 1)
     const T = JSON.stringify(id)

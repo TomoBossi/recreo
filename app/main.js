@@ -13,17 +13,12 @@ import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
 import { clampColour, colourFor, colourButton } from './colours.js'
 import { ownCursor } from './pointer.js'
+import { CAPACITY } from './limits.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming } from '../games/index.js'
 
 const $ = (sel) => document.querySelector(sel)
 
-/**
- * How many people a room holds. In a full mesh everyone sends their video to
- * everyone else, so upload grows with each person; four stays comfortable on
- * a phone, and four is also the most a rollback game in the mesh supports.
- */
-const CAPACITY = 4
 const media = new LocalMedia()
 
 /** Your colour: chosen once, kept, and the same on everything that is yours. */

@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initial, fromFen, perft, play, isLegal } from '../games/chess-rules.js'
-import connect4 from '../games/connect4.js'
-import chess from '../games/chess.js'
+import { initial, fromFen, perft, play, isLegal } from '../games/chess/rules.js'
+import connect4 from '../games/connect4/index.js'
+import chess from '../games/chess/index.js'
 
 /**
  * Rules must agree on every machine, so they are checked here without a
@@ -56,22 +56,22 @@ test('connect four refuses a full column and the wrong seat', () => {
   assert.equal(connect4.legal(s, { col: 1 }, 1 - s.turn), false)
 })
 
-import draw from '../games/draw.js'
+import pictionary from '../games/pictionary/index.js'
 
 /** Run intents through decide and apply, as an authority would. */
 function act(s, intent, seat, ctx) {
-  for (const move of draw.decide(s, intent, seat, ctx)) s = draw.apply(s, move)
+  for (const move of pictionary.decide(s, intent, seat, ctx)) s = pictionary.apply(s, move)
   return s
 }
 
-test('a round of draw & guess, start to finish', () => {
+test('a round of pictionary, start to finish', () => {
   const ctx = { now: 1000, seated: [0, 1, 2], here: [0, 1, 2] }
-  let s = draw.init({ seed: 42 })
-  assert.equal(draw.authority(s, [1, 2]), 1, 'before a drawer, the first seat here runs it')
+  let s = pictionary.init({ seed: 42 })
+  assert.equal(pictionary.authority(s, [1, 2]), 1, 'before a drawer, the first seat here runs it')
   s = act(s, { type: 'start' }, 2, ctx)
   assert.equal(s.phase, 'choosing')
   assert.equal(s.drawer, 0)
-  assert.equal(draw.authority(s, [0, 1, 2]), 0, 'the drawer runs the round')
+  assert.equal(pictionary.authority(s, [0, 1, 2]), 0, 'the drawer runs the round')
   assert.equal(s.choices.length, 3)
 
   // Only the drawer chooses, and only from the choices.
@@ -100,33 +100,34 @@ test('a round of draw & guess, start to finish', () => {
 
   // The clock moves things on; three drawers, then it is over.
   for (let i = 0; i < 2; i++) {
-    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
     assert.equal(s.phase, 'choosing')
-    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 16000, here: [0, 1, 2] })[0]) // auto-pick
-    s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 81000, here: [0, 1, 2] })[0]) // time up
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 16000, here: [0, 1, 2] })[0]) // auto-pick
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 81000, here: [0, 1, 2] })[0]) // time up
   }
-  s = draw.apply(s, draw.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
+  s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
   assert.equal(s.phase, 'over')
-  assert.match(draw.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins with/)
+  assert.match(pictionary.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins with/)
 })
 
 test('when the drawer leaves, the next player takes over and ends the round', () => {
   const ctx = { now: 0, seated: [0, 1, 2], here: [0, 1, 2] }
-  let s = act(draw.init({ seed: 7 }), { type: 'start' }, 0, ctx)
+  let s = act(pictionary.init({ seed: 7 }), { type: 'start' }, 0, ctx)
   s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
-  assert.equal(draw.authority(s, [1, 2]), 1)
-  const moves = draw.tick(s, { now: 10, here: [1, 2] })
+  assert.equal(pictionary.authority(s, [1, 2]), 1)
+  const moves = pictionary.tick(s, { now: 10, here: [1, 2] })
   assert.equal(moves[0].type, 'end')
-  assert.equal(draw.apply(s, moves[0]).phase, 'reveal')
+  assert.equal(pictionary.apply(s, moves[0]).phase, 'reveal')
 })
 
-test('draw & guess picks the same words everywhere from the same seed', () => {
-  const a = act(draw.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
-  const b = act(draw.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
+test('pictionary picks the same words everywhere from the same seed', () => {
+  const a = act(pictionary.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
+  const b = act(pictionary.init({ seed: 99 }), { type: 'start' }, 0, { now: 0, seated: [0, 1], here: [0, 1] })
   assert.deepEqual(a.choices, b.choices)
 })
 
-import golf, { roll, clampShot } from '../games/golf.js'
+import minigolf from '../games/minigolf/index.js'
+import { roll, clampShot } from '../games/minigolf/physics.js'
 
 test('minigolf physics is integer arithmetic, so every machine agrees', () => {
   const hole = { tee: [120, 300], cup: [870, 300], walls: [[400, 200, 40, 200]], water: [] }
@@ -138,18 +139,67 @@ test('minigolf physics is integer arithmetic, so every machine agrees', () => {
 })
 
 test('a straight putt on the first hole drops, and the turn passes', () => {
-  let s = golf.init()
-  assert.equal(golf.turn(s), 'any')
-  assert.ok(golf.legal(s, { type: 'start', order: [1, 0] }, 0))
-  s = golf.apply(s, { type: 'start', order: [1, 0] }, 0)
+  let s = minigolf.init()
+  assert.equal(minigolf.turn(s), 'any')
+  assert.ok(minigolf.legal(s, { type: 'start', order: [1, 0] }, 0))
+  s = minigolf.apply(s, { type: 'start', order: [1, 0] }, 0)
   assert.equal(s.turn, 0)
   // Straight at the cup, firmly; it should sink within a stroke or two.
   for (let i = 0; i < 3 && !s.balls[0].done; i++) {
     const [x, y] = s.balls[0].pos
-    s = golf.apply(s, { type: 'shot', dx: Math.trunc((87000 - x) / 60), dy: Math.trunc((30000 - y) / 60) }, 0)
+    s = minigolf.apply(s, { type: 'shot', dx: Math.trunc((87000 - x) / 60), dy: Math.trunc((30000 - y) / 60) }, 0)
     if (!s.balls[0].done) assert.equal(s.turn, 1, 'the other player is further away and goes next')
-    if (!s.balls[0].done) s = golf.apply(s, { type: 'shot', dx: 10, dy: 0 }, 1)
+    if (!s.balls[0].done) s = minigolf.apply(s, { type: 'shot', dx: 10, dy: 0 }, 1)
   }
   assert.ok(s.balls[0].done && s.balls[0].strokes <= 3, `ball 0: ${JSON.stringify(s.balls[0])}`)
-  assert.equal(golf.legal(s, { type: 'shot', dx: 100, dy: 0 }, 0), false, 'a holed ball does not putt again')
+  assert.equal(minigolf.legal(s, { type: 'shot', dx: 100, dy: 0 }, 0), false, 'a holed ball does not putt again')
+})
+
+import english from '../games/pictionary/words/en.js'
+import spanish from '../games/pictionary/words/es.js'
+import { masked } from '../games/pictionary/index.js'
+
+const startIn = (language, seed = 5) => {
+  const ctx = { now: 0, seated: [0, 1], here: [0, 1], options: { words: language } }
+  let s = pictionary.init({ seed, options: { words: language } })
+  for (const move of pictionary.decide(s, { type: 'start' }, 0, ctx)) s = pictionary.apply(s, move)
+  return s
+}
+
+test('pictionary offers an easy, a medium and a hard English word', () => {
+  const s = startIn('en')
+  assert.deepEqual(s.levels, ['easy', 'medium', 'hard'])
+  s.choices.forEach((word, i) => assert.ok(english[i].includes(word), `${word} is ${s.levels[i]}`))
+})
+
+test('pictionary in Spanish draws from the Spanish words, and keeps them for play again', () => {
+  let s = startIn('es')
+  assert.equal(s.language, 'es')
+  assert.equal(s.levels, null)
+  for (const word of s.choices) assert.ok(spanish[0].includes(word), word)
+  // The language is fixed for the game: a start without one keeps it.
+  s = pictionary.apply({ ...s, phase: 'over' }, { type: 'start', order: [0, 1], at: 1 })
+  for (const word of s.choices) assert.ok(spanish[0].includes(word), word)
+  assert.ok(pictionary.optionsOpen({ phase: 'over' }) && !pictionary.optionsOpen(s))
+})
+
+test('hints fill in letters over the round, the same everywhere, never the whole word', () => {
+  let s = startIn('en')
+  s = pictionary.apply(s, { type: 'choose', word: 'fire hydrant', at: 0 })
+  const here = [0, 1]
+  for (let t = 0; t <= 80000; t += 400) {
+    for (const move of pictionary.tick(s, { now: t, here }) ?? []) if (move.type === 'hint') s = pictionary.apply(s, move)
+  }
+  assert.equal(s.hints.length, 4, 'two in five of eleven letters')
+  assert.ok(s.hints.every((i) => 'fire hydrant'[i] !== ' '))
+  assert.equal(masked('fire hydrant', []), '_ _ _ _   _ _ _ _ _ _ _')
+  assert.equal(masked('día', [1]), '_ í _')
+  assert.equal(pictionary.tick({ ...s, phaseAt: 0, hints: [] }, { now: 1000, here }).length, 0, 'none in the first moments')
+})
+
+test('a guess matches ignoring case, accents, spacing and dashes', () => {
+  let s = startIn('es')
+  s = pictionary.apply(s, { type: 'choose', word: 'T-rex', at: 0 })
+  s = pictionary.apply(s, { type: 'guess', seat: 1, text: 't rex', at: 1 })
+  assert.equal(s.guessed[1], 0)
 })

@@ -17,6 +17,9 @@ import { Emitter } from 'plaza'
  *     the same moves in the same order.
  *   - A rematch starts a new generation with a fresh seed, and the higher
  *     generation always wins a merge.
+ *   - Options are claims too, one per option, ordered the same way as seats.
+ *     The first move records the options it was played under, so every peer
+ *     starts the game from the same ones, whatever arrived when.
  *   - Closing is final.
  *
  * Nothing here defends against a peer lying. This is a room of friends.
@@ -88,6 +91,7 @@ export class Tables extends Emitter {
       gen: 0,
       seed: randomSeed(),
       seats: {},
+      options: {},
       moves: [],
       closed: false,
     }
@@ -105,6 +109,18 @@ export class Tables extends Emitter {
     if (seat != null) this.#claim(tableId, seat, null)
   }
 
+  /** Choose an option before the game starts. Anyone seated may. */
+  setOption(tableId, id, value) {
+    const table = this.tables.get(tableId)
+    if (!table || table.closed || !this.canSetOptions(table)) return false
+    const option = this.games[table.game].options.find((o) => o.id === id)
+    if (!option?.choices.some((c) => c.value === value) || this.optionsOf(table)[id] === value) return false
+    const claim = { value, clock: ++this.#clock, who: this.me.player }
+    this.#applyOption(table, id, claim)
+    this.channel.send({ t: 'option', id: tableId, key: id, ...claim })
+    return true
+  }
+
   play(tableId, move) {
     const table = this.tables.get(tableId)
     if (!table || table.closed) return false
@@ -117,7 +133,7 @@ export class Tables extends Emitter {
     // 'any' is a game saying anyone seated may move now — to start it, say.
     const turn = game.turn(table.state)
     if (seat == null || (turn !== 'any' && turn !== seat) || !game.legal(table.state, move, seat)) return false
-    const record = { n: table.moves.length, seat, move, player: this.me.player }
+    const record = this.#record(table, seat, move)
     this.#applyMove(table, record)
     this.channel.send({ t: 'move', id: tableId, gen: table.gen, ...record })
     return true
@@ -171,6 +187,30 @@ export class Tables extends Emitter {
 
   // ---------------------------------------------------------------- queries
 
+  /** Option id -> chosen value, defaults filled in. */
+  optionsOf(table) {
+    const game = this.games[table.game]
+    // Once a game has started under some options, those are the ones it uses.
+    const played = !game.optionsOpen && table.moves[0]?.options
+    const out = {}
+    for (const o of game.options) {
+      const value = played ? played[o.id] : table.options?.[o.id]?.value
+      out[o.id] = o.choices.some((c) => c.value === value) ? value : o.default
+    }
+    return out
+  }
+
+  /** Whether options can change now: before the first move, or when the game says. */
+  optionsOpen(table) {
+    const game = this.games[table.game]
+    if (!game.options.length || table.closed) return false
+    return game.optionsOpen ? !!game.optionsOpen(table.state) : table.moves.length === 0
+  }
+
+  canSetOptions(table) {
+    return this.optionsOpen(table) && this.seatOf(table, this.me.player) != null
+  }
+
   /** The seat a player holds at a table, or null. */
   seatOf(table, player) {
     for (const [seat, claim] of Object.entries(table.seats)) {
@@ -220,13 +260,18 @@ export class Tables extends Emitter {
         this.#clock = Math.max(this.#clock, msg.clock ?? 0)
         this.#applyClaim(table, msg.seat, { player: msg.player ?? null, clock: msg.clock, who: msg.who })
         return
+      case 'option':
+        if (!table) return void this.syncWith(peerId)
+        this.#clock = Math.max(this.#clock, msg.clock ?? 0)
+        this.#applyOption(table, msg.key, { value: msg.value, clock: msg.clock, who: msg.who })
+        return
       case 'move':
         if (!table) return void this.syncWith(peerId)
         if (msg.gen !== table.gen) {
           if (msg.gen > table.gen) void this.syncWith(peerId)
           return
         }
-        this.#offerMove(table, { n: msg.n, seat: msg.seat, move: msg.move, player: msg.player }, peerId)
+        this.#offerMove(table, { n: msg.n, seat: msg.seat, move: msg.move, player: msg.player, ...(msg.options ? { options: msg.options } : {}) }, peerId)
         return
       case 'intent':
         if (!table || msg.gen !== table.gen) return
@@ -271,15 +316,23 @@ export class Tables extends Emitter {
   }
 
   #append(table, move) {
-    const record = { n: table.moves.length, seat: null, move, player: this.me.player }
+    const record = this.#record(table, null, move)
     this.#applyMove(table, record)
     this.channel.send({ t: 'move', id: table.id, gen: table.gen, ...record })
+  }
+
+  /** A new move; the first of a game carries the options it starts under. */
+  #record(table, seat, move) {
+    const record = { n: table.moves.length, seat, move, player: this.me.player }
+    if (record.n === 0 && this.games[table.game].options.length) record.options = this.optionsOf(table)
+    return record
   }
 
   #context(table) {
     const seated = this.seated(table)
     return {
       now: Date.now(),
+      options: this.optionsOf(table),
       seated: Object.keys(seated).map(Number).sort((a, b) => a - b),
       here: Object.keys(seated).map(Number).filter((seat) => this.present(seated[seat])).sort((a, b) => a - b),
     }
@@ -295,11 +348,23 @@ export class Tables extends Emitter {
 
   #applyMove(table, record) {
     const game = this.games[table.game]
+    // The first move says which options the game began with: start from those.
+    if (record.n === 0 && record.options) table.state = this.#initial(table, record.options)
     // An authoritative game's moves come from its authority, already decided.
     if (game.mode !== 'authoritative' && !game.legal(table.state, record.move, record.seat)) return
     table.moves.push(record)
     table.state = game.apply(table.state, record.move, record.seat)
     this.emit('moved', table, record)
+    this.emit('change', table)
+  }
+
+  #applyOption(table, id, claim) {
+    table.options ??= {}
+    const current = table.options[id]
+    if (current && !later(claim, current)) return
+    table.options[id] = claim
+    // Before the first move the starting state depends on the options.
+    if (table.moves.length === 0) table.state = this.#initial(table)
     this.emit('change', table)
   }
 
@@ -325,8 +390,9 @@ export class Tables extends Emitter {
     this.emit('change', table)
   }
 
-  #initial(table) {
-    return this.games[table.game].init({ seed: table.seed, seats: this.games[table.game].seats })
+  #initial(table, options = this.optionsOf(table)) {
+    const game = this.games[table.game]
+    return game.init({ seed: table.seed, seats: game.seats, options })
   }
 
   /**
@@ -341,7 +407,7 @@ export class Tables extends Emitter {
     if (!theirs?.id || !this.games[theirs.game]) return
     let table = this.tables.get(theirs.id)
     if (!table) {
-      table = { ...theirs, seats: {}, moves: [], closed: false }
+      table = { ...theirs, seats: {}, options: {}, moves: [], closed: false }
       table.state = this.#initial(table)
       this.tables.set(table.id, table)
     }
@@ -351,6 +417,13 @@ export class Tables extends Emitter {
       const current = table.seats[seat]
       if (!current || later(claim, current)) table.seats[seat] = claim
     }
+
+    for (const [id, claim] of Object.entries(theirs.options ?? {})) {
+      this.#clock = Math.max(this.#clock, claim.clock ?? 0)
+      const current = table.options[id]
+      if (!current || later(claim, current)) table.options[id] = claim
+    }
+    if (table.moves.length === 0) table.state = this.#initial(table)
 
     if (theirs.gen > table.gen) {
       table.gen = theirs.gen
@@ -367,7 +440,7 @@ export class Tables extends Emitter {
   }
 
   #plain(t) {
-    return { id: t.id, game: t.game, by: t.by, at: t.at, gen: t.gen, seed: t.seed, seats: t.seats, moves: t.moves, closed: t.closed }
+    return { id: t.id, game: t.game, by: t.by, at: t.at, gen: t.gen, seed: t.seed, seats: t.seats, options: t.options ?? {}, moves: t.moves, closed: t.closed }
   }
 }
 

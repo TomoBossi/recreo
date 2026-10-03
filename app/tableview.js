@@ -118,6 +118,7 @@ export class TableView {
         this.seatsEl.append(vs)
       }
     }
+    if (game.options.length) this.seatsEl.append(this.#options())
     const watchers = this.watchers()
     const w = document.createElement('span')
     w.className = 'watchers'
@@ -143,6 +144,45 @@ export class TableView {
       names,
       last: table.moves.at(-1) ?? null,
     })
+  }
+
+  /**
+   * The game's options, beside the seats: buttons while they can change and
+   * you are seated, otherwise just what was chosen.
+   */
+  #options() {
+    const { table, game, tables } = this
+    const chosen = tables.optionsOf(table)
+    const editable = tables.canSetOptions(table)
+    const box = document.createElement('span')
+    box.className = 'table-options'
+    for (const option of game.options) {
+      const group = document.createElement('span')
+      group.className = 'table-option'
+      const label = document.createElement('span')
+      label.className = 'label'
+      label.textContent = option.label
+      group.append(label)
+      if (editable) {
+        const seg = document.createElement('span')
+        seg.className = 'segmented'
+        for (const choice of option.choices) {
+          const b = document.createElement('button')
+          b.className = 'btn small'
+          b.textContent = choice.label
+          b.setAttribute('aria-pressed', String(chosen[option.id] === choice.value))
+          b.addEventListener('click', () => tables.setOption(table.id, option.id, choice.value))
+          seg.append(b)
+        }
+        group.append(seg)
+      } else {
+        const value = document.createElement('b')
+        value.textContent = option.choices.find((c) => c.value === chosen[option.id])?.label ?? ''
+        group.append(value)
+      }
+      box.append(group)
+    }
+    return box
   }
 
   /** Ending is for everyone, so it asks first — inline, not in a dialog. */

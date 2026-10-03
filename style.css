@@ -195,7 +195,7 @@ button, input, select { font: inherit; color: inherit; }
 .anchor { position: relative; }
 .popover {
   position: absolute; right: 0; top: calc(100% + 10px); z-index: 10000;
-  width: max-content; max-width: min(480px, 92vw);
+  width: max-content; max-width: min(600px, 92vw);
   border: var(--line) solid var(--ink); border-radius: var(--round);
   background: var(--panel); box-shadow: var(--lift);
 }
@@ -438,6 +438,11 @@ button, input, select { font: inherit; color: inherit; }
 .seat .btn { height: 20px; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
 .seat .btn:hover { transform: none; background: var(--panel-2); }
 .seats .vs { font-weight: 900; color: var(--text-soft); }
+/* A game's options sit after the seats. */
+.table-options { display: inline-flex; align-items: center; gap: 12px; margin-left: 6px; }
+.table-option { display: inline-flex; align-items: center; gap: 7px; height: 28px; font-weight: 800; font-size: 13px; line-height: 1; }
+.table-option .label { color: var(--text-soft); }
+.table-option .segmented .btn { height: 26px; padding: 0 10px; font-size: 12.5px; }
 .watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text-soft); }
 
 /* The board fits whatever room the window leaves it, keeping its shape. */
@@ -456,6 +461,15 @@ button, input, select { font: inherit; color: inherit; }
   padding: 8px 10px; background: var(--tint-berry); border-bottom: var(--line) solid var(--ink); font-weight: 800;
 }
 
+/* Shared by games: the panel over a board that offers start and play again
+   (games/kit/lobby.js), and any game's own panel drawn the same way. */
+.game-lobby, .draw-overlay {
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: var(--veil); color: var(--text); font-weight: 900; font-size: 18px; text-align: center; padding: 16px;
+}
+.game-lobby[hidden], .draw-overlay[hidden] { display: none; }
+.game-lobby p, .draw-overlay p { margin: 0; }
+
 /* Connect four */
 .c4 .disc.falling { animation: c4-fall 380ms cubic-bezier(.4, 0, .9, .6) both; }
 @keyframes c4-fall {
@@ -473,22 +487,24 @@ button, input, select { font: inherit; color: inherit; }
 .chess.my-turn rect[data-sq] { cursor: pointer; }
 .chess .promo { cursor: pointer; }
 
+/* Tic-tac-toe */
+.ttt.my-turn .hits rect { cursor: pointer; }
+.ttt .winning { animation: c4-win 650ms ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+
 /* Pictionary */
 .draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
 .draw-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
-.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 3px; line-height: 1; }
+.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 2px; line-height: 1; white-space: pre-wrap; }
 .draw-clock { font-weight: 900; font-size: 17px; line-height: 1.15; padding: 2px 11px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--on-accent); }
 .draw-clock:empty { display: none; }
 .draw-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
 .draw-paper { position: relative; flex: 1; min-width: 0; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
 .draw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .draw-stage.drawing .draw-canvas { cursor: crosshair; }
-.draw-overlay {
-  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  background: rgb(255 250 240 / 0.86); color: #241c3a; font-weight: 900; font-size: 18px; text-align: center; padding: 16px;
-}
-.draw-overlay p { margin: 0; }
+/* The pictionary word choice uses the same panel as the lobby. */
 .draw-overlay .choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.draw-overlay .choices .btn { flex-direction: column; height: auto; padding: 8px 14px 6px; gap: 3px; }
+.draw-overlay .choices small { font-size: 11px; font-weight: 800; opacity: 0.8; letter-spacing: 0.5px; }
 .draw-side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .draw-scores { display: flex; flex-direction: column; gap: 4px; }
 .score { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); font-weight: 800; font-size: 13px; line-height: 1; }
@@ -514,15 +530,12 @@ button, input, select { font: inherit; color: inherit; }
 .golf .power { font: 900 22px var(--font); fill: #241c3a; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
 .golf .spin { animation: golf-spin 3s linear infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes golf-spin { to { transform: rotate(360deg); } }
-.golf-over {
-  position: absolute; inset: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background: var(--veil); border-radius: var(--round-small); font-weight: 900; text-align: center;
-}
-.golf-over p { margin: 0; }
-.golf-over .card { border-collapse: collapse; background: var(--field); border: var(--line) solid var(--ink); font-weight: 800; }
-.golf-over .card th, .golf-over .card td { border: 2px solid var(--ink); padding: 4px 10px; text-align: center; }
-.golf-over .card .par { color: var(--text-soft); }
-.golf-over .card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
+
+/* Scorecard, shown in the lobby panel at the end of a round. */
+.golf-card { border-collapse: collapse; background: var(--field); border: var(--line) solid var(--ink); font-weight: 800; }
+.golf-card th, .golf-card td { border: 2px solid var(--ink); padding: 4px 10px; text-align: center; }
+.golf-card .par { color: var(--text-soft); }
+.golf-card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
 .stage svg.golf { touch-action: none; }
 
 /* ------------------------------------------------------------------ cursors */
