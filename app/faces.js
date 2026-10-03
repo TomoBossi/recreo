@@ -1,3 +1,4 @@
+import { avatar } from './avatar.js'
 import { gridLayout, SpeakerTracker } from 'mirador'
 
 /**
@@ -104,7 +105,7 @@ export class Faces {
     const el = document.createElement('div')
     el.className = 'face'
     el.innerHTML = `
-      <div class="avatar"><div class="head"><div class="smile"></div></div></div>
+      <div class="avatar">${avatar()}</div>
       <video autoplay playsinline disablepictureinpicture></video>
       <span class="tag"><span class="dot"></span><span class="name"></span><svg class="muted-mark" viewBox="0 0 14 14" hidden aria-label="muted">
         <rect x="4.5" y="0.5" width="5" height="8" rx="2.5" fill="currentColor"/>

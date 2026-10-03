@@ -11,7 +11,7 @@
  *     kind: 'turns',
  *     seats: 2,
  *     pieces: ['#ff5d8f', '#2fa4e6'],
- *     rules: { init, turn, legal, apply, status },
+ *     rules: { init, turn, legal, apply, status, outcome, forfeit },
  *     view,
  *     options: { ... },         // optional, see below
  *   })
@@ -21,13 +21,27 @@
  *   'turns'      Every peer runs the whole game and applies every move. For
  *                anything where only one seat acts at a time — whoever's turn
  *                it is — or where actions commute. Rules: init, turn, legal,
- *                apply, status.
+ *                apply, status, outcome, forfeit.
  *
  *   'authority'  One peer runs the game, turning everyone's intents into
  *                moves; everyone applies the moves. For games where
  *                simultaneous actions race. Rules: init, decide, apply,
- *                status, and optionally authority and tick. The role passes
+ *                status, outcome, forfeit, and optionally authority and
+ *                tick. The role passes
  *                to the next player if the authority leaves.
+ *
+ * Every game ends somehow, and every player can give up:
+ *
+ *   outcome(state, names)   null while the game is on; once it is over,
+ *                           { winners: [seat…], draw?: true, reason: '…' }.
+ *                           The room turns it into "you win!" or "you lose"
+ *                           for each player, and a line for whoever watches.
+ *   forfeit(state, seat, { at })
+ *                           the state after a seat gives up, by the game's
+ *                           own rules: in a duel the other player wins; with
+ *                           more players the game may drop that seat and
+ *                           play on, keeping its score as it stood. A
+ *                           forfeiter never wins.
  *
  * Options are choices made at the table before a game starts, next to the
  * seats, by anyone seated — a language, a board size:
@@ -49,8 +63,8 @@
 import { CAPACITY } from '../../app/limits.js'
 
 const KINDS = {
-  turns: { needs: ['init', 'turn', 'legal', 'apply', 'status'], mode: 'replicated' },
-  authority: { needs: ['init', 'decide', 'apply', 'status'], mode: 'authoritative' },
+  turns: { needs: ['init', 'turn', 'legal', 'apply', 'status', 'outcome', 'forfeit'], mode: 'replicated' },
+  authority: { needs: ['init', 'decide', 'apply', 'status', 'outcome', 'forfeit'], mode: 'authoritative' },
 }
 const TONES = ['sun', 'berry', 'leaf', 'grape', 'tang', 'sky']
 
@@ -108,6 +122,8 @@ export function defineGame(spec) {
 
     init: rules.init,
     status: rules.status,
+    outcome: rules.outcome,
+    forfeit: rules.forfeit,
     apply: rules.apply,
     turn: rules.turn ?? (() => null),
     legal: rules.legal ?? (() => true),

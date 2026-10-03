@@ -7,8 +7,8 @@ import { CAPACITY } from '../app/limits.js'
 import tictactoe from '../games/tictactoe/index.js'
 
 const noop = () => {}
-const turns = { init: () => ({}), turn: () => null, legal: () => true, apply: (s) => s, status: () => '' }
-const authority = { init: () => ({}), decide: () => [], apply: (s) => s, status: () => '' }
+const turns = { init: () => ({}), turn: () => null, legal: () => true, apply: (s) => s, status: () => '', outcome: () => null, forfeit: (s) => s }
+const authority = { init: () => ({}), decide: () => [], apply: (s) => s, status: () => '', outcome: () => null, forfeit: (s) => s }
 const spec = (over) => ({ id: 'x', name: 'X', kind: 'turns', seats: 2, rules: turns, view: noop, ...over })
 
 test('every folder under games/ with an index.js is registered, under its folder name', () => {
@@ -43,6 +43,8 @@ test('seats go from 1 up to the room capacity, and no further', () => {
 test('defineGame names what is missing, for each kind', () => {
   assert.throws(() => defineGame(spec({ rules: { ...turns, legal: undefined } })), /x.*legal\(\)/)
   assert.throws(() => defineGame(spec({ kind: 'authority', rules: { ...authority, decide: undefined } })), /decide\(\)/)
+  assert.throws(() => defineGame(spec({ rules: { ...turns, outcome: undefined } })), /outcome\(\)/)
+  assert.throws(() => defineGame(spec({ kind: 'authority', rules: { ...authority, forfeit: undefined } })), /forfeit\(\)/)
   assert.throws(() => defineGame(spec({ kind: 'magic' })), /kind/)
   assert.throws(() => defineGame(spec({ id: 'Bad Id' })), /id/)
   assert.throws(() => defineGame(spec({ view: undefined })), /view/)
@@ -77,4 +79,16 @@ test('options: choices with a default, checked when the game loads', () => {
   assert.throws(() => defineGame(spec({ options: { size: { choices: { s: 'small' } } } })), /two choices/)
   assert.throws(() => defineGame(spec({ options: { size: { choices: { s: 'a', l: 'b' }, default: 'x' } } })), /not one of its choices/)
   assert.throws(() => defineGame(spec({ options: { Size: { choices: { s: 'a', l: 'b' } } } })), /option "Size"/)
+})
+
+import { bandColour, oklch } from '../app/colours.js'
+
+test('every colour on the custom pad is already inside the readable band', () => {
+  for (let hue = 0; hue < 360; hue += 5) {
+    for (const L of [0, 0.62, 0.68, 0.74, 1]) {
+      const c = oklch(bandColour(hue, L))
+      assert.ok(c.L > 0.615 && c.L < 0.745, `lightness ${c.L} at hue ${hue}`)
+      assert.ok(c.C > 0.08, `chroma ${c.C} at hue ${hue}: not a grey`)
+    }
+  }
 })

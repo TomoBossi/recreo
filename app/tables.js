@@ -15,6 +15,10 @@ import { Emitter } from 'plaza'
  *   - Moves are numbered. In a game where only one seat acts at a time, there
  *     is only ever one candidate for the next number, so every peer applies
  *     the same moves in the same order.
+ *   - The exception is a forfeit, which anyone seated can make at any time
+ *     and so can race the move it interrupts. A forfeit beats an ordinary
+ *     move for the same number, and between two forfeits the lower seat
+ *     goes first; whoever applied the loser rewinds and replays.
  *   - A rematch starts a new generation with a fresh seed, and the higher
  *     generation always wins a merge.
  *   - Options are claims too, one per option, ordered the same way as seats.
@@ -31,7 +35,7 @@ import { Emitter } from 'plaza'
  *
  * @fires change (table)   anything about a table changed
  * @fires opened (table, byPlayer)
- * @fires closed (table)
+ * @fires closed (table, byPlayer)
  * @fires moved  (table, move)
  */
 export class Tables extends Emitter {
@@ -140,6 +144,22 @@ export class Tables extends Emitter {
   }
 
   /**
+   * Give up the game we sit at. The game's own rules say what follows: the
+   * other player winning, or the game playing on without us.
+   */
+  forfeit(tableId) {
+    const table = this.tables.get(tableId)
+    if (!table || table.closed || !this.canForfeit(table)) return false
+    const game = this.games[table.game]
+    const seat = this.seatOf(table, this.me.player)
+    if (game.mode === 'authoritative') return this.intend(tableId, { forfeit: true })
+    const record = this.#record(table, seat, { forfeit: seat, at: Date.now() })
+    this.#applyMove(table, record)
+    this.channel.send({ t: 'move', id: tableId, gen: table.gen, ...record })
+    return true
+  }
+
+  /**
    * Ask an authoritative game to do something: a guess, a stroke, a start.
    * Everyone hears it; only the authority acts on it, by turning it into
    * moves that everyone then applies in the order the authority gave them.
@@ -181,11 +201,27 @@ export class Tables extends Emitter {
   close(tableId) {
     const table = this.tables.get(tableId)
     if (!table || table.closed) return
-    this.#close(table)
-    this.channel.send({ t: 'close', id: tableId })
+    this.#close(table, this.me.player)
+    this.channel.send({ t: 'close', id: tableId, by: this.me.player })
   }
 
   // ---------------------------------------------------------------- queries
+
+  /** Seats that have forfeited the game under way, or the one just ended. */
+  forfeited(table) {
+    return table.out ?? new Set()
+  }
+
+  /** Whether a game is under way: begun, not over. */
+  inProgress(table) {
+    const game = this.games[table.game]
+    return table.moves.length > 0 && !table.closed && !game.outcome(table.state, {})
+  }
+
+  canForfeit(table) {
+    const seat = this.seatOf(table, this.me.player)
+    return seat != null && this.inProgress(table) && !this.forfeited(table).has(seat)
+  }
 
   /** Option id -> chosen value, defaults filled in. */
   optionsOf(table) {
@@ -282,7 +318,7 @@ export class Tables extends Emitter {
         if (msg.gen > table.gen) this.#rematch(table, { gen: msg.gen, seed: msg.seed })
         return
       case 'close':
-        if (table) this.#close(table)
+        if (table) this.#close(table, msg.by)
     }
   }
 
@@ -292,7 +328,11 @@ export class Tables extends Emitter {
    * while we ask the sender for the whole table.
    */
   #offerMove(table, record, peerId) {
-    if (record.n < table.moves.length) return
+    if (record.n < table.moves.length) {
+      const ours = table.moves[record.n]
+      if (!same(ours, record) && beats(record, ours)) this.#rewind(table, [...table.moves.slice(0, record.n), record])
+      return
+    }
     if (record.n > table.moves.length) {
       const waiting = this.#pending.get(table.id) ?? []
       waiting.push(record)
@@ -312,6 +352,10 @@ export class Tables extends Emitter {
   /** As the authority: turn an intent into moves, apply them, send them. */
   #decide(table, intent, seat) {
     const game = this.games[table.game]
+    if (intent?.forfeit) {
+      if (this.inProgress(table) && !this.forfeited(table).has(seat)) this.#append(table, { forfeit: seat, at: Date.now() })
+      return
+    }
     for (const move of game.decide(table.state, intent, seat, this.#context(table)) ?? []) this.#append(table, move)
   }
 
@@ -346,16 +390,45 @@ export class Tables extends Emitter {
     }
   }
 
-  #applyMove(table, record) {
+  #applyMove(table, record, { quiet = false } = {}) {
     const game = this.games[table.game]
     // The first move says which options the game began with: start from those.
     if (record.n === 0 && record.options) table.state = this.#initial(table, record.options)
-    // An authoritative game's moves come from its authority, already decided.
-    if (game.mode !== 'authoritative' && !game.legal(table.state, record.move, record.seat)) return
-    table.moves.push(record)
-    table.state = game.apply(table.state, record.move, record.seat)
+    const forfeit = record.move?.forfeit
+    const over = !!game.outcome(table.state, {})
+    if (forfeit != null) {
+      // Only for one's own seat, and only while the game is on.
+      if (over || (game.mode !== 'authoritative' && record.seat !== forfeit)) return
+      table.moves.push(record)
+      table.state = game.forfeit(table.state, forfeit, { at: record.move.at })
+      ;(table.out ??= new Set()).add(forfeit)
+    } else {
+      // An authoritative game's moves come from its authority, already decided.
+      if (game.mode !== 'authoritative' && !game.legal(table.state, record.move, record.seat)) return
+      // A table can host round after round; forfeits count for one round.
+      if (over) table.out = new Set()
+      table.moves.push(record)
+      table.state = game.apply(table.state, record.move, record.seat)
+    }
+    if (quiet) return
     this.emit('moved', table, record)
     this.emit('change', table)
+  }
+
+  /**
+   * Start the game over from these moves: a forfeit won a race, so the move
+   * it beat — and anything after it — never happened. If that dropped our
+   * own forfeit, we make it again.
+   */
+  #rewind(table, records) {
+    const dropped = table.moves.filter((r) => !records.some((k) => same(k, r)))
+    table.moves = []
+    table.out = new Set()
+    table.state = this.#initial(table)
+    this.#pending.delete(table.id)
+    for (const record of records) this.#applyMove(table, record, { quiet: true })
+    this.emit('change', table)
+    if (dropped.some((r) => r.move?.forfeit != null && r.player === this.me.player)) this.forfeit(table.id)
   }
 
   #applyOption(table, id, claim) {
@@ -379,14 +452,16 @@ export class Tables extends Emitter {
     table.gen = gen
     table.seed = seed
     table.moves = []
+    table.out = new Set()
     table.state = this.#initial(table)
     this.#pending.delete(table.id)
     this.emit('change', table)
   }
 
-  #close(table) {
+  #close(table, by = null) {
     table.closed = true
-    this.emit('closed', table)
+    table.closedBy ??= by
+    this.emit('closed', table, table.closedBy)
     this.emit('change', table)
   }
 
@@ -429,19 +504,39 @@ export class Tables extends Emitter {
       table.gen = theirs.gen
       table.seed = theirs.seed
       table.moves = []
+      table.out = new Set()
       table.state = this.#initial(table)
     }
-    if (theirs.gen === table.gen && (theirs.moves?.length ?? 0) > table.moves.length) {
-      for (const record of theirs.moves.slice(table.moves.length)) this.#applyMove(table, record)
+    if (theirs.gen === table.gen && theirs.moves?.length) {
+      // Where the two histories part, a forfeit may have won a race.
+      const split = theirs.moves.findIndex((r, i) => i < table.moves.length && !same(r, table.moves[i]))
+      if (split >= 0) {
+        if (beats(theirs.moves[split], table.moves[split])) this.#rewind(table, theirs.moves)
+      } else if (theirs.moves.length > table.moves.length) {
+        for (const record of theirs.moves.slice(table.moves.length)) this.#applyMove(table, record)
+      }
     }
 
-    if (theirs.closed && !table.closed) this.#close(table)
+    if (theirs.closed && !table.closed) this.#close(table, theirs.closedBy ?? null)
     this.emit('change', table)
   }
 
   #plain(t) {
-    return { id: t.id, game: t.game, by: t.by, at: t.at, gen: t.gen, seed: t.seed, seats: t.seats, options: t.options ?? {}, moves: t.moves, closed: t.closed }
+    return { id: t.id, game: t.game, by: t.by, at: t.at, gen: t.gen, seed: t.seed, seats: t.seats, options: t.options ?? {}, moves: t.moves, closed: t.closed, closedBy: t.closedBy ?? null }
   }
+}
+
+/** Two move records are the same move by the same player. */
+function same(a, b) {
+  return a && b && a.player === b.player && a.seat === b.seat && JSON.stringify(a.move) === JSON.stringify(b.move)
+}
+
+/** For one move number: a forfeit beats an ordinary move, and the lower seat's forfeit another. */
+function beats(a, b) {
+  const fa = a?.move?.forfeit
+  const fb = b?.move?.forfeit
+  if (fa == null) return false
+  return fb == null || fa < fb
 }
 
 /** Is claim a later than claim b? Logical clock first, player id to break ties. */

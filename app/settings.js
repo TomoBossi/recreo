@@ -1,4 +1,4 @@
-import { store, theme, setTheme, ago } from './store.js'
+import { store, theme, setTheme } from './store.js'
 import { colourButton } from './colours.js'
 
 /**
@@ -13,7 +13,6 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
   el.className = 'settings'
 
   const render = () => {
-    const rooms = store.rooms()
     const t = theme()
     el.innerHTML = `
       <section>
@@ -48,20 +47,11 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
       ${cursors ? `
       <section>
         <h3>cursors</h3>
-        <label class="switch"><input type="checkbox" class="cursors" ${cursors.enabled ? 'checked' : ''}> show everyone's pointer on games</label>
+        <span class="segmented cursors">
+          ${['show', 'hide'].map((v) => `<button class="btn small" data-cursors="${v}" aria-pressed="${cursors.enabled === (v === 'show')}">${v}</button>`).join('')}
+        </span>
+        <p class="hint">everyone's pointer, over the games</p>
       </section>` : ''}
-
-      <section>
-        <h3>recent rooms</h3>
-        <div class="rooms">
-          ${rooms.length ? rooms.map((r) => `
-            <div class="room-row">
-              <span class="name">${escape(r.code)}</span>
-              <span class="when">${ago(r.at)}</span>
-              <button class="btn small forget" data-room="${escape(r.code)}" aria-label="forget ${escape(r.code)}">forget</button>
-            </div>`).join('') : '<span class="empty">none yet</span>'}
-        </div>
-      </section>
 
       <section>
         <h3>saved data</h3>
@@ -92,8 +82,8 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
     if (!b) return
     if (b.dataset.theme) { setTheme(b.dataset.theme); render() }
     if (b.dataset.mode) { wm.setMode(b.dataset.mode); render() }
-    if (b.classList.contains('reset')) { wm.resetFloating(); flash(b, 'done') }
-    if (b.classList.contains('forget')) { store.forget(b.dataset.room); onRoomsChanged?.(); render() }
+    if (b.dataset.cursors) { cursors.setEnabled(b.dataset.cursors === 'show'); render() }
+    if (b.classList.contains('reset')) wm.resetFloating()
     if (b.classList.contains('export')) download(store.export())
     if (b.classList.contains('import')) el.querySelector('input[type=file]').click()
     if (b.classList.contains('clear')) {
@@ -111,7 +101,6 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
   })
 
   el.addEventListener('change', async (e) => {
-    if (e.target.classList.contains('cursors')) cursors.setEnabled(e.target.checked)
     if (e.target.type === 'file' && e.target.files[0]) {
       try {
         store.import(JSON.parse(await e.target.files[0].text()))

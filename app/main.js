@@ -1,3 +1,4 @@
+import { avatar } from './avatar.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
 import { LocalMedia, resumeAudio } from 'mirador'
 
@@ -33,6 +34,7 @@ function setColour(next) {
   pointer.recolour()
   colourChanged(colour)
   for (const b of document.querySelectorAll('.colour-button')) b.style.setProperty('--c', colour)
+  $('#preview-placeholder')?.style.setProperty('--who', colour)
 }
 
 /** On a touchscreen, recreo says so to the others, who see a phone by your name. */
@@ -62,6 +64,8 @@ function popover(button, pop, fill) {
 const nickInput = $('#nick-input')
 const roomInput = $('#room-input')
 nickInput.value = store.get('nick', '')
+$('#preview-placeholder').innerHTML = avatar()
+$('#preview-placeholder').style.setProperty('--who', colour)
 $('#name-row').prepend(colourButton({ value: colour, onPick: setColour }))
 roomInput.value = roomFromUrl() ?? generateRoomCode()
 $('#regenerate').addEventListener('click', () => { roomInput.value = generateRoomCode() })
@@ -73,12 +77,20 @@ function showRecent() {
   recent.hidden = rooms.length === 0
   recent.textContent = ''
   for (const r of rooms.slice(0, 5)) {
-    const chip = document.createElement('button')
-    chip.type = 'button'
-    chip.className = 'chip'
-    chip.textContent = r.code
-    chip.title = `last here ${ago(r.at)}`
-    chip.addEventListener('click', () => { roomInput.value = r.code; roomInput.focus() })
+    const chip = document.createElement('span')
+    chip.className = 'chip recent-room'
+    const pick = document.createElement('button')
+    pick.type = 'button'
+    pick.textContent = r.code
+    pick.title = `last here ${ago(r.at)}`
+    pick.addEventListener('click', () => { roomInput.value = r.code; roomInput.focus() })
+    const forget = document.createElement('button')
+    forget.type = 'button'
+    forget.className = 'forget'
+    forget.textContent = '×'
+    forget.setAttribute('aria-label', `forget ${r.code}`)
+    forget.addEventListener('click', () => { store.forget(r.code); showRecent() })
+    chip.append(pick, forget)
     recent.append(chip)
   }
 }
@@ -310,20 +322,53 @@ async function enterRoom(code, nick) {
     if (mine) wm.focus(views.get(table.id).win, { expand: true })
     if (!mine) chat.system(`${players.nameOf(by)} started a game of ${gameName(table).toLowerCase()}`)
   })
+  /**
+   * One line in the chat when a game ends, naming who beat whom — said once
+   * per ending, by every peer from the same state.
+   */
+  const announced = new Map() // table id -> the ending last told
+  const list = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0] ?? 'nobody')
+  function announceEnding(table) {
+    const game = games[table.game]
+    const seated = tables.seated(table)
+    const names = Object.fromEntries(Object.entries(seated).map(([seat, player]) => [seat, players.nameOf(player)]))
+    const result = !table.closed && game.outcome(table.state, names)
+    if (!result) return
+    const key = `${table.gen}:${table.moves.length}`
+    if (announced.get(table.id) === key) return
+    announced.set(table.id, key)
+    const title = gameName(table).toLowerCase()
+    const seats = Object.keys(seated).map(Number)
+    const winners = (result.winners ?? []).map((seat) => names[seat]).filter(Boolean)
+    const losers = seats.filter((seat) => !result.winners?.includes(seat)).map((seat) => names[seat])
+    const forfeit = tables.forfeited(table).size ? ' (by forfeit)' : ''
+    let line
+    if (result.draw) line = `${list(seats.map((seat) => names[seat]))} drew at ${title}`
+    else if (seats.length === 1) line = winners.length ? `${winners[0]} finished ${title} — ${result.reason}` : `${losers[0]} gave up on ${title}`
+    else if (winners.length > 1) line = `${list(winners)} tied for first at ${title}${losers.length ? `, beating ${list(losers)}` : ''}${forfeit}`
+    else if (winners.length === 1) line = `${winners[0]} beat ${list(losers)} at ${title}${forfeit}`
+    else line = `the game of ${title} ended — ${result.reason}`
+    chat.system(line)
+  }
+
   tables.on('change', (table) => {
     if (!views.has(table.id)) showGame(table)
+    announceEnding(table)
     const entry = views.get(table.id)
     if (!entry) return
     entry.view.render()
     entry.win.setMeta(entry.view.summary())
   })
-  tables.on('closed', (table) => {
+  tables.on('closed', (table, by) => {
     const entry = views.get(table.id)
     if (!entry) return
     entry.view.destroy()
     wm.remove(entry.win)
     views.delete(table.id)
-    chat.system(`the game of ${gameName(table).toLowerCase()} was ended`)
+    // A finished game already has its line in the chat; ending one in
+    // progress says who ended it.
+    if (games[table.game].outcome(table.state, {})) return
+    chat.system(`the game of ${gameName(table).toLowerCase()} was ended${by ? ` by ${players.nameOf(by)}` : ''}`)
   })
 
   // ----------------------------------------------------------- top bar

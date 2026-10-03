@@ -21,8 +21,13 @@ export class TableView {
           <button class="btn small berry yes">end it</button>
           <button class="btn small no">keep playing</button>
         </div>
+        <div class="ask forfeit-ask" hidden>
+          <span>give up this game?</span>
+          <button class="btn small berry yes">forfeit</button>
+          <button class="btn small no">keep playing</button>
+        </div>
         <div class="seats"></div>
-        <div class="stage"></div>
+        <div class="stage"><div class="outcome" hidden></div></div>
         <div class="status"><span class="text"></span><button class="btn small sun rematch" hidden>rematch</button></div>
       </div>`
     this.seatsEl = body.querySelector('.seats')
@@ -32,6 +37,19 @@ export class TableView {
     this.ask = body.querySelector('.ask')
     this.ask.querySelector('.yes').addEventListener('click', () => tables.close(table.id))
     this.ask.querySelector('.no').addEventListener('click', () => { this.ask.hidden = true })
+    this.forfeitAsk = body.querySelector('.forfeit-ask')
+    this.forfeitAsk.querySelector('.yes').addEventListener('click', () => { this.forfeitAsk.hidden = true; tables.forfeit(table.id) })
+    this.forfeitAsk.querySelector('.no').addEventListener('click', () => { this.forfeitAsk.hidden = true })
+
+    // The end of a game, said to each player in their own terms. Closing it
+    // keeps it closed until the next game ends.
+    this.outcomeEl = body.querySelector('.outcome')
+    this.outcomeSeen = null
+    this.outcomeEl.addEventListener('click', (e) => {
+      if (!e.target.closest('.close')) return
+      this.outcomeSeen = this.#outcomeKey()
+      this.outcomeEl.hidden = true
+    })
 
     const view = this
     this.view = this.game.view.mount(body.querySelector('.stage'), {
@@ -83,6 +101,9 @@ export class TableView {
     const rawTurn = game.turn(table.state)
     const turn = rawTurn === 'any' ? undefined : rawTurn
     const names = this.names()
+    const out = tables.forfeited(table)
+    const playing = tables.inProgress(table)
+    if (!tables.canForfeit(table)) this.forfeitAsk.hidden = true
 
     this.seatsEl.textContent = ''
     for (let seat = 0; seat < game.seats; seat++) {
@@ -99,15 +120,21 @@ export class TableView {
         chip.addEventListener('click', () => tables.sit(table.id, seat))
       } else {
         const state = this.players.stateOf(claim.player)
-        chip.querySelector('.who').textContent = names[seat] + (state === 'here' ? '' : state === 'reconnecting' ? ' (reconnecting)' : ' (away)')
+        const note = out.has(seat) ? ' (forfeited)' : state === 'here' ? '' : state === 'reconnecting' ? ' (reconnecting)' : ' (away)'
+        chip.querySelector('.who').textContent = names[seat] + note
         chip.classList.toggle('turn', turn === seat)
         chip.classList.toggle('away', state !== 'here')
+        chip.classList.toggle('out', out.has(seat))
         if (claim.player === me.player) {
-          const stand = document.createElement('button')
-          stand.className = 'btn small'
-          stand.textContent = 'leave'
-          stand.addEventListener('click', () => tables.stand(table.id))
-          chip.append(stand)
+          // Mid-game, getting up means giving up; otherwise it is just leaving.
+          const giveUp = playing && !out.has(seat)
+          const b = document.createElement('button')
+          b.className = 'btn small'
+          b.textContent = giveUp ? 'forfeit' : 'leave'
+          b.addEventListener('click', () => {
+            if (giveUp) { this.ask.hidden = true; this.forfeitAsk.hidden = false } else tables.stand(table.id)
+          })
+          chip.append(b)
         }
       }
       this.seatsEl.append(chip)
@@ -131,12 +158,15 @@ export class TableView {
     const toMove = turn != null ? table.seats[turn]?.player : null
     const away = toMove && this.players.stateOf(toMove)
     if (!enough && table.moves.length === 0) status = 'waiting for players'
+    else if (turn != null && !table.seats[turn]?.player) status = `${names[turn] ?? `seat ${turn + 1}`} is empty — join to play it`
     else if (turn != null && turn === mySeat) status = 'your turn!'
     else if (away && away !== 'here') status = `waiting for ${names[turn]} to come back…`
     this.statusText.textContent = status
     // Turn-based games end when nobody is to move; a game that runs itself
     // offers its own way to play again.
     this.rematchBtn.hidden = !(!game.ownRestart && game.mode !== 'authoritative' && turn === null && mySeat != null)
+
+    this.#renderOutcome(names, mySeat)
 
     this.view.update(table.state, {
       mySeat: everyoneSeated ? mySeat : null,
@@ -185,8 +215,37 @@ export class TableView {
     return box
   }
 
+  /** Which game ended: a new round or a rematch is a new key. */
+  #outcomeKey() {
+    return `${this.table.gen}:${this.table.moves.length}`
+  }
+
+  /** The end-of-game card: you win, you lose, a draw — or, watching, who won. */
+  #renderOutcome(names, mySeat) {
+    const result = this.game.outcome(this.table.state, names)
+    const key = this.#outcomeKey()
+    if (!result || this.outcomeSeen === key) { this.outcomeEl.hidden = true; this.outcomeShown = null; return }
+    if (this.outcomeShown === key) return // already up; don't replay its entrance
+    this.outcomeShown = key
+    const winners = result.winners ?? []
+    const who = winners.map((seat) => names[seat] ?? `player ${seat + 1}`)
+    const mine = mySeat != null && this.table.seats[mySeat]?.player === this.me.player
+    let title
+    let mood
+    if (result.draw) { title = "it's a draw"; mood = 'draw' }
+    else if (mine && winners.includes(mySeat)) { title = winners.length > 1 ? 'a tie for first!' : 'you win!'; mood = 'win' }
+    else if (mine) { title = 'you lose'; mood = 'lose' }
+    else if (who.length) { title = `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'}!`; mood = 'win' }
+    else { title = 'game over'; mood = 'draw' }
+    this.outcomeEl.className = `outcome ${mood}`
+    this.outcomeEl.innerHTML = '<button class="close" aria-label="close">×</button><b class="title"></b><span class="reason"></span>'
+    this.outcomeEl.querySelector('.title').textContent = title
+    this.outcomeEl.querySelector('.reason').textContent = result.reason ?? ''
+    this.outcomeEl.hidden = false
+  }
+
   /** Ending is for everyone, so it asks first — inline, not in a dialog. */
-  askClose() { this.ask.hidden = false }
+  askClose() { this.forfeitAsk.hidden = true; this.ask.hidden = false }
 
   destroy() { this.view.destroy() }
 }

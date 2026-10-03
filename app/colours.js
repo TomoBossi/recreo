@@ -2,7 +2,7 @@
  * Each player's colour: their cursor, their name in chat, the frame of their
  * camera, their face when the camera is off.
  *
- * Any colour is allowed, but every one — presets and custom alike — is kept
+ * Only some colours are allowed: every one — presets and custom alike — sits
  * inside a band of lightness that reads on both the light and the dark
  * panels, so nothing anywhere needs to ask which theme it is in. The band is
  * in OKLCH, where lightness means what the eye sees: a yellow and a blue of
@@ -13,6 +13,7 @@
 var L_MIN = 0.62
 var L_MAX = 0.74
 var C_MIN = 0.09 // a little colour at least: greys read as nobody's
+var C_PAD = 0.17 // how vivid the custom pad's colours are, where sRGB allows
 
 const RAW = ['#ff5d8f', '#f2533f', '#ff8f2e', '#d9a21b', '#5cbc3c', '#17ab94', '#2fa4e6', '#4e7cf0', '#9a72f2', '#d65fd0']
 
@@ -24,6 +25,8 @@ export function clampColour(hex) {
   const rgb = parse(hex)
   if (!rgb) return '#ff5d8f'
   let [L, C, h] = toOklch(rgb)
+  // Already inside the band (a preset, or a pick from the pad): keep it exactly.
+  if (L >= L_MIN - 0.003 && L <= L_MAX + 0.003 && C >= C_MIN - 0.003) return hexOf(rgb)
   L = Math.min(L_MAX, Math.max(L_MIN, L))
   C = Math.max(C_MIN, C)
   // Trim chroma until the colour exists in sRGB.
@@ -33,6 +36,32 @@ export function clampColour(hex) {
     C *= 0.94
   }
   return hexOf(fromOklch([L, 0, h]))
+}
+
+/** A colour in the band from a hue (degrees) and a lightness, as vivid as sRGB allows. */
+export function bandColour(hue, L) {
+  const h = (hue * Math.PI) / 180
+  const lightness = Math.min(L_MAX, Math.max(L_MIN, L))
+  let lo = 0
+  let hi = C_PAD
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2
+    if (fromOklch([lightness, mid, h]).every((v) => v >= -0.0005 && v <= 1.0005)) lo = mid
+    else hi = mid
+  }
+  return hexOf(fromOklch([lightness, lo, h]))
+}
+
+/** A colour's OKLCH lightness and chroma. */
+export function oklch(hex) {
+  const [L, C] = toOklch(parse(hex) ?? [0, 0, 0])
+  return { L, C }
+}
+
+/** Where a colour sits on the custom pad: its hue in degrees and its lightness. */
+function padPlace(hex) {
+  const [L, , h] = toOklch(parse(hex) ?? [1, 0.36, 0.56])
+  return { hue: ((h * 180) / Math.PI + 360) % 360, L: Math.min(L_MAX, Math.max(L_MIN, L)) }
 }
 
 /** A stable colour for someone who never chose one: their id, hashed. */
@@ -88,35 +117,87 @@ function hexOf(rgb) {
 
 /**
  * The small popup for choosing a colour, used on the landing page and in
- * the settings alike: the presets, and a custom one, every choice clamped.
- * `onPick` is called with the colour as it will actually be shown.
+ * the settings alike: the presets, and a pad for any other colour. The pad
+ * is drawn from the readable band itself — hue across, lightness down — so
+ * there is nothing on it that would not read on both themes.
+ * `onPick` is called with the colour as it will be shown.
  */
 export function colourPicker({ value, onPick }) {
   const el = document.createElement('div')
   el.className = 'colour-picker'
-  const render = (current) => {
-    el.innerHTML = `
-      <div class="swatches">
-        ${PRESETS.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}" aria-pressed="${c === current}"></button>`).join('')}
-        <label class="swatch custom" title="any colour" aria-pressed="${!PRESETS.includes(current)}" style="${PRESETS.includes(current) ? '' : `background:${current}`}">
-          <input type="color" value="${current}" aria-label="any colour">
-        </label>
-      </div>`
+  el.innerHTML = `
+    <div class="swatches">
+      ${PRESETS.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
+    </div>
+    <div class="pad" role="slider" aria-label="any colour" tabindex="0">
+      <canvas></canvas><span class="thumb"></span>
+    </div>`
+  const pad = el.querySelector('.pad')
+  const canvas = pad.querySelector('canvas')
+  const thumb = pad.querySelector('.thumb')
+  let current = value
+
+  // Paint the band once, at the pad's own resolution.
+  const W = 180
+  const H = 40
+  canvas.width = W
+  canvas.height = H
+  const g = canvas.getContext('2d')
+  const img = g.createImageData(W, H)
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const hex = bandColour((x / (W - 1)) * 360, L_MAX - (y / (H - 1)) * (L_MAX - L_MIN))
+      const n = parseInt(hex.slice(1), 16)
+      const i = (y * W + x) * 4
+      img.data[i] = n >> 16
+      img.data[i + 1] = (n >> 8) & 255
+      img.data[i + 2] = n & 255
+      img.data[i + 3] = 255
+    }
   }
+  g.putImageData(img, 0, 0)
+
+  const show = () => {
+    for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b.dataset.colour === current))
+    const custom = !PRESETS.includes(current)
+    thumb.hidden = !custom
+    if (custom) {
+      const { hue, L } = padPlace(current)
+      thumb.style.left = `${(hue / 360) * 100}%`
+      thumb.style.top = `${((L_MAX - L) / (L_MAX - L_MIN)) * 100}%`
+      thumb.style.background = current
+    }
+  }
+  const choose = (c) => { current = c; show(); onPick(c) }
+
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-colour]')
-    if (!b) return
-    onPick(b.dataset.colour)
-    render(b.dataset.colour)
+    if (b) choose(b.dataset.colour)
   })
-  el.addEventListener('input', (e) => {
-    if (e.target.type !== 'color') return
-    const c = clampColour(e.target.value)
-    e.target.closest('.custom').style.background = c
-    onPick(c)
+  const fromPointer = (e) => {
+    const box = pad.getBoundingClientRect()
+    const fx = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width))
+    const fy = Math.min(1, Math.max(0, (e.clientY - box.top) / box.height))
+    choose(bandColour(fx * 360, L_MAX - fy * (L_MAX - L_MIN)))
+  }
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    pad.setPointerCapture(e.pointerId)
+    fromPointer(e)
+    const move = (ev) => fromPointer(ev)
+    const up = () => { pad.removeEventListener('pointermove', move); pad.removeEventListener('pointerup', up) }
+    pad.addEventListener('pointermove', move)
+    pad.addEventListener('pointerup', up)
   })
-  el.addEventListener('change', (e) => { if (e.target.type === 'color') render(clampColour(e.target.value)) })
-  render(value)
+  // Arrow keys walk the pad: left and right for hue, up and down for lightness.
+  pad.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: [-6, 0], ArrowRight: [6, 0], ArrowUp: [0, 0.01], ArrowDown: [0, -0.01] }[e.key]
+    if (!step) return
+    e.preventDefault()
+    const { hue, L } = padPlace(current)
+    choose(bandColour((hue + step[0] + 360) % 360, L + step[1]))
+  })
+  show()
   return el
 }
 

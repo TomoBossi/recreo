@@ -59,6 +59,8 @@ rules = {
   legal(state, move, seat),        // -> may this seat make this move now?
   apply(state, move, seat),        // -> the next state; never change the argument
   status(state, names),            // -> one line for the bar under the board
+  outcome(state, names),           // -> null, or { winners, draw?, reason } once over
+  forfeit(state, seat, { at }),    // -> the state after a seat gives up
 }
 ```
 
@@ -73,6 +75,8 @@ rules = {
   decide(state, intent, seat, { now, seated, here, options }),  // -> moves
   apply(state, move),
   status(state, names),
+  outcome(state, names),
+  forfeit(state, seat, { at }),
   tick(state, { now, here, options }),  // optional: moves the clock makes, run every 400ms
   authority(state, here),               // optional: which seat runs it (default: lowest here)
 }
@@ -88,6 +92,26 @@ Times come in moves, stamped by whoever made them.
 
 States and moves are plain JSON: a late arrival is sent the moves so far and
 replays them.
+
+## Endings and forfeits
+
+Every game says how it ended. `outcome` returns `null` while the game is on,
+then `{ winners: [seat…], draw?: true, reason }` — `reason` is a few words,
+"four in a row", "ana forfeited", "18 strokes, par 16". The room turns it
+into a card over the board for each viewer: "you win!", "you lose", "it's a
+draw", or "tomo wins!" for someone watching.
+
+Anyone seated can forfeit while a game is on; their seat offers it in place
+of "leave". `forfeit` says what that means in this game:
+
+- a duel ends, and the other player wins;
+- with more players the game can drop the seat and play on, keeping their
+  score as it stood (minigolf, Pictionary) — and end early if only one
+  player is left.
+
+A forfeiter never counts among the winners. A forfeit can arrive at any
+time, not only on the forfeiter's turn; recreo settles one that races
+another move the same way on every peer.
 
 ## Seats, starting, playing again
 

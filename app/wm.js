@@ -225,7 +225,8 @@ export class WindowManager {
     Object.assign(g.style, { left: `${x}px`, top: `${y + LIFT}px`, width: `${w}px`, height: `${GAP - LIFT}px` })
     g.addEventListener('pointerdown', (e) => {
       e.preventDefault()
-      g.setPointerCapture(e.pointerId)
+      // Each step lays the windows out again, which replaces this divider,
+      // so the drag is followed on the window rather than on the element.
       const a = above.el.getBoundingClientRect()
       const b = below.el.getBoundingClientRect()
       const span = a.height + b.height
@@ -236,14 +237,19 @@ export class WindowManager {
         below.weight = total - above.weight
         this.layout()
       }
-      const up = () => {
+      const up = (ev) => {
+        if (ev.pointerId !== e.pointerId) return
         store.set(`wm:weight:${above.id}`, above.weight)
         store.set(`wm:weight:${below.id}`, below.weight)
-        g.removeEventListener('pointermove', move)
-        g.removeEventListener('pointerup', up)
+        document.body.classList.remove('resizing-rows')
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+        window.removeEventListener('pointercancel', up)
       }
-      g.addEventListener('pointermove', move)
-      g.addEventListener('pointerup', up)
+      document.body.classList.add('resizing-rows')
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+      window.addEventListener('pointercancel', up)
     })
     this.desk.append(g)
     this.hgutters.push(g)

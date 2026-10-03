@@ -21,7 +21,7 @@ const BLUE = '#2fa4e6'
 const turn = (s) => (s.winner !== null || s.draw ? null : s.turn)
 
 const rules = {
-  init: () => ({ cells: Array(9).fill(-1), turn: 0, winner: null, line: null, draw: false }),
+  init: () => ({ cells: Array(9).fill(-1), turn: 0, winner: null, line: null, draw: false, forfeited: null }),
 
   /** Whose move it is: a seat, or null once the game is over. */
   turn,
@@ -36,12 +36,23 @@ const rules = {
     const cells = s.cells.slice()
     cells[move.cell] = seat
     const line = LINES.find((l) => l.every((i) => cells[i] === seat)) ?? null
-    return { cells, turn: 1 - seat, winner: line ? seat : null, line, draw: !line && cells.every((c) => c !== -1) }
+    return { ...s, cells, turn: 1 - seat, winner: line ? seat : null, line, draw: !line && cells.every((c) => c !== -1) }
+  },
+
+  /** The state after a seat gives up: in a duel, the other player wins. */
+  forfeit: (s, seat) => (turn(s) === null ? s : { ...s, winner: 1 - seat, forfeited: seat }),
+
+  /** null while playing; then who won, and why — the room shows it to each player. */
+  outcome(s, names) {
+    if (s.winner !== null) return { winners: [s.winner], reason: s.forfeited !== null ? `${names[s.forfeited] ?? 'the other player'} forfeited` : 'three in a row' }
+    if (s.draw) return { winners: [], draw: true, reason: 'nobody got three' }
+    return null
   },
 
   /** One line for the bar under the board. */
   status(s, names) {
     const name = (seat) => names[seat] ?? `player ${seat + 1}`
+    if (s.forfeited !== null) return `${name(s.forfeited)} forfeited — ${name(s.winner)} wins!`
     if (s.winner !== null) return `${name(s.winner)} wins!`
     if (s.draw) return 'a draw'
     return `${name(s.turn)}'s turn`

@@ -45,8 +45,22 @@ const rules = {
   turn,
   legal: (s, move, seat) => turn(s) === seat && isLegal(s, move),
   apply: (s, move) => play(s, move),
+
+  /** Resigning: the other colour wins. */
+  forfeit: (s, seat) => (s.result ? s : { ...s, result: { winner: seat === 0 ? 'b' : 'w', forfeited: seat } }),
+
+  outcome(s, names) {
+    if (s.result?.winner) {
+      const loser = s.result.winner === 'w' ? 1 : 0
+      return { winners: [1 - loser], reason: s.result.forfeited != null ? `${names[loser] ?? 'the other player'} resigned` : 'checkmate' }
+    }
+    if (s.result?.draw) return { winners: [], draw: true, reason: `a draw by ${s.result.draw}` }
+    return null
+  },
+
   status(s, names) {
     const name = (seat) => names[seat] ?? (seat === 0 ? 'white' : 'black')
+    if (s.result?.forfeited != null) return `${name(s.result.forfeited)} resigned — ${name(1 - s.result.forfeited)} wins!`
     if (s.result?.winner) return `checkmate — ${name(s.result.winner === 'w' ? 0 : 1)} wins!`
     if (s.result?.draw) return `a draw by ${s.result.draw}`
     const mover = name(s.turn === 'w' ? 0 : 1)

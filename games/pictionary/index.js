@@ -78,6 +78,9 @@ function close(a, b) {
   return a.slice(i + 1) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i) || a.slice(i) === b.slice(i + 1)
 }
 
+/** The seats still in the game: everyone who started, less whoever forfeited. */
+const playing = (s) => s.order.filter((seat) => !s.out.includes(seat))
+
 function startTurn(s, at) {
   const drawer = s.order[s.turn % s.order.length]
   const picked = choices(s.rng, s.language)
@@ -101,7 +104,7 @@ function startTurn(s, at) {
 
 function init({ seed, options }) {
   return {
-    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', order: [], turn: 0, drawer: null,
+    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', order: [], out: [], turn: 0, drawer: null,
     word: null, choices: [], levels: null, strokes: [], hints: [], guessed: {}, scores: {}, log: [], phaseAt: 0,
   }
 }
@@ -136,7 +139,7 @@ const rules = {
         return s.phase === 'drawing' && seat === s.drawer ? [{ type: 'clear' }] : []
       case 'guess': {
         const text = String(intent.text ?? '').slice(0, 60)
-        if (!text.trim() || seat === s.drawer || s.guessed[seat] != null) return []
+        if (!text.trim() || seat === s.drawer || s.guessed[seat] != null || s.out.includes(seat)) return []
         return [{ type: 'guess', seat, text, at: now }]
       }
       default:
@@ -193,7 +196,7 @@ const rules = {
         const scores = { ...s.scores, [move.seat]: (s.scores[move.seat] ?? 0) + points, [s.drawer]: (s.scores[s.drawer] ?? 0) + DRAWER_POINTS }
         const guessed = { ...s.guessed, [move.seat]: order }
         const next = { ...s, scores, guessed, log: [...s.log, { kind: 'correct', seat: move.seat, text: `+${points}` }] }
-        const guessers = s.order.filter((x) => x !== s.drawer)
+        const guessers = playing(s).filter((x) => x !== s.drawer)
         if (guessers.every((x) => guessed[x] != null)) {
           return { ...next, phase: 'reveal', phaseAt: move.at, log: [...next.log, { kind: 'system', text: `everyone got it — the word was "${s.word}"` }] }
         }
@@ -202,7 +205,9 @@ const rules = {
       case 'end':
         return { ...s, phase: 'reveal', phaseAt: move.at, log: [...s.log, { kind: 'system', text: `${move.why} — the word was "${s.word ?? '…'}"` }] }
       case 'next': {
-        const turn = s.turn + 1
+        // The pencil skips whoever has forfeited.
+        let turn = s.turn + 1
+        while (turn < s.order.length * CYCLES && s.out.includes(s.order[turn % s.order.length])) turn++
         if (turn >= s.order.length * CYCLES) {
           return { ...s, phase: 'over', turn, drawer: null, phaseAt: move.at, log: [...s.log, { kind: 'system', text: 'game over' }] }
         }
@@ -213,6 +218,33 @@ const rules = {
     }
   },
 
+  /**
+   * Giving up leaves the game with its points frozen and out of the
+   * running. A drawer who gives up ends their round; with fewer than two
+   * players left, the game ends.
+   */
+  forfeit(s, seat, { at }) {
+    if (s.phase === 'waiting' || s.phase === 'over' || !playing(s).includes(seat)) return s
+    const next = { ...s, out: [...s.out, seat], log: [...s.log, { kind: 'system', text: `seat:${seat} forfeited` }] }
+    if (playing(next).length < 2) {
+      return { ...next, phase: 'over', drawer: null, phaseAt: at, log: [...next.log, { kind: 'system', text: 'game over' }] }
+    }
+    const reveal = (why) => ({ ...next, phase: 'reveal', phaseAt: at, log: [...next.log, { kind: 'system', text: `${why} — the word was "${s.word ?? '…'}"` }] })
+    if (seat === s.drawer && (s.phase === 'choosing' || s.phase === 'drawing')) return reveal('the drawer left')
+    // The one guess still missing may have been theirs.
+    if (s.phase === 'drawing' && playing(next).every((x) => x === s.drawer || next.guessed[x] != null)) return reveal('everyone left got it')
+    return next
+  },
+
+  outcome(s, names) {
+    if (s.phase !== 'over') return null
+    const left = playing(s)
+    const quitters = s.out.map((seat) => names[seat] ?? `player ${seat + 1}`)
+    if (left.length < 2 && s.out.length) return { winners: left, reason: `${quitters.join(' & ')} forfeited` }
+    const best = Math.max(...left.map((seat) => s.scores[seat] ?? 0))
+    return { winners: left.filter((seat) => (s.scores[seat] ?? 0) === best), reason: `${best} points` }
+  },
+
   status(s, names) {
     const name = (seat) => names[seat] ?? `player ${seat + 1}`
     switch (s.phase) {
@@ -221,9 +253,10 @@ const rules = {
       case 'drawing': return `${name(s.drawer)} is drawing`
       case 'reveal': return `the word was “${s.word ?? '…'}”`
       case 'over': {
-        const best = Math.max(...Object.values(s.scores))
-        const winners = Object.keys(s.scores).filter((k) => s.scores[k] === best).map((k) => name(Number(k)))
-        return `${winners.join(' & ')} ${winners.length > 1 ? 'win' : 'wins'} with ${best}!`
+        const result = rules.outcome(s, names)
+        const who = result.winners.map(name)
+        if (!who.length) return result.reason
+        return `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'} — ${result.reason}`
       }
       default: return ''
     }
@@ -398,9 +431,9 @@ function view(el, ctx) {
     overlay.hidden = !over
 
     $('.draw-scores').innerHTML = s.order.map((seat) => `
-      <div class="score ${seat === s.drawer ? 'drawer' : ''} ${s.guessed[seat] != null ? 'got' : ''}">
+      <div class="score ${seat === s.drawer ? 'drawer' : ''} ${s.guessed[seat] != null ? 'got' : ''} ${s.out.includes(seat) ? 'out' : ''}">
         <span class="dot" style="background:${ctx.colours[seat]}"></span>
-        <span class="who">${escape(name(seat))}</span><b>${s.scores[seat] ?? 0}</b>
+        <span class="who">${escape(name(seat))}</span>${s.out.includes(seat) ? '<i>out</i>' : ''}<b>${s.scores[seat] ?? 0}</b>
       </div>`).join('')
 
     const log = $('.draw-log')

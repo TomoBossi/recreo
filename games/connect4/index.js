@@ -34,7 +34,7 @@ function winningLine(cells, col, row, seat) {
 const turn = (s) => (s.winner !== null || s.draw ? null : s.turn)
 
 const rules = {
-  init: () => ({ cells: Array(COLS * ROWS).fill(-1), turn: 0, winner: null, line: null, draw: false }),
+  init: () => ({ cells: Array(COLS * ROWS).fill(-1), turn: 0, winner: null, line: null, draw: false, forfeited: null }),
 
   turn,
 
@@ -48,11 +48,21 @@ const rules = {
     while (cells[at(move.col, row)] !== -1) row--
     cells[at(move.col, row)] = seat
     const line = winningLine(cells, move.col, row, seat)
-    return { cells, turn: 1 - seat, winner: line ? seat : null, line, draw: !line && cells.every((c) => c !== -1) }
+    return { ...s, cells, turn: 1 - seat, winner: line ? seat : null, line, draw: !line && cells.every((c) => c !== -1) }
+  },
+
+  /** Giving up hands the game to the other player. */
+  forfeit: (s, seat) => (turn(s) === null ? s : { ...s, winner: 1 - seat, forfeited: seat }),
+
+  outcome(s, names) {
+    if (s.winner !== null) return { winners: [s.winner], reason: s.forfeited !== null ? `${names[s.forfeited] ?? 'the other player'} forfeited` : 'four in a row' }
+    if (s.draw) return { winners: [], draw: true, reason: 'the board is full' }
+    return null
   },
 
   status(s, names) {
     const name = (seat) => names[seat] ?? `player ${seat + 1}`
+    if (s.forfeited !== null) return `${name(s.forfeited)} forfeited — ${name(s.winner)} wins!`
     if (s.winner !== null) return `${name(s.winner)} wins!`
     if (s.draw) return 'a draw — the board is full'
     return `${name(s.turn)}'s turn`
@@ -137,7 +147,6 @@ function view(el, ctx) {
           if (seat === -1) continue
           const inner = shape('g', { class: 'disc' }, [
             shape('circle', { r: 19, fill: ctx.colours[seat] }),
-            shape('circle', { cx: -5, cy: -6, r: 5, fill: 'rgb(255 255 255 / 0.45)' }),
             shape('circle', { class: 'ring', r: 11, fill: 'none', stroke: '#fff', 'stroke-width': 4 }),
             shape('circle', { class: 'ring', r: 13.5, fill: 'none', stroke: INK, 'stroke-width': 2 }),
           ])

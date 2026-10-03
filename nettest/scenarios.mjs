@@ -119,6 +119,64 @@ export const scenarios = {
     return { winner: 'ana', moves: table.moves, shots }
   },
 
+  /**
+   * A forfeit racing a move: ana gives up at the same moment tomo drops a
+   * disc. Every peer must settle on the same history — the forfeit wins the
+   * race — and each must be told the ending in their own terms.
+   */
+  async 'c4-forfeit'(run) {
+    const labels = ['ana', 'tomo', 'lu']
+    players(run, labels)
+    await roomUp(run, labels)
+    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening')
+    await sit(run, labels, 'tomo', id, 1)
+    const T = JSON.stringify(id)
+    await js(run, 'ana', `recreo.tables.play(${T}, { col: 3 })`)
+    await converge(run, labels, 'after the first disc')
+    const button = (label) => js(run, label, `[...document.querySelectorAll('.win[data-id="table:' + ${T} + '"] .seat .btn')].map((b) => b.textContent).join(',')`)
+    if ((await button('ana')) !== 'forfeit') throw new Error(`mid-game ana's seat offers "${await button('ana')}"`)
+
+    // A true collision: ana is cut off while tomo drops a disc and she gives
+    // up, so both claim move 1. When she is back, the forfeit must win on
+    // every peer and tomo's disc must vanish.
+    run.cut('ana')
+    await js(run, 'tomo', `recreo.tables.play(${T}, { col: 3 })`)
+    await js(run, 'ana', `recreo.tables.forfeit(${T})`)
+    // Both have now made move 1; neither has heard of the other's.
+    const before = await Promise.all(['ana', 'tomo'].map((l) => js(run, l, `recreo.tables.tables.get(${T}).moves.length`)))
+    if (before.join() !== '2,2') throw new Error(`expected a collision, got move counts ${before}`)
+    run.restore('ana')
+    const [table] = await converge(run, labels, 'after the race', 30000)
+    const state = JSON.parse(table.board)
+    if (state.winner !== 1 || state.forfeited !== 0) throw new Error(`expected tomo to win by forfeit: ${table.board}`)
+    if (table.moves !== 2) throw new Error(`the forfeit should have replaced tomo's disc: ${table.moves} moves`)
+
+    const card = (label) => js(run, label, `(() => { const el = document.querySelector('.win[data-id="table:' + ${T} + '"] .outcome'); return el.hidden ? null : el.querySelector('.title').textContent + ' / ' + el.querySelector('.reason').textContent })()`)
+    const cards = { ana: await card('ana'), tomo: await card('tomo'), lu: await card('lu') }
+    if (!cards.ana?.startsWith('you lose') || !cards.tomo?.startsWith('you win!') || !cards.lu?.startsWith('tomo wins!')) throw new Error(`cards: ${JSON.stringify(cards)}`)
+    if (!/ana forfeited/.test(cards.tomo)) throw new Error(`reason: ${cards.tomo}`)
+    if ((await button('ana')) !== 'leave') throw new Error('after the game ana should be able to leave')
+    const shots = [await shoot(run, 'tomo', 'forfeit-winner'), await shoot(run, 'ana', 'forfeit-loser')]
+
+    // The chat says who beat whom, once, on every peer.
+    const lines = (label) => js(run, label, `[...document.querySelectorAll('.chat-line.system')].map((l) => l.textContent)`)
+    const said = (await lines('lu')).filter((l) => /beat/.test(l))
+    if (said.length !== 1 || said[0] !== 'tomo beat ana at connect four (by forfeit)') throw new Error(`chat: ${JSON.stringify(said)}`)
+
+    // Closing a finished game adds nothing; closing one not finished says who did it.
+    await js(run, 'tomo', `recreo.tables.close(${T})`)
+    await converge(run, labels, 'after closing the finished game')
+    const second = await js(run, 'ana', `recreo.tables.open('connect4').id`)
+    await converge(run, labels, 'after opening another')
+    await js(run, 'ana', `recreo.tables.close(${JSON.stringify(second)})`)
+    await converge(run, labels, 'after closing the new one')
+    await sleep(300)
+    const ended = (await lines('lu')).filter((l) => /was ended/.test(l))
+    if (ended.length !== 1 || ended[0] !== 'the game of connect four was ended by ana') throw new Error(`chat: ${JSON.stringify(ended)}`)
+    return { moves: table.moves, cards, chat: [said[0], ended[0]], shots }
+  },
+
   /** Two people grab the same seat at the same moment; everyone agrees who got it. */
   async 'c4-seat-race'(run) {
     const labels = ['ana', 'tomo', 'lu']

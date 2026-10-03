@@ -107,7 +107,7 @@ test('a round of pictionary, start to finish', () => {
   }
   s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
   assert.equal(s.phase, 'over')
-  assert.match(pictionary.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins with/)
+  assert.match(pictionary.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins — \d+ points/)
 })
 
 test('when the drawer leaves, the next player takes over and ends the round', () => {
@@ -202,4 +202,73 @@ test('a guess matches ignoring case, accents, spacing and dashes', () => {
   s = pictionary.apply(s, { type: 'choose', word: 'T-rex', at: 0 })
   s = pictionary.apply(s, { type: 'guess', seat: 1, text: 't rex', at: 1 })
   assert.equal(s.guessed[1], 0)
+})
+
+// ---------------------------------------------------------------- endings
+
+import tictactoe from '../games/tictactoe/index.js'
+
+const names = { 0: 'ana', 1: 'tomo', 2: 'lu', 3: 'kim' }
+
+test('in a duel, forfeiting hands the game over, and only while it is on', () => {
+  for (const game of [connect4, chess, tictactoe]) {
+    const s = game.init({ seed: 1 })
+    assert.equal(game.outcome(s, names), null, game.id)
+    const after = game.forfeit(s, 0, { at: 1 })
+    const result = game.outcome(after, names)
+    assert.deepEqual(result.winners, [1], game.id)
+    assert.match(result.reason, /ana (forfeited|resigned)/, game.id)
+    assert.equal(game.turn(after), null, `${game.id}: nobody moves after`)
+    assert.equal(game.forfeit(after, 1, { at: 2 }), after, `${game.id}: a finished game stays finished`)
+  }
+})
+
+test('connect four and chess say how a game was won', () => {
+  let s = connect4.init()
+  for (const col of [0, 1, 0, 1, 0, 1, 0]) s = connect4.apply(s, { col }, connect4.turn(s))
+  assert.deepEqual(connect4.outcome(s, names), { winners: [0], reason: 'four in a row' })
+  let c = chess.init()
+  for (const m of [[13, 21], [52, 36], [14, 30], [59, 31]]) c = chess.apply(c, { from: m[0], to: m[1] })
+  assert.deepEqual(chess.outcome(c, names), { winners: [1], reason: 'checkmate' })
+})
+
+test('minigolf: a forfeiter leaves the course with a frozen card, and the rest play on', () => {
+  let s = minigolf.apply(minigolf.init(), { type: 'start', order: [0, 1, 2] }, 0)
+  const first = s.turn
+  s = minigolf.forfeit(s, first, { at: 1 })
+  assert.ok(s.out.includes(first) && s.phase === 'playing')
+  assert.notEqual(s.turn, first, 'the turn moves on')
+  assert.equal(minigolf.legal(s, { type: 'shot', dx: 10, dy: 0 }, first), false)
+  // A second forfeit leaves one player, who wins there and then.
+  const other = [0, 1, 2].find((x) => x !== first && x !== s.turn)
+  s = minigolf.forfeit(s, other, { at: 2 })
+  const result = minigolf.outcome(s, names)
+  assert.equal(s.phase, 'over')
+  assert.equal(result.winners.length, 1)
+  assert.match(result.reason, /forfeited/)
+})
+
+test('minigolf alone: giving up ends the round with nobody winning', () => {
+  let s = minigolf.apply(minigolf.init(), { type: 'start', order: [2] }, 2)
+  s = minigolf.forfeit(s, 2, { at: 1 })
+  assert.deepEqual(minigolf.outcome(s, names), { winners: [], reason: 'gave up the round' })
+})
+
+test('pictionary: a drawer who forfeits ends the round, keeps their points, and is skipped', () => {
+  const ctx = { now: 0, seated: [0, 1, 2], here: [0, 1, 2], options: { words: 'en' } }
+  let s = pictionary.init({ seed: 3, options: { words: 'en' } })
+  for (const move of pictionary.decide(s, { type: 'start' }, 0, ctx)) s = pictionary.apply(s, move)
+  s = pictionary.apply(s, { type: 'choose', word: s.choices[0], at: 0 })
+  s = pictionary.apply(s, { type: 'guess', seat: 1, text: s.word, at: 1 })
+  const drawerPoints = s.scores[0]
+  s = pictionary.forfeit(s, 0, { at: 2 })
+  assert.equal(s.phase, 'reveal')
+  assert.equal(s.scores[0], drawerPoints, 'points frozen')
+  assert.deepEqual(pictionary.decide(s, { type: 'guess', text: 'x' }, 0, ctx), [], 'no more guesses')
+  s = pictionary.apply(s, { type: 'next', at: 3 })
+  assert.equal(s.drawer, 1)
+  s = pictionary.forfeit(s, 2, { at: 4 })
+  const result = pictionary.outcome(s, names)
+  assert.equal(s.phase, 'over')
+  assert.deepEqual(result.winners, [1], 'the forfeiter with more points still cannot win')
 })

@@ -3,23 +3,29 @@
  * Solo, or with up to three friends.
  */
 import { defineGame } from '../kit/define.js'
-import { board, INK } from '../kit/svg.js'
+import { board, escape, INK } from '../kit/svg.js'
 import { startPanel } from '../kit/lobby.js'
 import { HOLES, outer, roll, clampShot, UNIT, W, H, BALL, CUP, MAX_SPEED, MAX_STROKES } from './physics.js'
 
 // ------------------------------------------------------------------ rules
 
+/** The seats still playing: everyone who started, less whoever forfeited. */
+const playing = (s) => s.order.filter((seat) => !s.out.includes(seat))
+
+/** Strokes so far, card by card. A forfeiter's card stops where they left. */
+const total = (s, seat) => s.cards.reduce((n, c) => n + (c?.[seat] ?? 0), 0)
+
 function startHole(s, index) {
   const hole = HOLES[index]
   const balls = {}
-  for (const seat of s.order) balls[seat] = { pos: [hole.tee[0] * UNIT, hole.tee[1] * UNIT], strokes: 0, done: false }
+  for (const seat of playing(s)) balls[seat] = { pos: [hole.tee[0] * UNIT, hole.tee[1] * UNIT], strokes: 0, done: false }
   return { ...s, hole: index, balls, turn: s.order[0], last: null }
 }
 
 function nextTurn(s) {
-  const waiting = s.order.filter((seat) => !s.balls[seat].done)
+  const waiting = playing(s).filter((seat) => !s.balls[seat].done)
   if (waiting.length === 0) {
-    const cards = s.cards.map((c, i) => (i === s.hole ? Object.fromEntries(s.order.map((seat) => [seat, s.balls[seat].strokes])) : c))
+    const cards = s.cards.map((c, i) => (i === s.hole ? Object.fromEntries(playing(s).map((seat) => [seat, s.balls[seat].strokes])) : c))
     if (s.hole + 1 >= HOLES.length) return { ...s, cards, phase: 'over', turn: null }
     return startHole({ ...s, cards }, s.hole + 1)
   }
@@ -32,7 +38,7 @@ function nextTurn(s) {
   return { ...s, turn: waiting.sort((a, b) => away(b) - away(a) || a - b)[0] }
 }
 
-const init = () => ({ phase: 'waiting', order: [], hole: 0, balls: {}, turn: null, cards: HOLES.map(() => null), last: null })
+const init = () => ({ phase: 'waiting', order: [], out: [], hole: 0, balls: {}, turn: null, cards: HOLES.map(() => null), last: null })
 
 const rules = {
   init,
@@ -61,15 +67,42 @@ const rules = {
     return nextTurn({ ...s, balls, last: { seat, from: ball.pos, shot, sunk: !!result.sunk, drowned: !!result.drowned } })
   },
 
+  /**
+   * Giving up leaves the course: the card stops where it stood and the
+   * others play on. When only one player is left, they win there and then;
+   * a solo player who gives up just ends the round.
+   */
+  forfeit(s, seat) {
+    if (s.phase !== 'playing' || !playing(s).includes(seat)) return s
+    const next = { ...s, out: [...s.out, seat], last: null }
+    const left = playing(next)
+    if (left.length === 0 || (left.length === 1 && s.order.length > 1)) return { ...next, phase: 'over', turn: null }
+    const balls = { ...next.balls }
+    delete balls[seat]
+    return s.turn === seat ? nextTurn({ ...next, balls }) : { ...next, balls }
+  },
+
+  outcome(s, names) {
+    if (s.phase !== 'over') return null
+    const left = playing(s)
+    const par = HOLES.reduce((n, h) => n + h.par, 0)
+    if (left.length === 0) return { winners: [], reason: 'gave up the round' }
+    if (s.order.length === 1) return { winners: left, reason: `${total(s, left[0])} strokes, par ${par}` }
+    const quitters = s.out.map((seat) => names[seat] ?? `player ${seat + 1}`)
+    if (left.length === 1 && s.cards.some((c) => c === null)) return { winners: left, reason: `${quitters.join(' & ')} forfeited` }
+    const best = Math.min(...left.map((seat) => total(s, seat)))
+    return { winners: left.filter((seat) => total(s, seat) === best), reason: `${best} strokes, par ${par}` }
+  },
+
   status(s, names) {
     const name = (seat) => names[seat] ?? `player ${seat + 1}`
     if (s.phase === 'waiting') return 'tee off when everyone is in'
     if (s.phase === 'over') {
-      const totals = s.order.map((seat) => [seat, s.cards.reduce((n, c) => n + (c?.[seat] ?? 0), 0)])
-      const best = Math.min(...totals.map(([, n]) => n))
-      const winners = totals.filter(([, n]) => n === best).map(([seat]) => name(seat))
-      if (s.order.length === 1) return `${best} strokes, par ${HOLES.reduce((n, h) => n + h.par, 0)}`
-      return `${winners.join(' & ')} ${winners.length > 1 ? 'win' : 'wins'} with ${best} strokes!`
+      const result = rules.outcome(s, names)
+      if (!result.winners.length) return result.reason
+      const who = result.winners.map(name)
+      if (s.order.length === 1) return result.reason
+      return `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'} — ${result.reason}`
     }
     const hole = HOLES[s.hole]
     const last = s.last
@@ -230,8 +263,8 @@ function view(el, ctx) {
     const name = (seat) => info.names?.[seat] ?? `player ${seat + 1}`
     const rows = state.order.map((seat) => {
       const cells = state.cards.map((c) => `<td>${c?.[seat] ?? '–'}</td>`).join('')
-      const total = state.cards.reduce((n, c) => n + (c?.[seat] ?? 0), 0)
-      return `<tr><th><span class="dot" style="background:${ctx.colours[seat]}"></span>${name(seat)}</th>${cells}<td><b>${total}</b></td></tr>`
+      const out = state.out.includes(seat)
+      return `<tr class="${out ? 'out' : ''}"><th><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(seat))}</th>${cells}<td><b>${out ? 'out' : total(state, seat)}</b></td></tr>`
     }).join('')
     return `<table class="golf-card"><tr><th></th>${HOLES.map((_, i) => `<th>${i + 1}</th>`).join('')}<th>total</th></tr>
       <tr class="par"><th>par</th>${HOLES.map((h) => `<td>${h.par}</td>`).join('')}<td>${HOLES.reduce((n, h) => n + h.par, 0)}</td></tr>${rows}</table>`
