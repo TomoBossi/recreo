@@ -1,4 +1,6 @@
 import { avatar } from './avatar.js'
+import { devicePickers, restoreDevices } from './devices.js'
+import { peersMenuButton } from './peersmenu.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
 import { LocalMedia, resumeAudio } from 'mirador'
 
@@ -158,9 +160,17 @@ roomList.addEventListener('pointerdown', (e) => {
   })
 }
 
+const MIC = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="0.5" width="5" height="8" rx="2.5" fill="currentColor"/>
+  <path d="M2.5 6.5 a4.5 4.5 0 0 0 9 0 M7 11 v2.5 M4.5 13.5 h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  <line class="slash" x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+const CAM = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="0.5" y="3.5" width="9" height="7" rx="1.5" fill="currentColor"/>
+  <path d="M9.5 6.2 L13.5 4 V10 L9.5 7.8 Z" fill="currentColor"/>
+  <line class="slash" x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+
 /** See yourself before going in, and sort out permissions while nobody waits. */
 async function startPreview() {
   try {
+    await restoreDevices(media)
     const stream = await media.start({ audio: true, video: true })
     $('#preview').srcObject = stream
   } catch {
@@ -183,6 +193,12 @@ function syncToggles() {
   $('#preview-placeholder').hidden = cam === 'true'
 }
 media.on('state', syncToggles)
+// Switching camera or microphone makes a new stream; the preview follows it.
+media.on('stream', (stream) => { $('#preview').srcObject = stream })
+$('#preview-devices').append(devicePickers(media).el)
+// The same icons as the Peers window's buttons, drawn larger over the preview.
+$('#preview-mic').innerHTML = MIC
+$('#preview-cam').innerHTML = CAM
 $('#preview-mic').addEventListener('click', () => media.toggleAudio())
 $('#preview-cam').addEventListener('click', () => media.toggleVideo())
 
@@ -206,13 +222,6 @@ $('#join-form').addEventListener('submit', async (e) => {
 // ------------------------------------------------------------------- room
 
 /** The microphone and camera, drawn for the Peers title bar. */
-const MIC = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="0.5" width="5" height="8" rx="2.5" fill="currentColor"/>
-  <path d="M2.5 6.5 a4.5 4.5 0 0 0 9 0 M7 11 v2.5 M4.5 13.5 h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-  <line class="slash" x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
-const CAM = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="0.5" y="3.5" width="9" height="7" rx="1.5" fill="currentColor"/>
-  <path d="M9.5 6.2 L13.5 4 V10 L9.5 7.8 Z" fill="currentColor"/>
-  <line class="slash" x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
-
 async function enterRoom(code, nick) {
   await resumeAudio()
   const me = { player: playerId(), nick, colour }
@@ -253,7 +262,9 @@ async function enterRoom(code, nick) {
     b.addEventListener('click', (e) => { e.stopPropagation(); kind === 'mic' ? media.toggleAudio() : media.toggleVideo() })
     return b
   })
-  const facesWin = wm.add({ id: 'faces', title: 'Peers', tone: 'sun', body: facesBody, order: 0, weight: 1.3, tools: mediaTools })
+  // A menu beside them: the layout, and which camera and microphone.
+  const peersMenu = peersMenuButton({ media, faces: () => faces })
+  const facesWin = wm.add({ id: 'faces', title: 'Peers', tone: 'sun', body: facesBody, order: 0, weight: 1.3, tools: [...mediaTools, peersMenu] })
   const faces = new Faces(facesBody, { room, media, me, players })
   syncToggles()
 
@@ -278,8 +289,9 @@ async function enterRoom(code, nick) {
   // or join pressed before the preview had started — so it is sent whenever
   // it appears, not only at the door.
   let sent = null
+  let swapped = null // the stream a device switch made of `sent`, carried on the same senders
   const sendCamera = () => {
-    if (!media.stream || media.stream === sent) return
+    if (!media.stream || media.stream === sent || media.stream === swapped) return
     if (sent) room.removeStream(sent)
     sent = media.stream
     room.addStream(sent, { kind: 'camera' })
@@ -295,6 +307,14 @@ async function enterRoom(code, nick) {
   mediaChanged()
   media.on('state', mediaChanged)
   cameraReady = mediaChanged
+  // A new camera or microphone replaces the track in place: nobody else
+  // has to renegotiate, and nothing stutters.
+  media.on('track', (swaps) => {
+    for (const { oldTrack, newTrack } of swaps) room.replaceTrack(oldTrack, newTrack)
+    swapped = media.stream
+    faces.stream('self', media.stream)
+    refreshFaces()
+  })
 
   // ----------------------------------------------------------- people
 

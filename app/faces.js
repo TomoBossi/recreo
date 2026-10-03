@@ -1,17 +1,32 @@
 import { avatar } from './avatar.js'
-import { gridLayout, SpeakerTracker } from 'mirador'
+import { gridLayout, spotlightLayout, SpeakerTracker } from 'mirador'
+import { store } from './store.js'
+
+/** How long a speaker keeps the big tile after they pause, in auto. */
+const HOLD_MS = 1500
 
 /**
  * Everyone's face, in one window.
  *
- * Tiles are placed by mirador's grid layout, which answers "where do n tiles
- * go in this box" and nothing else. A tile shows video when there is some and
- * a drawn face when there is not: a camera that is off, one that has not
+ * Tiles are placed by mirador's layouts, which answer "where do n tiles go in
+ * this box" and nothing else. A tile shows video when there is some and a
+ * drawn face when there is not: a camera that is off, one that has not
  * arrived yet, a peer who never had one.
+ *
+ * Three layouts, as in tertulia:
+ *   auto       whoever is speaking takes the big tile while they talk; then
+ *              the grid comes back
+ *   grid       equal tiles, always
+ *   spotlight  there is always a big tile, held by whoever spoke last
+ * Nobody is spotlighted for their own voice: seeing yourself large while
+ * you talk helps no one.
  */
 export class Faces {
   #tiles = new Map() // id -> {el, video, stream}
   #speaking = new Set()
+  #focus = null      // who holds the big tile now, if anyone
+  #lastSpeaker = null
+  #holdTimer = null
 
   constructor(body, { room, media, me, players }) {
     this.room = room
@@ -22,9 +37,11 @@ export class Faces {
     this.el.className = 'faces-grid'
     body.append(this.el)
 
+    this.mode = store.get('faces:layout', 'auto')
     this.speakers = new SpeakerTracker({
-      onChange: (_loudest, speaking) => {
+      onChange: (loudest, speaking) => {
         this.#speaking = new Set(speaking ?? [])
+        this.#heard(loudest)
         this.render()
       },
     })
@@ -39,7 +56,30 @@ export class Faces {
     this.render()
   }
 
-  forget(peerId) { this.speakers.remove(peerId) }
+  forget(peerId) {
+    this.speakers.remove(peerId)
+    if (this.#focus === peerId) this.#focus = null
+    if (this.#lastSpeaker === peerId) this.#lastSpeaker = null
+  }
+
+  setMode(mode) {
+    this.mode = mode
+    store.set('faces:layout', mode)
+    this.#heard(this.speakers.loudest())
+    this.render()
+  }
+
+  /** Someone is (or nobody is) the loudest: decide who holds the big tile. */
+  #heard(loudest) {
+    const other = loudest && loudest !== 'self' ? loudest : null
+    if (other) this.#lastSpeaker = other
+    clearTimeout(this.#holdTimer)
+    if (this.mode === 'grid') { this.#focus = null; return }
+    if (this.mode === 'spotlight') { this.#focus = this.#lastSpeaker; return }
+    if (other) { this.#focus = other; return }
+    // auto: a pause keeps the speaker up a moment, then the grid returns.
+    if (this.#focus) this.#holdTimer = setTimeout(() => { this.#focus = null; this.render() }, HOLD_MS)
+  }
 
   render() {
     const people = [
@@ -65,18 +105,30 @@ export class Faces {
     ]
 
     const box = this.el.getBoundingClientRect()
-    const { positions } = gridLayout({
-      count: people.length, width: box.width, height: box.height, gap: 8, padding: 8, fill: true, aspect: 4 / 3,
-    })
-
-    // When the layout makes one tile bigger than the rest — three people,
-    // say, with the last one stretched across — that one is yours, on every
-    // screen: each of us sees ourselves large and the others small.
-    const areas = positions.map((p) => p.width * p.height)
-    const largest = Math.max(...areas)
-    if (people.length > 1 && largest > Math.min(...areas) + 1) {
-      const [self] = people.splice(0, 1)
-      people.splice(areas.indexOf(largest), 0, self)
+    let positions
+    // In spotlight, somebody must hold it even before anyone has spoken.
+    const focus = this.mode === 'spotlight' ? (this.#focus ?? people.find((p) => !p.self)?.id) : this.#focus
+    const star = people.find((p) => p.id === focus && !p.self)
+    if (star && people.length > 1) {
+      // The speaker large, everyone else — you last — in the strip beside them.
+      people.splice(people.indexOf(star), 1)
+      people.push(people.shift())
+      people.unshift(star)
+      const { main, strip } = spotlightLayout({ count: people.length, width: box.width, height: box.height, gap: 8, padding: 8, aspect: 4 / 3 })
+      positions = [main, ...strip]
+    } else {
+      positions = gridLayout({
+        count: people.length, width: box.width, height: box.height, gap: 8, padding: 8, fill: true, aspect: 4 / 3,
+      }).positions
+      // When the grid makes one tile bigger than the rest — three people,
+      // say, with the last one stretched across — that one is yours, on
+      // every screen: each of us sees ourselves large and the others small.
+      const areas = positions.map((p) => p.width * p.height)
+      const largest = Math.max(...areas)
+      if (people.length > 1 && largest > Math.min(...areas) + 1) {
+        const [self] = people.splice(0, 1)
+        people.splice(areas.indexOf(largest), 0, self)
+      }
     }
 
     const seen = new Set()
