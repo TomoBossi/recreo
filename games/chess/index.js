@@ -360,6 +360,21 @@ function view(el, ctx) {
   }
 }
 
+/**
+ * The shelf icon, from the set itself: a white knight on a corner of the
+ * board, its squares clipped to the rounded frame, the knight's outline
+ * drawn heavier to match the icons' line weight at this size.
+ */
+const ICON = `
+  <defs><clipPath id="chess-icon-board"><rect x="8" y="17" width="40" height="24" rx="4"/></clipPath></defs>
+  <g clip-path="url(#chess-icon-board)">
+    <rect x="8" y="17" width="40" height="24" fill="${LIGHT}"/>
+    ${[0, 1, 2].map((r) => [0, 1, 2, 3, 4].map((c) => ((r + c) % 2
+      ? `<rect x="${8 + c * 8}" y="${17 + r * 8}" width="8" height="8" fill="${DARK}"/>` : '')).join('')).join('')}
+  </g>
+  <rect x="8" y="17" width="40" height="24" rx="4" fill="none" stroke="${INK}" stroke-width="2.5"/>
+  <g transform="translate(10 0.8) scale(0.36)" fill="${WHITE}" stroke="${INK}" color="${INK}" stroke-width="5.6" stroke-linejoin="round">${PIECES.N}</g>`
+
 // ------------------------------------------------------------------- game
 
 export default defineGame({
@@ -375,11 +390,5 @@ export default defineGame({
   },
   rules,
   view,
-  icon: `
-    <rect x="6" y="8" width="44" height="32" rx="4" fill="#fffaf0" stroke="${INK}" stroke-width="2.5"/>
-    ${[0, 1, 2, 3].map((r) => [0, 1, 2, 3, 4, 5].map((c) => (r + c) % 2
-      ? `<rect x="${8 + c * 6.7}" y="${10 + r * 7}" width="6.7" height="7" fill="#9a7bf2" opacity="0.55"/>` : '').join('')).join('')}
-    <circle cx="28" cy="15" r="5" fill="#fffaf0" stroke="${INK}" stroke-width="2.5"/>
-    <path d="M22 34 L25 21 H31 L34 34 Z" fill="#fffaf0" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
-    <rect x="19" y="33" width="18" height="5" rx="2" fill="#fffaf0" stroke="${INK}" stroke-width="2.5"/>`,
+  icon: ICON,
 })
