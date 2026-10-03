@@ -93,6 +93,8 @@ export function applyTheme() {
   const t = theme()
   const resolved = t === 'auto' ? (dark.matches ? 'dark' : 'light') : t
   document.documentElement.dataset.theme = resolved
+  // A phone tints its browser bar with this: keep it the page's colour.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#16161a' : '#59c3ef')
 }
 
 export function setTheme(t) {
