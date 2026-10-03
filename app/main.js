@@ -24,16 +24,23 @@ const $ = (sel) => document.querySelector(sel)
 
 const media = new LocalMedia()
 
-/** Your colour: chosen once, kept, and the same on everything that is yours. */
-let colour = clampColour(store.get('colour', colourFor(playerId())))
+/**
+ * Your colour: the one you chose, or else a preset picked at random on your
+ * first visit and kept as your default. The two are stored apart, so a
+ * default can still step aside for someone else (see avoidSameColour) while
+ * a choice never does.
+ */
+const randomPreset = (from = PRESETS) => from[crypto.getRandomValues(new Uint32Array(1))[0] % from.length]
+if (!store.get('colour', null) && !store.get('colour-default', null)) store.set('colour-default', randomPreset())
+let colour = clampColour(store.get('colour', null) ?? store.get('colour-default', null) ?? colourFor(playerId()))
 const pointer = ownCursor({ colour: () => colour })
 
 /** Change your colour everywhere it shows; the room listens in once joined. */
 let colourChanged = () => {}
 function setColour(next, { chosen = true } = {}) {
   colour = clampColour(next)
-  // Only a colour someone picks is kept; a default is worked out afresh.
-  if (chosen) store.set('colour', colour)
+  // A colour someone picks is theirs; a default that moved is the new default.
+  store.set(chosen ? 'colour' : 'colour-default', colour)
   pointer.recolour()
   colourChanged(colour)
   for (const b of document.querySelectorAll('.colour-button')) b.style.setProperty('--c', colour)
@@ -371,7 +378,8 @@ async function enterRoom(code, nick) {
     const worn = new Set(earlier.map((p) => p.presence.colour).filter(Boolean))
     if (!worn.has(colour)) return
     const everyone = new Set([...room.peers.values()].map((p) => p.presence.colour).filter(Boolean))
-    const free = PRESETS.find((c) => !everyone.has(c)) ?? PRESETS.find((c) => !worn.has(c))
+    const unworn = PRESETS.filter((c) => !everyone.has(c))
+    const free = unworn.length ? randomPreset(unworn) : PRESETS.find((c) => !worn.has(c))
     if (free) setColour(free, { chosen: false })
   }
 
