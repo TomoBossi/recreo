@@ -18,8 +18,10 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
       <section>
         <h3>your name and colour</h3>
         <form class="row name-form">
-          <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
-          <button class="btn small sun" type="submit">save</button>
+          <span class="field-with-action">
+            <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
+            <button class="btn small sun save" type="submit" disabled>save</button>
+          </span>
         </form>
       </section>
 
@@ -64,17 +66,31 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
         <p class="hint">your name, colour, theme, layout and recent rooms, kept in this browser only</p>
       </section>`
 
-    el.querySelector('[name=nick]').value = room?.nick || store.get('nick', '')
+    el.querySelector('[name=nick]').value = savedNick()
     if (colour && onColour) el.querySelector('.name-form').prepend(colourButton({ value: colour(), onPick: onColour }))
   }
 
+  // Everything else here applies as it is touched; a name is typed, so it
+  // waits for save — offered only while there is a change to save.
+  let saved = null
+  const savedNick = () => saved ?? (room?.nick || store.get('nick', ''))
+  const pending = () => {
+    const nick = el.querySelector('[name=nick]').value.trim()
+    return nick && nick !== savedNick() ? nick.slice(0, 24) : null
+  }
+  el.addEventListener('input', (e) => {
+    if (e.target.name === 'nick') el.querySelector('.save').disabled = !pending()
+  })
+
   el.addEventListener('submit', (e) => {
     e.preventDefault()
-    const nick = el.querySelector('[name=nick]').value.trim().slice(0, 24)
+    const nick = pending()
     if (!nick) return
+    saved = nick
     store.set('nick', nick)
     onNick?.(nick)
-    flash(e.target.querySelector('button'), 'saved')
+    el.querySelector('[name=nick]').value = nick
+    el.querySelector('.save').disabled = true
   })
 
   el.addEventListener('click', (e) => {
@@ -124,12 +140,6 @@ function download(data) {
   a.download = `recreo-settings-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
-}
-
-function flash(button, text) {
-  const was = button.textContent
-  button.textContent = text
-  setTimeout(() => { button.textContent = was }, 1200)
 }
 
 function alertIn(el, text) {
