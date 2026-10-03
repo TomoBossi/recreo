@@ -33,7 +33,7 @@ import { arrow } from './pointer.js'
  * worth nothing, and a lost one is replaced by the next.
  */
 const SEND_MS = 50
-const IDLE_MS = 3000
+const IDLE_MS = 2500     // a pointer still this long fades away until it moves again
 const PARK_MS = 900      // a departed cursor waits at the edge this long, dimmed, then fades
 const JUMP_PX = 140      // further than this between updates is a jump, not a glide
 export const MOVING_MS = 220
@@ -79,7 +79,7 @@ export class Cursors {
 
     room.on('peer:leave', (peer) => this.#forget(peer.id))
     room.on('peer:interrupted', (peer) => this.#forget(peer.id))
-    setInterval(() => this.#sweep(), 1000)
+    setInterval(() => this.#sweep(), 250)
     new ResizeObserver(() => this.#redraw()).observe(desk)
   }
 

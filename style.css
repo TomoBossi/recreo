@@ -783,7 +783,7 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
   transition: transform 140ms ease; filter: drop-shadow(1px 1.5px 0 rgb(36 28 58 / 0.45));
 }
 .cursor.moving .arrow { transform: scale(1.12); }
-.cursor.idle { opacity: 0.3; }
+.cursor.idle { opacity: 0; transition: opacity 700ms ease; }
 .cursor.lifted { opacity: 0; transition: opacity 700ms ease 150ms; }
 /* Where other people's cursors are drawn over a table: clipped, never in the way. */
 .cursor-layer { position: absolute; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
