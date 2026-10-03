@@ -18,10 +18,7 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
       <section>
         <h3>your name and colour</h3>
         <form class="row name-form">
-          <span class="field-with-action">
-            <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
-            <button class="btn small sun save" type="submit" disabled>save</button>
-          </span>
+          <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
         </form>
       </section>
 
@@ -70,27 +67,35 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
     if (colour && onColour) el.querySelector('.name-form').prepend(colourButton({ value: colour(), onPick: onColour }))
   }
 
-  // Everything else here applies as it is touched; a name is typed, so it
-  // waits for save — offered only while there is a change to save.
+  // Like everything else here, a name applies as it is typed: everyone sees
+  // it a moment after you stop. An empty field changes nothing, and gives
+  // the name back when you leave it.
   let saved = null
   const savedNick = () => saved ?? (room?.nick || store.get('nick', ''))
-  const pending = () => {
-    const nick = el.querySelector('[name=nick]').value.trim()
-    return nick && nick !== savedNick() ? nick.slice(0, 24) : null
-  }
-  el.addEventListener('input', (e) => {
-    if (e.target.name === 'nick') el.querySelector('.save').disabled = !pending()
-  })
-
-  el.addEventListener('submit', (e) => {
-    e.preventDefault()
-    const nick = pending()
-    if (!nick) return
+  const field = () => el.querySelector('[name=nick]')
+  let typing = null
+  const apply = () => {
+    clearTimeout(typing)
+    const nick = field().value.trim().slice(0, 24)
+    if (!nick || nick === savedNick()) return
     saved = nick
     store.set('nick', nick)
     onNick?.(nick)
-    el.querySelector('[name=nick]').value = nick
-    el.querySelector('.save').disabled = true
+  }
+  el.addEventListener('input', (e) => {
+    if (e.target.name !== 'nick') return
+    clearTimeout(typing)
+    typing = setTimeout(apply, 300)
+  })
+  el.addEventListener('focusout', (e) => {
+    if (e.target.name !== 'nick') return
+    apply()
+    if (!field().value.trim()) field().value = savedNick()
+  })
+  el.addEventListener('submit', (e) => {
+    e.preventDefault()
+    apply()
+    field().blur()
   })
 
   el.addEventListener('click', (e) => {

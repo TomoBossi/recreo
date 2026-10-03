@@ -632,14 +632,6 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .settings h3 { margin: 0 0 7px; font-size: 13px; font-weight: 900; color: var(--text-soft); letter-spacing: 0.3px; }
 .settings .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .settings .row .input { flex: 1; min-width: 0; padding: 6px 10px; }
-/* A field with its button inside it, at the right. */
-.field-with-action { position: relative; flex: 1; min-width: 0; display: flex; }
-.field-with-action .input { flex: 1; padding-right: 64px; }
-.field-with-action .btn { position: absolute; right: 4px; top: 50%; height: calc(100% - 8px); padding: 0 10px; box-shadow: none; border-width: 2px; }
-/* Centred by its own transform; a press moves nothing but its shade. */
-.field-with-action .btn, .field-with-action .btn:hover, .field-with-action .btn:active { --dx: 0px; --dy: -50%; }
-.field-with-action .btn::after { transform: none; }
-.field-with-action .btn:active { filter: brightness(0.92); }
 .settings .hint { margin: 6px 0 0; font-size: 12px; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
 
 /* ------------------------------------------------------------------ toast */
