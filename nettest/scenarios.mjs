@@ -164,13 +164,21 @@ export const scenarios = {
     const said = (await lines('lu')).filter((l) => /beat/.test(l))
     if (said.length !== 1 || said[0] !== 'tomo beat ana at connect four (by forfeit)') throw new Error(`chat: ${JSON.stringify(said)}`)
 
-    // Closing a finished game adds nothing; closing one not finished says who did it.
+    // Closing a finished game adds nothing, nor does closing one that never
+    // began; closing one under way says who did it.
     await js(run, 'tomo', `recreo.tables.close(${T})`)
     await converge(run, labels, 'after closing the finished game')
-    const second = await js(run, 'ana', `recreo.tables.open('connect4').id`)
+    const untouched = await js(run, 'ana', `recreo.tables.open('connect4').id`)
     await converge(run, labels, 'after opening another')
+    await js(run, 'ana', `recreo.tables.close(${JSON.stringify(untouched)})`)
+    await converge(run, labels, 'after closing the untouched one')
+    const second = await js(run, 'ana', `(() => { const t = recreo.tables.open('connect4'); recreo.tables.sit(t.id, 0); return t.id })()`)
+    await converge(run, labels, 'after opening a third')
+    await sit(run, labels, 'tomo', second, 1)
+    await js(run, 'ana', `recreo.tables.play(${JSON.stringify(second)}, { col: 3 })`)
+    await converge(run, labels, 'after a first move')
     await js(run, 'ana', `recreo.tables.close(${JSON.stringify(second)})`)
-    await converge(run, labels, 'after closing the new one')
+    await converge(run, labels, 'after closing the game under way')
     await sleep(300)
     const ended = (await lines('lu')).filter((l) => /was ended/.test(l))
     if (ended.length !== 1 || ended[0] !== 'the game of connect four was ended by ana') throw new Error(`chat: ${JSON.stringify(ended)}`)
@@ -214,7 +222,8 @@ export const scenarios = {
     const goneAfterMs = Date.now() - leftAt
     await converge(run, stay, 'after ana left')
     const chat = await js(run, 'lu', `[...document.querySelectorAll('.chat-line.system')].map((l) => l.textContent)`)
-    if (!chat.includes('the game of connect four closed — nobody was left playing')) throw new Error(`chat: ${JSON.stringify(chat)}`)
+    // Her connect four never began, so its closing is not news.
+    if (chat.some((l) => /connect four (closed|was ended)/.test(l))) throw new Error(`a game that never began was announced: ${JSON.stringify(chat)}`)
     if (chat.some((l) => /someone/.test(l))) throw new Error(`a nameless line: ${JSON.stringify(chat)}`)
     const seatLabel = await js(run, 'lu', `document.querySelectorAll('.win[data-id="table:' + ${G} + '"] .seat')[1].textContent.trim()`)
 

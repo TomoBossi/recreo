@@ -527,9 +527,9 @@ async function enterRoom(code, nick) {
     wm.remove(entry.win)
     views.delete(table.id)
     dressAll() // the last of its kind may lose its label
-    // A finished game already has its line in the chat; ending one in
-    // progress says who ended it.
-    if (games[table.game].outcome(table.state, {})) return
+    // A game that never began is not news, and a finished one already has
+    // its line in the chat; only ending one in progress says who ended it.
+    if (table.moves.length === 0 || games[table.game].outcome(table.state, {})) return
     chat.system(by ? `the game of ${title} was ended by ${players.nameOf(by)}` : `the game of ${title} closed — nobody was left playing`)
   })
 
