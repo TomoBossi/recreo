@@ -12,7 +12,7 @@ import { shelf } from './shelf.js'
 import { Cursors } from './cursors.js'
 import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
-import { clampColour, colourFor, colourButton } from './colours.js'
+import { clampColour, colourFor, colourButton, PRESETS } from './colours.js'
 import { ownCursor } from './pointer.js'
 import { CAPACITY } from './limits.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
@@ -28,9 +28,10 @@ const pointer = ownCursor({ colour: () => colour })
 
 /** Change your colour everywhere it shows; the room listens in once joined. */
 let colourChanged = () => {}
-function setColour(next) {
+function setColour(next, { chosen = true } = {}) {
   colour = clampColour(next)
-  store.set('colour', colour)
+  // Only a colour someone picks is kept; a default is worked out afresh.
+  if (chosen) store.set('colour', colour)
   pointer.recolour()
   colourChanged(colour)
   for (const b of document.querySelectorAll('.colour-button')) b.style.setProperty('--c', colour)
@@ -308,7 +309,25 @@ async function enterRoom(code, nick) {
   }
 
   room.on('peer:join', (peer) => { setTimeout(() => greet(peer), 1500); refreshFaces() })
+  /**
+   * Two people should never share a colour by accident. Someone who never
+   * picked one, finding their default already worn by someone who was here
+   * first, takes the next colour nobody is wearing. Only the later arrival
+   * moves, so two newcomers cannot keep swapping; a chosen colour is never
+   * touched.
+   */
+  function avoidSameColour() {
+    if (store.get('colour', null)) return
+    const earlier = [...room.peers.values()].filter((p) => (p.presence.since ?? 0) < room.presence.since)
+    const worn = new Set(earlier.map((p) => p.presence.colour).filter(Boolean))
+    if (!worn.has(colour)) return
+    const everyone = new Set([...room.peers.values()].map((p) => p.presence.colour).filter(Boolean))
+    const free = PRESETS.find((c) => !everyone.has(c)) ?? PRESETS.find((c) => !worn.has(c))
+    if (free) setColour(free, { chosen: false })
+  }
+
   room.on('peer:update', (peer) => {
+    avoidSameColour()
     players.learn(peer)
     if (overCapacity()) return roomFull()
     // A duplicated tab copies its player id; one of the two takes a new one.

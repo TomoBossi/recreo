@@ -69,6 +69,16 @@ export class Faces {
       count: people.length, width: box.width, height: box.height, gap: 8, padding: 8, fill: true, aspect: 4 / 3,
     })
 
+    // When the layout makes one tile bigger than the rest — three people,
+    // say, with the last one stretched across — that one is yours, on every
+    // screen: each of us sees ourselves large and the others small.
+    const areas = positions.map((p) => p.width * p.height)
+    const largest = Math.max(...areas)
+    if (people.length > 1 && largest > Math.min(...areas) + 1) {
+      const [self] = people.splice(0, 1)
+      people.splice(areas.indexOf(largest), 0, self)
+    }
+
     const seen = new Set()
     people.forEach((person, i) => {
       seen.add(person.id)
