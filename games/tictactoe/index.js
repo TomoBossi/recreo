@@ -86,8 +86,8 @@ function mark(seat, colour, { fresh = false, ghost = false } = {}) {
 }
 
 function view(el, ctx) {
-  const svg = board(el, { viewBox: '0 0 360 360', className: 'ttt' })
-  svg.innerHTML = `
+  const { svg, space } = board(el, { width: 360, height: 360, className: 'ttt' })
+  space.innerHTML = `
     <rect x="10" y="10" width="340" height="340" rx="16" fill="${PAPER}" stroke="${INK}" stroke-width="2.5"/>
     <path d="M130 40 V320 M230 40 V320 M40 130 H320 M40 230 H320" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>
     <g class="strike"></g>
@@ -178,6 +178,7 @@ const ICON = icon()
 
 export default defineGame({
   id: 'tictactoe',
+  styles: new URL('./style.css', import.meta.url),
   name: 'Tic-tac-toe',
   tone: 'tang',
   kind: 'turns',

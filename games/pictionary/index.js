@@ -281,11 +281,11 @@ function view(el, ctx) {
             <g class="strokes"></g><g class="live"></g>
             <circle class="brush" r="4" fill="none" stroke="${INK}" stroke-width="2" visibility="hidden"/>
           </svg>
-          <div class="draw-overlay"></div>
+          <div class="draw-overlay game-panel"></div>
         </div>
         <div class="draw-side">
-          <div class="draw-scores" data-cursor-anchor="scores"></div>
-          <div class="draw-log" data-cursor-anchor="log"></div>
+          <div class="draw-scores scrolls" data-cursor-anchor="scores"></div>
+          <div class="draw-log scrolls" data-cursor-anchor="log"></div>
           <form class="draw-guess"><input class="input" maxlength="60" placeholder="your guess" aria-label="guess"><button class="btn small sun">guess</button></form>
         </div>
       </div>
@@ -520,6 +520,7 @@ const ICON = `
 
 export default defineGame({
   id: 'pictionary',
+  styles: new URL('./style.css', import.meta.url),
   name: 'Pictionary',
   tone: 'berry',
   kind: 'authority',

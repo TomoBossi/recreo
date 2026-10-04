@@ -138,21 +138,33 @@ test('minigolf physics is integer arithmetic, so every machine agrees', () => {
   assert.deepEqual(clampShot(3000, 4000), [840, 1120], 'clamped to the strongest shot, keeping direction')
 })
 
-test('a straight putt on the first hole drops, and the turn passes', () => {
+test('minigolf turns: everyone tees off in seat order, then the ball furthest away; a holed ball is done', () => {
   let s = minigolf.init()
   assert.equal(minigolf.turn(s), 'any')
   assert.ok(minigolf.legal(s, { type: 'start', order: [1, 0] }, 0))
   s = minigolf.apply(s, { type: 'start', order: [1, 0] }, 0)
   assert.equal(s.turn, 0)
-  // Straight at the cup, firmly; it should sink within a stroke or two.
-  for (let i = 0; i < 3 && !s.balls[0].done; i++) {
-    const [x, y] = s.balls[0].pos
-    s = minigolf.apply(s, { type: 'shot', dx: Math.trunc((87000 - x) / 60), dy: Math.trunc((30000 - y) / 60) }, 0)
-    if (!s.balls[0].done) assert.equal(s.turn, 1, 'the other player is further away and goes next')
-    if (!s.balls[0].done) s = minigolf.apply(s, { type: 'shot', dx: 10, dy: 0 }, 1)
-  }
-  assert.ok(s.balls[0].done && s.balls[0].strokes <= 3, `ball 0: ${JSON.stringify(s.balls[0])}`)
-  assert.equal(minigolf.legal(s, { type: 'shot', dx: 100, dy: 0 }, 0), false, 'a holed ball does not putt again')
+  s = minigolf.apply(s, { type: 'shot', dx: 200, dy: 120, phase: 0 }, 0) // a soft one, up and away
+  assert.equal(s.turn, 1, 'the player who has not putted yet goes next')
+  s = minigolf.apply(s, { type: 'shot', dx: 500, dy: -260, phase: 0 }, 1)
+  const away = (seat) => Math.hypot(s.balls[seat].pos[0] - 86000, s.balls[seat].pos[1] - 30000)
+  assert.equal(s.turn, away(0) > away(1) ? 0 : 1, 'then whoever is furthest from the cup')
+  // Put seat 0 beside the cup and tap it in.
+  s = { ...s, turn: 0, balls: { ...s.balls, 0: { pos: [83000, 30000], strokes: 2, done: false } } }
+  s = minigolf.apply(s, { type: 'shot', dx: 300, dy: 0, phase: 0 }, 0)
+  assert.deepEqual(s.balls[0], { pos: [86000, 30000], strokes: 3, done: true })
+  assert.equal(s.turn, 1)
+  assert.equal(minigolf.legal({ ...s, turn: 0 }, { type: 'shot', dx: 100, dy: 0 }, 0) && !s.balls[0].done, false, 'a holed ball does not putt again')
+  assert.equal(minigolf.legal(s, { type: 'shot', dx: 100, dy: 0, phase: -1 }, 1), false, 'the windmill turn is a count')
+})
+
+test('minigolf: three holes at random are the same three on every machine, in course order', () => {
+  const a = minigolf.apply(minigolf.init({ seed: 7, options: { holes: 'three' } }), { type: 'start', order: [0] }, 0)
+  const b = minigolf.apply(minigolf.init({ seed: 7, options: { holes: 'three' } }), { type: 'start', order: [0] }, 0)
+  assert.deepEqual(a.course, b.course)
+  assert.equal(a.course.length, 3)
+  assert.deepEqual([...a.course].sort((x, y) => x - y), a.course)
+  assert.equal(a.cards.length, 3)
 })
 
 import english from '../games/pictionary/words/en.js'
@@ -277,9 +289,19 @@ test('the cup takes a ball that is slow and true, and lips out a fast one', () =
   const hole = { tee: [120, 300], cup: [870, 300], walls: [], water: [] }
   assert.ok(roll(hole, [72000, 30000], [470, 0]).sunk, 'a firm putt straight at it drops')
   assert.ok(roll(hole, [72000, 31100], [470, 0]).sunk, 'eleven off centre still drops')
-  assert.ok(!roll(hole, [72000, 31400], [470, 0]).sunk, 'fourteen off centre rolls past the edge')
+  assert.ok(roll(hole, [72000, 31400], [440, 0]).sunk, 'fourteen off centre, slowly, the cup draws it in')
+  assert.ok(!roll(hole, [72000, 32600], [470, 0]).sunk, 'twenty-six off centre rolls past the edge')
   const fast = roll(hole, [72000, 30000], [800, 0])
   assert.ok(!fast.sunk && fast.end[0] > 87000, 'too fast, it runs over the cup and on')
+})
+
+test('a ball driven straight into a wall bounces back off it, and never ends inside one', () => {
+  const hole = { tee: [120, 300], cup: [100, 100] }
+  const r = roll(hole, [90000, 30000], [1400, 0])
+  assert.ok(Math.max(...r.path.map(([x]) => x)) <= (1000 - 24 - 11) * 100, 'it reached into the frame')
+  assert.ok(r.end[0] < 90000, 'it came back')
+  const again = roll(hole, r.end, [-300, 0])
+  assert.ok(again.end[0] < r.end[0], 'and it moves when struck again')
 })
 
 test('a rolling ball slows steadily: twice the speed, about four times the distance', () => {

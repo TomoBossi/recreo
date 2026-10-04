@@ -1,0 +1,9 @@
+/* Tic-tac-toe: loaded with the game (styles in its defineGame). */
+.ttt.my-turn .hits rect { cursor: pointer; }
+/* Marks draw themselves in, like a pen: the X stroke by stroke, the O round. */
+.ttt .mark.fresh path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 180ms ease-out forwards; }
+.ttt .mark.fresh path.second { animation-delay: 150ms; }
+.ttt .mark.ghost { opacity: 0.22; }
+.ttt .spent { opacity: 0.3; transition: opacity 400ms ease 300ms; }
+.ttt .win-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 360ms ease-in-out 120ms forwards; }
+@keyframes ttt-draw { to { stroke-dashoffset: 0; } }

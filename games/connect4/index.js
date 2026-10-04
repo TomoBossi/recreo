@@ -77,8 +77,8 @@ let uid = 0
 
 function view(el, ctx) {
   const id = uid++
-  const svg = board(el, { viewBox: '0 0 380 360', className: 'c4' })
-  svg.innerHTML = `
+  const { svg, space } = board(el, { width: 380, height: 360, className: 'c4' })
+  space.innerHTML = `
     <defs><mask id="c4-holes-${id}"><rect x="0" y="40" width="380" height="320" fill="#fff"/></mask></defs>
     <g class="ghost"><circle r="18" stroke="${INK}" stroke-width="2.5"/></g>
     <g class="discs"></g>
@@ -169,6 +169,7 @@ function view(el, ctx) {
 
 export default defineGame({
   id: 'connect4',
+  styles: new URL('./style.css', import.meta.url),
   name: 'Connect four',
   tone: 'sky',
   kind: 'turns',

@@ -56,6 +56,11 @@
  * otherwise with optionsOpen(state) — a game that plays round after round
  * can open them between rounds, and must then read them in decide.
  *
+ * A game's look lives in its own folder, beside its code, and is loaded
+ * with it:
+ *
+ *   styles: new URL('./style.css', import.meta.url)
+ *
  * On a phone the windows stack in one scrolling column, each as tall as it
  * asks to be. A game whose stage is not a roughly square board says how tall
  * it wants to be for a given width:
@@ -109,6 +114,7 @@ export function defineGame(spec) {
   })
   if (rules.optionsOpen && typeof rules.optionsOpen !== 'function') fail('optionsOpen must be a function of the state')
   if (spec.phoneHeight != null && typeof spec.phoneHeight !== 'function') fail('phoneHeight must be a function of the width')
+  if (spec.styles != null && !(spec.styles instanceof URL) && typeof spec.styles !== 'string') fail("styles must be a URL: new URL('./style.css', import.meta.url)")
 
   const view = typeof spec.view === 'function' ? { mount: spec.view } : spec.view
   if (typeof view?.mount !== 'function') fail('needs a view: a function (el, ctx) returning { update, destroy }')
@@ -143,6 +149,7 @@ export function defineGame(spec) {
     // The stage's height in a phone's column, for a given width: by default
     // a little less than square, which suits a board.
     phoneHeight: spec.phoneHeight ?? ((width) => width * 0.95),
+    styles: spec.styles ? String(spec.styles) : null,
     view,
   }
 }

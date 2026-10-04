@@ -1,0 +1,12 @@
+/* Connect four: loaded with the game (styles in its defineGame). */
+.c4 .disc.falling { animation: c4-fall 380ms cubic-bezier(.4, 0, .9, .6) both; }
+@keyframes c4-fall {
+  0% { transform: translateY(var(--fall)); }
+  80% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+.c4 .disc .ring { display: none; }
+.c4 .disc.winning .ring { display: inline; }
+.c4 .disc.winning { animation: c4-win 650ms ease-in-out 6 alternate both; }
+@keyframes c4-win { from { transform: scale(0.92); } to { transform: scale(1.06); } }
+.c4.my-turn .hits rect { cursor: pointer; }

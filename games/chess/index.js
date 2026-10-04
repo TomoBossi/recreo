@@ -4,7 +4,7 @@
  * and then a square — which works the same with a mouse and a finger.
  */
 import { defineGame } from '../kit/define.js'
-import { board, escape, INK } from '../kit/svg.js'
+import { board, shape, escape, INK } from '../kit/svg.js'
 import { initial, isLegal, play, legalMoves, cannotMate, file, rank } from './rules.js'
 
 const LIGHT = '#fbefd5'
@@ -132,7 +132,11 @@ const rules = {
 
 function view(el, ctx) {
   const id = uid++
-  const svg = board(el, { viewBox: '-6 -6 812 812', className: 'chess' })
+  const b = board(el, { width: 800, height: 800, pad: 6, className: 'chess' })
+  const { svg, space } = b
+  // The clocks and the promotion choice never turn with the board.
+  const over = shape('g')
+  svg.append(over)
 
   let state = null
   let info = {}
@@ -185,8 +189,7 @@ function view(el, ctx) {
   const STACK = CARD.h + 20 // room above and below the board for a card and its gap
   function frame() {
     layout = clockLayout()
-    svg.setAttribute('viewBox', layout === 'side' ? `-6 -6 ${812 + CARD.gap + CARD.w} 812`
-      : layout === 'stack' ? `-6 ${-6 - STACK} 812 ${812 + 2 * STACK}` : '-6 -6 812 812')
+    b.margin(layout === 'side' ? { right: CARD.gap + CARD.w } : layout === 'stack' ? { top: STACK, bottom: STACK } : {})
   }
   new ResizeObserver(() => { if (state && clockLayout() !== layout) { frame(); draw() } }).observe(el)
 
@@ -248,6 +251,7 @@ function view(el, ctx) {
   const send = (move) => ctx.play({ ...move, spent: Math.round(performance.now() - receivedAt) })
 
   function draw() {
+    b.turn(flipped() ? 180 : 0)
     const ahead = !myTurn()
     const moves = picked != null ? (ahead ? premoves() : legalMoves(state)).filter((m) => m.from === picked) : []
     const targets = new Set(moves.map((m) => m.to))
@@ -279,7 +283,7 @@ function view(el, ctx) {
       const fill = p[0] === 'w' ? WHITE : BLACK
       const line = p[0] === 'w' ? 'var(--ink)' : '#120d22'
       const detail = p[0] === 'w' ? 'var(--ink)' : '#c9bdf0'
-      const upright = flipped() ? ' rotate(180 50 50)' : ''
+      const upright = ` ${b.upright(50, 50)}`
       html += `<g transform="translate(${x} ${y})${upright}" pointer-events="none" class="piece"
         fill="${fill}" stroke="${line}" color="${detail}" stroke-width="4" stroke-linejoin="round">${PIECES[p[1]]}</g>`
     }
@@ -289,18 +293,19 @@ function view(el, ctx) {
         ? `<circle cx="${x + 50}" cy="${y + 50}" r="44" fill="none" stroke="var(--ink)" stroke-width="6" opacity="0.5" pointer-events="none"/>`
         : `<circle cx="${x + 50}" cy="${y + 50}" r="14" fill="var(--ink)" opacity="0.4" pointer-events="none"/>`
     }
-    html = `<rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/>
-      <g data-cursor-space transform="${flipped() ? 'rotate(180 400 400)' : ''}"><g clip-path="url(#chess-clip-${id})">${html}</g></g><g class="clocks"></g>`
+    space.innerHTML = `<defs><clipPath id="chess-clip-${id}"><rect width="800" height="800" rx="8"/></clipPath></defs>
+      <rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/><g clip-path="url(#chess-clip-${id})">${html}</g>`
+    let top = '<g class="clocks"></g>'
     if (promoting) {
-      html += `<rect x="150" y="300" width="500" height="200" rx="18" fill="#fffaf0" stroke="var(--ink)" stroke-width="6"/>`
+      top += `<rect x="150" y="300" width="500" height="200" rx="18" fill="#fffaf0" stroke="var(--ink)" stroke-width="6"/>`
       ;['Q', 'R', 'B', 'N'].forEach((kind, i) => {
         const colour = state.turn === 'w' ? WHITE : BLACK
-        html += `<g transform="translate(${180 + i * 115} 345)" class="piece promo" data-promo="${kind}"
+        top += `<g transform="translate(${180 + i * 115} 345)" class="piece promo" data-promo="${kind}"
           fill="${colour}" stroke="var(--ink)" color="${state.turn === 'w' ? 'var(--ink)' : '#c9bdf0'}" stroke-width="4" stroke-linejoin="round">
           <rect width="100" height="100" fill="transparent" stroke="none"/>${PIECES[kind]}</g>`
       })
     }
-    svg.innerHTML = `<defs><clipPath id="chess-clip-${id}"><rect width="800" height="800" rx="8"/></clipPath></defs>${html}`
+    over.innerHTML = top
     drawClocks()
   }
 
@@ -390,6 +395,7 @@ const ICON = `
 
 export default defineGame({
   id: 'chess',
+  styles: new URL('./style.css', import.meta.url),
   name: 'Chess',
   tone: 'grape',
   kind: 'turns',

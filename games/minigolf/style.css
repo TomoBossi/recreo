@@ -1,0 +1,68 @@
+/* Minigolf: loaded with the game (styles in its defineGame). */
+.golf.my-turn { cursor: crosshair; }
+.golf .frame-text { font: 900 15px var(--font); fill: #fff; opacity: 0.85; letter-spacing: 0.5px; pointer-events: none; }
+.golf .ball-label { font: 900 17px var(--font); fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 5px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.golf .ball-label.hint { font-size: 16px; animation: golf-hint 1.6s ease-in-out 3; }
+@keyframes golf-hint { 50% { opacity: 0.45; } }
+.golf .over, .golf .fx, .golf .labels, .golf .aims, .golf .trail, .golf .balls { pointer-events: none; }
+.golf .aim.faint { opacity: 0.55; }
+/* Nothing loops forever but the windmill, whose sails are the game: an
+   endless animation repaints the board for as long as it is on screen. */
+.golf .turn-ring { animation: golf-ring 1.1s ease-in-out 4; transform-box: fill-box; transform-origin: center; stroke-dasharray: 6 5; }
+@keyframes golf-ring { 50% { transform: scale(1.25); opacity: 0.5; } }
+.golf .sails { animation: golf-sails var(--turn) linear infinite; } /* marked essential in the markup */
+@keyframes golf-sails { to { transform: rotate(360deg); } }
+.golf .bumper { transform-box: fill-box; transform-origin: center; }
+.golf .bumper.hit { animation: golf-bump 260ms ease-out; }
+@keyframes golf-bump { 30% { transform: scale(1.18); } }
+.golf .gulp { animation: golf-gulp 380ms ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes golf-gulp { 40% { transform: scale(1.3); } }
+.golf .flag { transform-box: fill-box; transform-origin: 0 100%; }
+.golf .flag.cheer { animation: golf-cheer 700ms ease-in-out; }
+@keyframes golf-cheer { 25% { transform: rotate(-9deg); } 60% { transform: rotate(7deg); } }
+.golf .splash circle { animation: golf-splash 800ms ease-out both; transform-box: fill-box; transform-origin: center; }
+@keyframes golf-splash { from { transform: scale(0.4); opacity: 1; } to { transform: scale(3.4); opacity: 0; } }
+.golf .confetti rect { animation: golf-confetti 1100ms cubic-bezier(.2, .7, .4, 1) both; transform-box: fill-box; transform-origin: center; }
+@keyframes golf-confetti { to { transform: translate(var(--dx), var(--dy)) rotate(var(--spin)); opacity: 0; } }
+
+/* The new hole, announced over the course; a word when a ball drops. */
+.golf-banner, .golf-toast {
+  position: absolute; left: 50%; z-index: 1; pointer-events: none; text-align: center; color: var(--text);
+  background: var(--field); border: var(--line) solid var(--ink); border-radius: 14px; box-shadow: 3px 3px 0 var(--ink);
+}
+.golf-banner[hidden], .golf-toast[hidden] { display: none; }
+.golf-banner { top: 50%; padding: 12px 22px 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 200px; transform: translate(-50%, -50%); }
+.golf-banner.show { animation: golf-banner 2400ms ease both; }
+@keyframes golf-banner {
+  0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  10%, 82% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0; }
+}
+.golf-banner small { font-size: 12px; font-weight: 800; color: var(--text-soft); letter-spacing: 1px; text-transform: uppercase; }
+.golf-banner strong { font-size: 26px; font-weight: 900; line-height: 1.1; }
+.golf-banner .par { font-size: 14px; font-weight: 900; padding: 1px 10px; border-radius: 999px; background: var(--leaf); color: var(--on-accent); border: 2px solid var(--ink); margin-top: 3px; }
+.golf-banner .standing { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 8px; font-size: 13px; font-weight: 800; }
+.golf-banner .standing i, .golf-toast i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 5px; vertical-align: -1px; }
+.golf-toast { top: 14px; padding: 6px 16px; display: flex; align-items: center; gap: 10px; transform: translateX(-50%); white-space: nowrap; }
+.golf-toast.show { animation: golf-toast 1700ms ease both; }
+@keyframes golf-toast {
+  0% { transform: translate(-50%, -12px) scale(0.8); opacity: 0; }
+  12%, 80% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -6px); opacity: 0; }
+}
+.golf-toast b { font-size: 20px; font-weight: 900; }
+.golf-toast.great { background: var(--sun); color: var(--on-accent); }
+.golf-toast.great b { font-size: 24px; }
+.golf-toast .who { font-size: 14px; font-weight: 800; }
+
+/* Scorecard, shown in the lobby panel at the end of a round. */
+.golf-card-wrap { max-width: 100%; overflow-x: auto; }
+.golf-card { border-collapse: collapse; background: var(--field); border: var(--line) solid var(--ink); font-weight: 800; font-size: 15px; }
+.golf-card th, .golf-card td { border: 2px solid var(--ink); padding: 3px 7px; text-align: center; min-width: 24px; }
+.golf-card th:first-child { text-align: left; white-space: nowrap; }
+.golf-card .par { color: var(--text-soft); }
+.golf-card tr.out th, .golf-card tr.out td { opacity: 0.55; }
+.golf-card td.under { background: #c9f0c0; }
+.golf-card td.over { color: var(--text-soft); }
+.golf-card .sum { padding: 3px 10px; }
+.golf-card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }

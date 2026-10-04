@@ -11,6 +11,7 @@ import { Tables } from './tables.js'
 import { TableView } from './tableview.js'
 import { Players } from './players.js'
 import { shelf } from './shelf.js'
+import { Live } from './live.js'
 import { Cursors } from './cursors.js'
 import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
@@ -21,6 +22,15 @@ import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming } from '../games/index.js'
 
 const $ = (sel) => document.querySelector(sel)
+
+// Each game's own stylesheet, from its folder.
+for (const game of Object.values(games)) {
+  if (!game.styles) continue
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = game.styles
+  document.head.append(link)
+}
 
 const media = new LocalMedia()
 
@@ -315,6 +325,7 @@ async function enterRoom(code, nick) {
   const tables = new Tables({ room, me, games, present: (player) => players.stateOf(player) === 'here' })
   const views = new Map() // game id -> {win, view}
   const cursors = new Cursors({ room, desk: $('#desk'), players })
+  const live = new Live({ room, tables, deliver: (id, data, seat) => views.get(id)?.view.hear(data, seat) })
 
   const refreshFaces = () => {
     facesWin.setMeta(`${room.peers.size + 1} here`)
@@ -465,7 +476,7 @@ async function enterRoom(code, nick) {
       // The window's title, seats and status bars plus what the game asks for.
       phoneHeight: (width) => 110 + game.phoneHeight(width - 24),
     })
-    const view = new TableView(body, { tables, table, players, me })
+    const view = new TableView(body, { tables, table, players, me, live })
     views.set(table.id, { win, view })
     dressAll()
   }

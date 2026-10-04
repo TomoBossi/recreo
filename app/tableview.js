@@ -9,7 +9,7 @@ import { select } from './select.js'
  * ability to move.
  */
 export class TableView {
-  constructor(body, { tables, table, players, me }) {
+  constructor(body, { tables, table, players, me, live }) {
     this.tables = tables
     this.table = table
     this.players = players
@@ -59,9 +59,16 @@ export class TableView {
       get colours() { return view.colours() },
       play: (move) => tables.play(table.id, move),
       intend: (intent) => tables.intend(table.id, intent),
+      // Only a seated player's sharing reaches anyone.
+      share: (data) => { if (tables.seatOf(table, me.player) != null) live?.share(table.id, data) },
       get mySeat() { return tables.seatOf(table, me.player) },
     })
     this.render()
+  }
+
+  /** Something a player at this table is in the middle of: an aim, a stroke. */
+  hear(data, seat) {
+    this.view.hear?.(data, seat)
   }
 
   /** Each seat's colour: the game's own, or its player's when the game says so. */

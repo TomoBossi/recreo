@@ -503,12 +503,15 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .watchers { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text-soft); }
 
 /* On a touchscreen a drag over a game is input, never a scroll or a zoom;
-   the parts of a game that do scroll (Pictionary's log) keep scrolling. */
+   the parts of a game that do scroll — a list, a log — carry the class
+   scrolls, and keep scrolling up and down. */
 .stage, .stage svg { touch-action: none; }
-.stage .draw-log, .stage .draw-scores { touch-action: pan-y; }
+.stage .scrolls { touch-action: pan-y; overflow-y: auto; }
 
-/* The board fits whatever room the window leaves it, keeping its shape. */
-.stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+/* The board fits whatever room the window leaves it, keeping its shape.
+   The stage is a container, so a game lays itself out by its own window's
+   size — @container stage (max-width: …) — wherever that window is. */
+.stage { flex: 1; min-height: 0; position: relative; overflow: hidden; container: stage / size; }
 .stage > svg { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); overflow: visible; }
 
 .status {
@@ -544,114 +547,16 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .outcome .close:hover { opacity: 1; }
 @keyframes outcome-in { from { transform: translateX(-50%) scale(0.6); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .seat.out .who, .seat.out .piece { opacity: 0.5; }
-.score.out { opacity: 0.55; }
-.score i { font-size: 11px; font-weight: 800; color: var(--text-soft); }
-.golf-card tr.out th, .golf-card tr.out td { opacity: 0.55; }
 
 /* Shared by games: the panel over a board that offers start and play again
-   (games/kit/lobby.js), and any game's own panel drawn the same way. */
-.game-lobby, .draw-overlay {
+   (games/kit/lobby.js), and any game's own panel drawn the same way: give
+   it the class game-panel. */
+.game-lobby, .game-panel {
   position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
   background: var(--veil); color: var(--text); font-weight: 900; font-size: 18px; text-align: center; padding: 16px;
 }
-.game-lobby[hidden], .draw-overlay[hidden] { display: none; }
-.game-lobby p, .draw-overlay p { margin: 0; }
-
-/* Connect four */
-.c4 .disc.falling { animation: c4-fall 380ms cubic-bezier(.4, 0, .9, .6) both; }
-@keyframes c4-fall {
-  0% { transform: translateY(var(--fall)); }
-  80% { transform: translateY(3px); }
-  100% { transform: translateY(0); }
-}
-.c4 .disc .ring { display: none; }
-.c4 .disc.winning .ring { display: inline; }
-.c4 .disc.winning { animation: c4-win 650ms ease-in-out 6 alternate both; }
-@keyframes c4-win { from { transform: scale(0.92); } to { transform: scale(1.06); } }
-.c4.my-turn .hits rect { cursor: pointer; }
-
-/* Chess */
-.chess.my-turn rect[data-sq] { cursor: pointer; }
-.chess .promo { cursor: pointer; }
-.chess .clock-time { font: 900 38px var(--font); font-variant-numeric: tabular-nums; }
-.chess .clock-name { font: 800 19px var(--font); opacity: 0.85; }
-
-/* Tic-tac-toe */
-.ttt.my-turn .hits rect { cursor: pointer; }
-/* Marks draw themselves in, like a pen: the X stroke by stroke, the O round. */
-.ttt .mark.fresh path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 180ms ease-out forwards; }
-.ttt .mark.fresh path.second { animation-delay: 150ms; }
-.ttt .mark.ghost { opacity: 0.22; }
-.ttt .spent { opacity: 0.3; transition: opacity 400ms ease 300ms; }
-.ttt .win-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 360ms ease-in-out 120ms forwards; }
-@keyframes ttt-draw { to { stroke-dashoffset: 0; } }
-
-/* Pictionary */
-.draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-.draw-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
-.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 2px; line-height: 1; white-space: pre-wrap; }
-.draw-clock { font-weight: 900; font-size: 17px; line-height: 1.15; padding: 2px 11px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--on-accent); }
-.draw-clock:empty { display: none; }
-.draw-clock.hurry { background: var(--berry); color: #fff; animation: draw-hurry 1s ease-in-out infinite; }
-@keyframes draw-hurry { 50% { transform: scale(1.08); } }
-.draw-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
-.draw-paper { position: relative; flex: 1; min-width: 0; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
-.draw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
-.draw-stage.drawing .draw-canvas { cursor: crosshair; }
-/* The pictionary word choice uses the same panel as the lobby. */
-.draw-overlay .choices { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.draw-overlay .choices .btn { flex-direction: column; height: auto; padding: 8px 14px 6px; gap: 3px; }
-.draw-overlay .choices small { font-size: 11px; font-weight: 800; opacity: 0.8; letter-spacing: 0.5px; }
-.draw-side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.draw-scores { display: flex; flex-direction: column; gap: 4px; }
-.score { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); font-weight: 800; font-size: 13px; line-height: 1; }
-.score .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.score .dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink); flex: none; }
-.score.drawer { background: var(--sun); color: var(--on-accent); }
-.score.got { background: var(--tint-leaf); }
-.draw-log { flex: 1; min-height: 60px; overflow-y: auto; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); padding: 6px 8px; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 3px; }
-.draw-log .system { color: var(--text-soft); font-style: italic; }
-.draw-log .correct { color: #2e9d3a; font-weight: 800; }
-.draw-log .close { color: var(--tang); }
-.draw-guess { display: flex; gap: 6px; }
-.draw-guess .input { flex: 1; min-width: 0; padding: 5px 9px; }
-.draw-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 50%; cursor: pointer; padding: 0; flex: none; }
-.swatch.on { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
-.draw-tools .tool-group { display: inline-flex; align-items: center; gap: 6px; }
-.draw-tools .widths { padding: 0 6px; border-left: 2px solid var(--panel-2); border-right: 2px solid var(--panel-2); }
-.draw-tools .width { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; }
-.draw-tools .width i { display: block; border-radius: 50%; border: 1.5px solid var(--ink); }
-.draw-tools .width.on { border-color: var(--text); background: var(--panel-2); }
-.draw-tools .btn[data-clear] { margin-left: auto; }
-/* The reveal: the word, big, over the drawing, and the round's points. */
-.draw-overlay .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; animation: outcome-pop 300ms cubic-bezier(.3, 1.4, .6, 1) both; }
-.draw-overlay .reveal p { font-size: 15px; font-weight: 800; color: var(--text-soft); }
-.draw-overlay .reveal strong { font-size: 40px; line-height: 1.05; font-weight: 900; letter-spacing: 1px; }
-.draw-overlay .reveal ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
-.draw-overlay .reveal li { display: flex; align-items: center; gap: 7px; min-width: 180px; }
-.draw-overlay .reveal li b { margin-left: auto; }
-.draw-overlay .reveal li i { color: var(--text-soft); font-weight: 700; }
-.draw-overlay .reveal .dot { width: 11px; height: 11px; border-radius: 4px; border: 1.5px solid var(--ink); flex: none; }
-@keyframes outcome-pop { from { transform: scale(0.7); opacity: 0; } }
-.swatch.eraser { background: repeating-linear-gradient(45deg, #fff 0 4px, #ddd 4px 8px); border-radius: 6px; }
-
-/* Minigolf */
-.golf .wall { fill: #c9884f; stroke: #241c3a; stroke-width: 3; }
-.golf .water { fill: #59c3ef; stroke: #241c3a; stroke-width: 3; }
-.golf.my-turn { cursor: crosshair; }
-.golf .power { font: 900 22px var(--font); fill: #241c3a; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
-/* Nothing loops forever: an endless animation repaints the board every
-   frame for as long as it is on screen. These play a few times and rest. */
-.golf .spin { animation: golf-spin 3s linear 3; transform-box: fill-box; transform-origin: center; }
-@keyframes golf-spin { to { transform: rotate(360deg); } }
-
-/* Scorecard, shown in the lobby panel at the end of a round. */
-.golf-card { border-collapse: collapse; background: var(--field); border: var(--line) solid var(--ink); font-weight: 800; }
-.golf-card th, .golf-card td { border: 2px solid var(--ink); padding: 4px 10px; text-align: center; }
-.golf-card .par { color: var(--text-soft); }
-.golf-card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
-.stage svg.golf { touch-action: none; }
+.game-lobby[hidden], .game-panel[hidden] { display: none; }
+.game-lobby p, .game-panel p { margin: 0; }
 
 /* ------------------------------------------------------------------ cursors */
 
@@ -766,16 +671,6 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   .popover { position: fixed; left: 8px; right: 8px; top: var(--pop-top, 96px); max-width: none; width: auto; max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
   .settings { width: auto; }
   .shelf { justify-content: center; }
-  /* Pictionary in a phone's column: the paper full width at its own shape,
-     then the scores in one row, a few lines of guesses and the guess box. */
-  .draw { gap: 6px; padding: 8px; }
-  .draw-main { flex-direction: column; gap: 6px; }
-  .draw-paper { flex: none; aspect-ratio: 10 / 7; }
-  .draw-side { width: auto; flex: 1; min-height: 0; gap: 6px; }
-  .draw-scores { flex-direction: row; flex-wrap: wrap; gap: 4px; }
-  .draw-scores .score { flex: 1 1 30%; min-width: 0; }
-  .draw-log { min-height: 0; flex: 1; }
-  .draw-tools { gap: 6px; }
 }
 
 /* Touch: bigger targets, and dragging never scrolls the page. */
@@ -876,8 +771,11 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 /* A small phone by the name of someone on a touchscreen. */
 .phone-mark { width: 9px; height: 13px; display: block; flex: none; }
 
-/* Asked for less motion: none of the flourishes. */
+/* Asked for less motion: none of the flourishes. Anything a game animates
+   on its stage jumps straight to how it ends — a mark drawn, a disc landed
+   — unless it is marked essential: motion the game is played by, like a
+   windmill's sails. */
 @media (prefers-reduced-motion: reduce) {
-  .c4 .disc.winning, .golf .spin, .ttt .mark.fresh path, .ttt .win-line, .c4 .disc.falling, .outcome, .draw-clock.hurry, .draw-overlay .reveal { animation: none; }
-  .ttt .mark.fresh path, .ttt .win-line { stroke-dasharray: none; stroke-dashoffset: 0; } /* drawn at once */
+  .outcome { animation: none; }
+  .stage *:not(.essential) { animation-duration: 1ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
 }
