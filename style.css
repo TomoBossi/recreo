@@ -461,6 +461,10 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
    forward. */
 .win.side .table > .seats { display: none; }
 .win.side .table > .status { grid-column: 1 / -1; }
+/* And only to look at: no previews, no moves, no end-of-game card, no
+   rematch. Pressing it brings it forward; the others' pointers still show. */
+.win.side .stage { pointer-events: none; }
+.win.side .outcome, .win.side .rematch, .win.side .ask { display: none !important; }
 .seats {
   display: flex;
   align-items: center;

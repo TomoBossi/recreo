@@ -103,8 +103,19 @@ export class WindowManager {
     el.querySelector('.wbtn.close')?.addEventListener('click', (e) => { e.stopPropagation(); win.onClose ? win.onClose() : win.close() })
     // Pressing a window's own buttons does what they say, not "focus": a
     // focus would rearrange the desk under the press and swallow the click.
-    el.addEventListener('pointerdown', (e) => { if (!e.target.closest('.wbtn, .tools button')) this.focus(win) })
-    el.querySelector('.win-title').addEventListener('dblclick', (e) => { if (!e.target.closest('button')) win.collapse() })
+    el.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.wbtn, .tools button')) return
+      // A waiting game opens, as its button does, small beside the one
+      // played; a small game comes forward. Either way the click is spent
+      // on that: it never reaches the game that just grew under it.
+      if (kind === 'table' && win.collapsed && this.#tiled) { win.collapse(false); this.#swallowClick(); return }
+      const small = el.classList.contains('side')
+      this.focus(win)
+      if (small) this.#swallowClick()
+    })
+    // A panel collapses on a double click of its title; a game's clicks
+    // already open it and bring it forward.
+    el.querySelector('.win-title').addEventListener('dblclick', (e) => { if (kind !== 'table' && !e.target.closest('button')) win.collapse() })
     this.#dragWindow(win)
     this.#resizeWindow(win)
 
@@ -135,7 +146,8 @@ export class WindowManager {
   focus(win, { expand = false } = {}) {
     win.el.style.zIndex = String(++this.z)
     if (win.kind !== 'table') return
-    if (expand && win.collapsed) {
+    // The game played is never a title bar; floating, a window's state is its own.
+    if ((expand || this.#tiled) && win.collapsed) {
       win.collapsed = false
       store.set(`wm:collapsed:${win.id}`, false)
     }
@@ -143,6 +155,17 @@ export class WindowManager {
     this.master = win
     this.#bring(win, 0)
     if (changed || expand) this.layout()
+  }
+
+  /** Tiled, where games are arranged for you (a phone's column included). */
+  get #tiled() { return this.mode !== 'floating' || this.narrow }
+
+  /** Eat the click that follows this press, wherever it lands. */
+  #swallowClick() {
+    const eat = (e) => { e.stopPropagation(); e.preventDefault() }
+    addEventListener('click', eat, { capture: true, once: true })
+    // A press that never becomes a click (a drag, say) must not eat a later one.
+    setTimeout(() => removeEventListener('click', eat, { capture: true }), 600)
   }
 
   /** Put a game at a place in the line of those seen last, and keep the line tidy. */
