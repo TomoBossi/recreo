@@ -7,6 +7,13 @@
  *
  * Arrow keys move through the list, Enter picks, Escape closes; clicking
  * anywhere else closes it too.
+ *
+ * The open list floats over everything, fixed to the screen beside its
+ * button, so a panel that scrolls or clips — the settings, a menu — never
+ * cuts it off or grows scrollbars round it. It opens below the button, or
+ * above when there is more room there, and follows the button if the page
+ * under it scrolls. (Fixed works as long as nothing round a dropdown is
+ * transformed: a transform would become its frame instead of the screen.)
  */
 export function select({ value, choices, onPick, label, open = false, onToggle }) {
   const wrap = document.createElement('span')
@@ -35,10 +42,41 @@ export function select({ value, choices, onPick, label, open = false, onToggle }
   wrap.append(button, list)
 
   const mark = () => [...list.children].forEach((li, i) => li.classList.toggle('active', i === active))
+  /** Put the open list beside its button, on screen, as tall as there is room for. */
+  const place = () => {
+    if (list.hidden || !wrap.isConnected) return
+    const b = button.getBoundingClientRect()
+    const gap = 6
+    const margin = 8
+    list.style.minWidth = `${b.width}px`
+    list.style.maxHeight = ''
+    const natural = list.scrollHeight
+    const below = innerHeight - b.bottom - gap - margin
+    const above = b.top - gap - margin
+    const up = natural > below && above > below
+    const room = Math.max(80, up ? above : below)
+    list.style.maxHeight = natural > room ? `${room}px` : ''
+    const height = Math.min(natural, room)
+    list.style.top = `${Math.round(up ? b.top - gap - height : b.bottom + gap)}px`
+    const width = list.offsetWidth
+    list.style.left = `${Math.round(Math.max(margin, Math.min(b.left, innerWidth - margin - width)))}px`
+  }
+  const follow = () => place()
   const setOpen = (next) => {
     list.hidden = !next
     button.setAttribute('aria-expanded', String(next))
-    if (next) { active = Math.max(0, choices.indexOf(current)); mark() }
+    if (next) {
+      active = Math.max(0, choices.indexOf(current))
+      mark()
+      // Built open, it is not on the page yet: place it once it is.
+      if (wrap.isConnected) place()
+      else requestAnimationFrame(place)
+      addEventListener('scroll', follow, { capture: true, passive: true })
+      addEventListener('resize', follow)
+    } else {
+      removeEventListener('scroll', follow, { capture: true })
+      removeEventListener('resize', follow)
+    }
     onToggle?.(next)
   }
   const pick = (i) => {
@@ -66,7 +104,12 @@ export function select({ value, choices, onPick, label, open = false, onToggle }
   })
   // Clicking elsewhere closes it; once it has left the page, it stops listening.
   const outside = (e) => {
-    if (!wrap.isConnected) return document.removeEventListener('pointerdown', outside)
+    if (!wrap.isConnected) {
+      document.removeEventListener('pointerdown', outside)
+      removeEventListener('scroll', follow, { capture: true })
+      removeEventListener('resize', follow)
+      return
+    }
     if (!list.hidden && !wrap.contains(e.target)) setOpen(false)
   }
   document.addEventListener('pointerdown', outside)

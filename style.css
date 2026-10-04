@@ -478,7 +478,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .device-row .select { flex: 1; min-width: 0; }
 .device-row .select-button { width: 100%; justify-content: space-between; height: 30px; }
 .device-row .select-button .value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.device-row .select-list { max-height: 220px; overflow-y: auto; }
+.device-row .select-list { max-width: min(420px, calc(100vw - 16px)); }
+.device-row .select-list li { display: block; overflow: hidden; text-overflow: ellipsis; line-height: 28px; }
 #preview-devices:not(:empty) { margin-top: 10px; }
 
 /* A dropdown (app/select.js): the current choice on a button, the rest beneath. */
@@ -487,7 +488,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .select-button .caret { width: 10px; height: 6px; transition: transform 120ms; }
 .select-button[aria-expanded="true"] .caret { transform: rotate(180deg); }
 .select-list {
-  position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 100%; margin: 0; padding: 4px; list-style: none;
+  position: fixed; z-index: 10001; margin: 0; padding: 4px; list-style: none; overflow-y: auto;
   border: var(--line) solid var(--ink); border-radius: var(--round-small); background: var(--panel); box-shadow: var(--lift);
 }
 .select-list[hidden] { display: none; }
