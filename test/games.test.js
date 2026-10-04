@@ -84,6 +84,10 @@ test('a round of pictionary, start to finish', () => {
   s = act(s, { type: 'stroke', id: 'a', c: '#000', w: 8, pts: [5, 6] }, 0, ctx)
   assert.deepEqual(s.strokes[0].pts, [1, 2, 3, 4, 5, 6], 'a stroke continues across batches')
   assert.equal(act(s, { type: 'stroke', id: 'b', c: '#000', w: 8, pts: [1, 1] }, 1, ctx).strokes.length, 1, 'a guesser cannot draw')
+  // Strokes are drawn as markup: anything but a colour, a width and a short id is refused or tamed.
+  assert.equal(act(s, { type: 'stroke', id: 'c', c: '"/><script>', w: 8, pts: [1, 1] }, 0, ctx).strokes.length, 1, 'not a colour: refused')
+  const tamed = act(s, { type: 'stroke', id: 'd"x', c: '#2fa4e6', w: '9" onload="x', pts: [1, 2] }, 0, ctx).strokes.at(-1)
+  assert.deepEqual([tamed.id, tamed.w], ['dx', 10])
 
   s = act(s, { type: 'guess', text: 'definitely not it' }, 1, ctx)
   assert.equal(s.log.at(-1).kind, 'guess')
@@ -123,6 +127,16 @@ test('pictionary plays the rounds chosen: everyone draws once a round, and each 
   assert.deepEqual(drawers, [0, 1, 2, 0, 1, 2])
   assert.ok(s.log.some((l) => l.text === 'round 2 of 2'))
   assert.equal(pictionary.init({ seed: 1 }).rounds, 3, 'three rounds unless chosen otherwise')
+})
+
+test('pictionary gives the drawer the time chosen, and the clock ends the turn then', () => {
+  const ctx = { now: 0, seated: [0, 1], here: [0, 1], options: { time: '45' } }
+  let s = act(pictionary.init({ seed: 5 }), { type: 'start' }, 0, ctx)
+  s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
+  assert.equal(s.drawMs, 45000)
+  assert.deepEqual(pictionary.tick(s, { now: s.phaseAt + 44000, here: [0, 1] }).filter((m) => m.type === 'end'), [], 'not yet')
+  assert.equal(pictionary.tick(s, { now: s.phaseAt + 46000, here: [0, 1] })[0].type, 'end', 'time is up at 45s')
+  assert.equal(pictionary.init({ seed: 1 }).drawMs, 80000, 'eighty seconds unless chosen otherwise')
 })
 
 test('when the drawer leaves, the next player takes over and ends the round', () => {

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>recreo tests</title>
+<!-- The room's own import map: modules that name plaza and mirador load here too. -->
+<script type="importmap">{ "imports": { "plaza": "../vendor/plaza/src/plaza.js", "mirador": "../vendor/mirador/src/mirador.js" } }</script>
 <style>
   :root { color-scheme: light dark; --ok: #2e9d3a; --fail: #e0245e; }
   body { margin: 0; padding: 24px 16px; font: 15px/1.45 ui-rounded, system-ui, sans-serif; background: Canvas; color: CanvasText; }

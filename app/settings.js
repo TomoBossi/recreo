@@ -1,6 +1,6 @@
 import { store, theme, setTheme } from './store.js'
 import { sound } from '../games/kit/sound.js'
-import { colourButton } from './colours.js'
+import { colourButton } from '../games/kit/colours.js'
 
 /**
  * The settings menu, as one panel used in two places: on the landing page

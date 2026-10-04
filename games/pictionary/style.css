@@ -3,7 +3,11 @@
 /* The word and the clock sit in the paper's top corners, over the drawing. */
 /* Above the panels too (z-index 2): the clock counts down the word choice. */
 .draw-word, .draw-clock { position: absolute; top: 8px; z-index: 3; pointer-events: none; font-weight: 900; border: var(--line) solid var(--ink); border-radius: var(--round-small); box-shadow: var(--lift-small); }
-.draw-word { left: 8px; max-width: calc(100% - 110px); padding: 3px 12px; font-size: 19px; letter-spacing: 2px; line-height: 1.15; white-space: pre; overflow: hidden; text-overflow: ellipsis; background: var(--field); color: var(--text); }
+.draw-stage { --chrome: var(--panel); --chrome-text: var(--text); }
+/* At night the paper's furniture is a light lavender, as the settings button
+   is: on the dark panel colour the first, darkest swatch would vanish. */
+:root[data-theme="dark"] .draw-stage { --chrome: #cdbfff; --chrome-text: var(--on-accent); }
+.draw-word { left: 8px; max-width: calc(100% - 110px); padding: 3px 12px; font-size: 19px; letter-spacing: 2px; line-height: 1.15; white-space: pre; overflow: hidden; text-overflow: ellipsis; background: var(--chrome); color: var(--chrome-text); }
 .draw-word:empty { display: none; }
 .draw-clock { right: 8px; font-size: 17px; line-height: 1.15; padding: 2px 11px; background: var(--sun); color: var(--on-accent); }
 .draw-clock:empty { display: none; }
@@ -37,12 +41,28 @@
 .draw-tools {
   position: absolute; left: 8px; bottom: 8px; z-index: 1; max-width: calc(100% - 16px);
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px;
-  background: var(--panel); border: var(--line) solid var(--ink); border-radius: var(--round); box-shadow: var(--lift-small);
+  background: var(--chrome); border: var(--line) solid var(--ink); border-radius: var(--round); box-shadow: var(--lift-small);
+  /* See-through until wanted, so what is drawn beneath shows; faint while a
+     stroke is under way, and out of its path. */
+  opacity: 0.5; transition: opacity 150ms;
 }
+/* Solid while pointed at, picking a colour, or moved through by keyboard —
+   not merely because a tool was clicked, which leaves it focused. */
+.draw-tools:hover, .draw-tools:has(:focus-visible), .draw-tools.open { opacity: 1; }
+.draw-stage.stroking .draw-tools { opacity: 0.2; pointer-events: none; }
 .draw-tools[hidden] { display: none; }
+/* Any colour: a rainbow until one is picked, then that colour with a corner of rainbow. */
+.draw-tools .custom-anchor { position: relative; display: inline-flex; }
+.swatch.custom { background: conic-gradient(#ff5d6c, #ffd23f, #6bd66b, #3ec6ff, #5b6cff, #d65fd0, #ff5d6c); }
+.swatch.custom.picked { background: linear-gradient(135deg, var(--c) 0 58%, transparent 58%), conic-gradient(from 90deg, #ff5d6c, #ffd23f, #6bd66b, #3ec6ff, #5b6cff, #d65fd0, #ff5d6c); }
+.draw-picker {
+  position: absolute; left: -10px; bottom: calc(100% + 14px); z-index: 4; padding: 10px;
+  background: var(--chrome); border: var(--line) solid var(--ink); border-radius: var(--round); box-shadow: var(--lift);
+}
+.draw-picker[hidden] { display: none; }
 .swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 8px; cursor: pointer; padding: 0; flex: none; transition: transform 80ms, box-shadow 80ms; }
 /* The chosen colour stands up off the bar, a ring of paper inside its outline. */
-.swatch.on { transform: translate(-1px, -2px); box-shadow: inset 0 0 0 2.5px var(--panel), 2px 3px 0 var(--ink); }
+.swatch.on { transform: translate(-1px, -2px); box-shadow: inset 0 0 0 2.5px var(--chrome), 2px 3px 0 var(--ink); }
 .draw-tools .tool-group { display: inline-flex; align-items: center; gap: 6px; }
 .draw-tools .widths { margin-left: 6px; }
 /* The reveal: the word, big, over the drawing, and the round's points. */
@@ -75,7 +95,7 @@
   .draw-tools .tool-group { gap: 4px; }
   .draw-tools .swatch { width: 22px; height: 22px; }
   .draw-tools .swatch { border-radius: 7px; }
-  .draw-tools .swatch.on { box-shadow: inset 0 0 0 2px var(--panel), 1.5px 2.5px 0 var(--ink); }
+  .draw-tools .swatch.on { box-shadow: inset 0 0 0 2px var(--chrome), 1.5px 2.5px 0 var(--ink); }
   .draw-tools .btn.small { padding: 2px 8px; font-size: 12px; }
   .draw-tools .widths { margin-left: 2px; }
   .draw-word { font-size: 16px; padding: 2px 9px; }

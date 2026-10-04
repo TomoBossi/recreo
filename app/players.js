@@ -3,7 +3,7 @@
  * the names of those who left — a seat keeps showing its player's name after
  * they have gone, until somebody else sits down.
  */
-import { clampColour, colourFor } from './colours.js'
+import { clampColour, colourFor } from '../games/kit/colours.js'
 
 export class Players {
   #known = new Map() // player id -> last known nick

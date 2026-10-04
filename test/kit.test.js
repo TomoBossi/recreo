@@ -84,7 +84,7 @@ test('options: choices with a default, checked when the game loads', () => {
   assert.throws(() => defineGame(spec({ options: { Size: { choices: { s: 'a', l: 'b' } } } })), /option "Size"/)
 })
 
-import { bandColour, oklch } from '../app/colours.js'
+import { bandColour, oklch } from '../games/kit/colours.js'
 
 test('every colour on the custom pad is already inside the readable band', () => {
   for (let hue = 0; hue < 360; hue += 5) {
@@ -119,5 +119,15 @@ test('a clock ticks its last five seconds, once each, and starts over when wound
     assert.deepEqual(heard, ['tick', 'last'])
   } finally {
     sound.play = play
+  }
+})
+
+test('every module of the room loads: no import points at a file that is not there', async () => {
+  // The room itself (main.js) runs on import; every module it is built from must at least load.
+  const listing = await fetch(new URL('../app/', import.meta.url)).then((r) => (r.ok ? r.text() : '')).catch(() => '')
+  const files = [...listing.matchAll(/href="([a-z0-9-]+\.js)"/g)].map((m) => m[1]).filter((f) => f !== 'main.js')
+  if (!files.length) return // a host without listings
+  for (const file of files) {
+    try { await import(new URL(`../app/${file}`, import.meta.url)) } catch (err) { assert.ok(false, `app/${file}: ${err.message}`) }
   }
 })

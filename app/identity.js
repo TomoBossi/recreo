@@ -40,4 +40,4 @@ export function shouldYield(selfPeerId, otherPeerId) {
   return selfPeerId > otherPeerId
 }
 
-export { colourFor } from './colours.js'
+export { colourFor } from '../games/kit/colours.js'

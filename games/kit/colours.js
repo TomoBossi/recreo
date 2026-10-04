@@ -40,8 +40,12 @@ export function clampColour(hex) {
 
 /** A colour in the band from a hue (degrees) and a lightness, as vivid as sRGB allows. */
 export function bandColour(hue, L) {
+  return vivid(hue, Math.min(L_MAX, Math.max(L_MIN, L)))
+}
+
+/** A colour from a hue (degrees) and any lightness, as vivid as sRGB allows there. */
+function vivid(hue, lightness) {
   const h = (hue * Math.PI) / 180
-  const lightness = Math.min(L_MAX, Math.max(L_MIN, L))
   let lo = 0
   let hi = C_PAD
   for (let i = 0; i < 14; i++) {
@@ -58,10 +62,10 @@ export function oklch(hex) {
   return { L, C }
 }
 
-/** Where a colour sits on the custom pad: its hue in degrees and its lightness. */
-function padPlace(hex) {
+/** Where a colour sits on the custom pad: its hue in degrees and its lightness, within a range. */
+function padPlace(hex, [lo, hi] = [L_MIN, L_MAX]) {
   const [L, , h] = toOklch(parse(hex) ?? [1, 0.36, 0.56])
-  return { hue: ((h * 180) / Math.PI + 360) % 360, L: Math.min(L_MAX, Math.max(L_MIN, L)) }
+  return { hue: ((h * 180) / Math.PI + 360) % 360, L: Math.min(hi, Math.max(lo, L)) }
 }
 
 /** A stable colour for someone who never chose one: their id, hashed. */
@@ -119,17 +123,22 @@ function hexOf(rgb) {
  * The small popup for choosing a colour, used on the landing page and in
  * the settings alike: the presets, then two strips for any other colour —
  * every hue, and below it the shades of the chosen one, light to dark.
- * Both are drawn from the readable band itself, so there is nothing on
- * them that would not read on both themes. `onPick` is called with the
- * colour as it will be shown.
+ * `onPick` is called with the colour as it will be shown.
+ *
+ * By default both strips are drawn from the readable band, so a player's
+ * colour reads on both themes. `range` widens the shades — a drawing can
+ * use any colour, from near black to near white — and `presets` can be
+ * other colours, or none.
  */
-export function colourPicker({ value, onPick }) {
+export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN, L_MAX] }) {
+  const [lo, hi] = range
+  const shadeOf = range[0] === L_MIN && range[1] === L_MAX ? bandColour : vivid
   const el = document.createElement('div')
   el.className = 'colour-picker'
   el.innerHTML = `
-    <div class="swatches">
-      ${PRESETS.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
-    </div>
+    ${presets.length ? `<div class="swatches">
+      ${presets.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
+    </div>` : ''}
     <div class="strip hue" role="slider" aria-label="hue" tabindex="0"><canvas></canvas><span class="thumb"></span></div>
     <div class="strip shade" role="slider" aria-label="lightness" tabindex="0"><canvas></canvas><span class="thumb"></span></div>`
   const hueStrip = el.querySelector('.hue')
@@ -138,9 +147,9 @@ export function colourPicker({ value, onPick }) {
   let current = value
   // The thumbs keep their own positions: hue wraps round (both ends are
   // red), so a position worked back from the colour could jump ends.
-  const start = padPlace(value)
+  const start = padPlace(value, range)
   let hue = start.hue
-  let light = PRESETS.includes(value) ? MID : start.L
+  let light = presets.includes(value) ? MID : start.L
 
   /** Paint a strip from a function of 0..1 along it to a colour. */
   const paint = (strip, colourAt) => {
@@ -157,27 +166,27 @@ export function colourPicker({ value, onPick }) {
     g.putImageData(img, 0, 0)
   }
   paint(hueStrip, (f) => bandColour(f * 360, MID))
-  const lightAt = (f) => L_MAX - f * (L_MAX - L_MIN)
+  const lightAt = (f) => hi - f * (hi - lo)
 
   const show = () => {
     for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b.dataset.colour === current))
-    paint(shadeStrip, (f) => bandColour(hue, lightAt(f)))
-    const custom = !PRESETS.includes(current)
+    paint(shadeStrip, (f) => shadeOf(hue, lightAt(f)))
+    const custom = !presets.includes(current)
     for (const strip of [hueStrip, shadeStrip]) strip.classList.toggle('chosen', custom)
     const ht = hueStrip.querySelector('.thumb')
     ht.style.left = `${(hue / 360) * 100}%`
     ht.style.background = bandColour(hue, MID)
     const st = shadeStrip.querySelector('.thumb')
-    st.style.left = `${((L_MAX - light) / (L_MAX - L_MIN)) * 100}%`
-    st.style.background = bandColour(hue, light)
+    st.style.left = `${((hi - light) / (hi - lo)) * 100}%`
+    st.style.background = shadeOf(hue, light)
   }
-  const choose = () => { current = bandColour(hue, light); show(); onPick(current) }
+  const choose = () => { current = shadeOf(hue, light); show(); onPick(current) }
 
   el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-colour]')
     if (!b) return
     current = b.dataset.colour
-    const at = padPlace(current)
+    const at = padPlace(current, range)
     hue = at.hue
     light = at.L
     show()
@@ -213,10 +222,10 @@ export function colourPicker({ value, onPick }) {
     choose()
   })
   shadeStrip.addEventListener('keydown', (e) => {
-    const step = { ArrowLeft: 0.01, ArrowRight: -0.01 }[e.key]
+    const step = { ArrowLeft: 0.01, ArrowRight: -0.01 }[e.key] * (hi - lo) / (L_MAX - L_MIN) || 0
     if (!step) return
     e.preventDefault()
-    light = Math.min(L_MAX, Math.max(L_MIN, light + step))
+    light = Math.min(hi, Math.max(lo, light + step))
     choose()
   })
   show()

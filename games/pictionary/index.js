@@ -15,11 +15,15 @@ import { escape, INK } from '../kit/svg.js'
 import { pick } from '../kit/random.js'
 import { startPanel } from '../kit/lobby.js'
 import { countdown } from '../kit/sound.js'
+import { colourPicker } from '../kit/colours.js'
 import english from './words/en.js'
 import spanish from './words/es.js'
 
 const CHOOSE_MS = 15000
 const DRAW_MS = 80000
+const DRAW_TIMES = ['45', '60', '80', '120', '180'] // seconds a drawer has; the option's choices
+/** How long a drawer has, in ms: a choice from DRAW_TIMES, else the usual. */
+const drawMsOf = (value) => (DRAW_TIMES.includes(String(value)) ? Number(value) * 1000 : DRAW_MS)
 const REVEAL_MS = 5000
 const ROUNDS = ['1', '2', '3', '5'] // each player draws once a round
 const GUESS_POINTS = [10, 8, 6, 4]
@@ -28,6 +32,12 @@ const WIDTHS = [5, 10, 22]
 const COLOURS = ['#241c3a', '#ff5d8f', '#3c7ff0', '#6bd66b', '#ffd23f', '#ff9a3c', '#9a7bf2', '#8b5a2b']
 
 const PAPER = '#fffaf0'
+
+/** What a stroke may be: any colour as #rgb or #rrggbb, a sane width, a short id. Strokes are drawn as markup. */
+const HEX = /^#([0-9a-f]{3}){1,2}$/i
+const strokeColour = (c) => (HEX.test(c) ? c : COLOURS[0])
+const strokeWidth = (w) => Math.min(40, Math.max(2, Math.round(Number(w) || 10)))
+const strokeId = (id) => String(id ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 16)
 
 /** Word pools by language: easy, medium and hard where known, else one pool. */
 const POOLS = { en: english, es: spanish }
@@ -59,10 +69,10 @@ const letterAt = (word) => [...word].flatMap((ch, i) => (/[\p{L}\p{N}]/u.test(ch
 const hintsFor = (word) => Math.min(Math.floor(letterAt(word).length * 0.4), letterAt(word).length - 1)
 
 /** How many hints are due after some time drawing: spread from 30% to 85% of the clock. */
-function hintsDue(word, elapsed) {
+function hintsDue(word, elapsed, drawMs = DRAW_MS) {
   const total = hintsFor(word)
   if (total <= 0) return 0
-  const t = elapsed / DRAW_MS
+  const t = elapsed / drawMs
   if (t < 0.3) return 0
   return Math.min(total, 1 + Math.floor(((t - 0.3) / 0.55) * (total - 1 || 1)))
 }
@@ -109,7 +119,7 @@ const roundsOf = (value) => (ROUNDS.includes(String(value)) ? Number(value) : 3)
 
 function init({ seed, options }) {
   return {
-    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', rounds: roundsOf(options?.rounds), order: [], out: [], turn: 0, drawer: null,
+    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', rounds: roundsOf(options?.rounds), drawMs: drawMsOf(options?.time), order: [], out: [], turn: 0, drawer: null,
     word: null, choices: [], levels: null, strokes: [], hints: [], guessed: {}, scores: {}, log: [], phaseAt: 0,
   }
 }
@@ -130,14 +140,14 @@ const rules = {
   decide(s, intent, seat, { now, seated, options }) {
     switch (intent?.type) {
       case 'start':
-        if ((s.phase === 'waiting' || s.phase === 'over') && seated.length >= 2) return [{ type: 'start', order: seated, language: options?.words, rounds: options?.rounds, at: now }]
+        if ((s.phase === 'waiting' || s.phase === 'over') && seated.length >= 2) return [{ type: 'start', order: seated, language: options?.words, rounds: options?.rounds, time: options?.time, at: now }]
         return []
       case 'choose':
         if (s.phase === 'choosing' && seat === s.drawer && s.choices.includes(intent.word)) return [{ type: 'choose', word: intent.word, at: now }]
         return []
       case 'stroke':
-        if (s.phase === 'drawing' && seat === s.drawer && Array.isArray(intent.pts)) {
-          return [{ type: 'stroke', id: intent.id, c: intent.c, w: intent.w, pts: intent.pts.slice(0, 400).map((n) => Math.round(n)) }]
+        if (s.phase === 'drawing' && seat === s.drawer && Array.isArray(intent.pts) && HEX.test(intent.c) && strokeId(intent.id)) {
+          return [{ type: 'stroke', id: strokeId(intent.id), c: intent.c, w: strokeWidth(intent.w), pts: intent.pts.slice(0, 400).map((n) => Math.round(Number(n) || 0)) }]
         }
         return []
       case 'clear':
@@ -158,10 +168,10 @@ const rules = {
       if (!here.includes(s.drawer)) return [{ type: 'end', why: 'the drawer left', at: now }]
       return [{ type: 'choose', word: s.choices[0], at: now }]
     }
-    if (s.phase === 'drawing' && (!here.includes(s.drawer) || now - s.phaseAt > DRAW_MS)) {
+    if (s.phase === 'drawing' && (!here.includes(s.drawer) || now - s.phaseAt > (s.drawMs ?? DRAW_MS))) {
       return [{ type: 'end', why: here.includes(s.drawer) ? 'time is up' : 'the drawer left', at: now }]
     }
-    if (s.phase === 'drawing' && s.hints.length < hintsDue(s.word, now - s.phaseAt)) return [{ type: 'hint' }]
+    if (s.phase === 'drawing' && s.hints.length < hintsDue(s.word, now - s.phaseAt, s.drawMs ?? DRAW_MS)) return [{ type: 'hint' }]
     if (s.phase === 'reveal' && now - s.phaseAt > REVEAL_MS) return [{ type: 'next', at: now }]
     return []
   },
@@ -169,7 +179,7 @@ const rules = {
   apply(s, move) {
     switch (move.type) {
       case 'start': {
-        const fresh = init({ seed: s.rng, options: { words: POOLS[move.language] ? move.language : s.language, rounds: move.rounds ?? s.rounds } })
+        const fresh = init({ seed: s.rng, options: { words: POOLS[move.language] ? move.language : s.language, rounds: move.rounds ?? s.rounds, time: move.time ?? (s.drawMs ?? DRAW_MS) / 1000 } })
         return startTurn({ ...fresh, order: move.order, scores: Object.fromEntries(move.order.map((x) => [x, 0])) }, move.at)
       }
       case 'choose':
@@ -333,17 +343,47 @@ function view(el, ctx) {
   // What is chosen is always marked, from the start.
   const SIZES = ['thin', 'medium', 'thick']
   tools.innerHTML = '<span class="tool-group colours">' + COLOURS.map((c) => `<button class="swatch" data-colour="${c}" style="background:${c}" aria-label="colour"></button>`).join('')
+    + '<span class="custom-anchor"><button class="swatch custom" data-colour="custom" aria-label="any colour" aria-expanded="false"></button><div class="draw-picker" hidden></div></span>'
     + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button></span>'
-    + '<span class="segmented widths">' + WIDTHS.map((w, i) => `<button class="btn small" data-width="${w}">${SIZES[i]}</button>`).join('') + '</span>'
-    + '<button class="btn small berry" data-clear>clear</button>'
+    // The sizes and clear keep together: if the bar wraps, they wrap as one.
+    + '<span class="tool-group sizes"><span class="segmented widths">' + WIDTHS.map((w, i) => `<button class="btn small" data-width="${w}">${SIZES[i]}</button>`).join('') + '</span>'
+    + '<button class="btn small berry" data-clear>clear</button></span>'
+  // Any colour at all: a swatch that opens the picker, from near black to near white.
+  let custom = null
+  const customButton = tools.querySelector('.swatch.custom')
+  const picker = tools.querySelector('.draw-picker')
+  const openPicker = (open) => {
+    picker.hidden = !open
+    customButton.setAttribute('aria-expanded', String(open))
+    tools.classList.toggle('open', open)
+    if (open) {
+      picker.replaceChildren(colourPicker({
+        value: custom ?? '#2fa4e6',
+        presets: [],
+        range: [0.16, 0.97],
+        onPick: (c) => { custom = c; colour = c; markTools() },
+      }))
+    }
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (!picker.hidden && !e.target.closest?.('.custom-anchor')) openPicker(false)
+  })
   const markTools = () => {
-    for (const t of tools.querySelectorAll('.swatch')) t.classList.toggle('on', (t.dataset.colour === 'eraser' ? PAPER : t.dataset.colour) === colour)
+    for (const t of tools.querySelectorAll('.swatch')) {
+      const of = t.dataset.colour === 'eraser' ? PAPER : t.dataset.colour === 'custom' ? custom : t.dataset.colour
+      t.classList.toggle('on', of === colour)
+    }
+    customButton.classList.toggle('picked', !!custom)
+    if (custom) customButton.style.setProperty('--c', custom)
     for (const t of tools.querySelectorAll('[data-width]')) t.setAttribute('aria-pressed', String(Number(t.dataset.width) === width))
   }
   tools.addEventListener('click', (e) => {
     const b = e.target.closest('button')
-    if (!b) return
-    if (b.dataset.colour) colour = b.dataset.colour === 'eraser' ? PAPER : b.dataset.colour
+    if (!b || picker.contains(b)) return
+    if (b.dataset.colour === 'custom') {
+      if (custom) colour = custom
+      openPicker(picker.hidden)
+    } else if (b.dataset.colour) colour = b.dataset.colour === 'eraser' ? PAPER : b.dataset.colour
     if (b.dataset.width) width = Number(b.dataset.width)
     if ('clear' in b.dataset) ctx.intend({ type: 'clear' })
     markTools()
@@ -382,6 +422,8 @@ function view(el, ctx) {
     e.preventDefault()
     svg.setPointerCapture(e.pointerId)
     current = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, c: colour, w: width, pts: point(e) }
+    el.classList.add('stroking')
+    openPicker(false)
     pending = [...current.pts]
     drawLive()
     flush()
@@ -394,18 +436,20 @@ function view(el, ctx) {
     drawLive()
     if (!flushTimer) flushTimer = setTimeout(flush, 80)
   })
-  const end = () => { if (current) { flush(); current = null; liveG.textContent = '' } }
+  const end = () => { el.classList.remove('stroking'); if (current) { flush(); current = null; liveG.textContent = '' } }
   svg.addEventListener('pointerup', end)
   svg.addEventListener('pointercancel', end)
 
   const pathOf = (pts) => {
     if (pts.length < 2) return ''
+    pts = pts.map((n) => Math.round(Number(n) || 0))
     let d = `M${pts[0]} ${pts[1]}`
     if (pts.length === 2) d += `l0.1 0`
     for (let i = 2; i < pts.length; i += 2) d += ` L${pts[i]} ${pts[i + 1]}`
     return d
   }
-  const strokeEl = (st) => `<path d="${pathOf(st.pts)}" fill="none" stroke="${st.c}" stroke-width="${st.w}" stroke-linecap="round" stroke-linejoin="round"/>`
+  // Checked again here: a move is only as trustworthy as the peer that made it.
+  const strokeEl = (st) => `<path d="${pathOf(st.pts)}" fill="none" stroke="${strokeColour(st.c)}" stroke-width="${strokeWidth(st.w)}" stroke-linecap="round" stroke-linejoin="round"/>`
   function drawLive() { liveG.innerHTML = current ? strokeEl(current) : '' }
 
   guessForm.addEventListener('submit', (e) => {
@@ -430,7 +474,7 @@ function view(el, ctx) {
   // The last five seconds of a timed phase tick aloud.
   const ticks = countdown()
   const tickClock = () => {
-    const total = state.phase === 'drawing' ? DRAW_MS : state.phase === 'choosing' ? CHOOSE_MS : 0
+    const total = state.phase === 'drawing' ? (state.drawMs ?? DRAW_MS) : state.phase === 'choosing' ? CHOOSE_MS : 0
     const ms = total - (Date.now() - phaseSeenAt)
     const left = Math.max(0, Math.ceil(ms / 1000))
     clock.textContent = total ? `${left}s` : ''
@@ -555,6 +599,7 @@ export default defineGame({
   options: {
     words: { label: 'words', choices: { en: 'English', es: 'Español' }, default: 'en' },
     rounds: { label: 'rounds', choices: Object.fromEntries(ROUNDS.map((n) => [n, n])), default: '3' },
+    time: { label: 'time', choices: Object.fromEntries(DRAW_TIMES.map((n) => [n, Number(n) < 120 ? `${n}s` : `${n / 60}m`])), default: '80' },
   },
   rules,
   view,
