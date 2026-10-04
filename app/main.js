@@ -16,6 +16,7 @@ import { clickSounds } from './clicks.js'
 import { Cursors } from './cursors.js'
 import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
+import { BELL, setPageIcon } from './bell.js'
 import { clampColour, colourFor, colourButton, PRESETS } from './colours.js'
 import { ownCursor } from './pointer.js'
 import { CAPACITY } from './limits.js'
@@ -93,6 +94,8 @@ addEventListener('resize', centreWordmarks)
 const TOUCH = matchMedia('(pointer: coarse)').matches
 
 for (const b of document.querySelectorAll('.settings-button')) b.innerHTML = GEAR
+for (const slot of document.querySelectorAll('.bell-slot')) slot.innerHTML = BELL
+setPageIcon()
 
 /**
  * A button that opens a popover, and closes it on a second press or a click
