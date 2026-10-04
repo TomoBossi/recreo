@@ -2,10 +2,9 @@ import { sound, unlock } from '../games/kit/sound.js'
 
 /**
  * The room's own sounds, for every control on the page at once, so nothing
- * has to ask for them: a faint tick as the mouse arrives on something that
- * can be pressed, a click as it goes down and a lighter one as it comes
- * back up, two notes for a choice picked from several, and a slide up or
- * down for a switch turned on or off.
+ * has to ask for them: a click as it goes down and a lighter one as it
+ * comes back up, two notes for a choice picked from several, and a slide
+ * up or down for a switch turned on or off.
  *
  * What counts as a control: buttons, the choices in a dropdown, and
  * anything marked data-sound. A choice is a button in a segmented group or
@@ -27,27 +26,12 @@ export function clickSounds(root = document) {
     return el
   }
 
-  let hovered = null
-  let pressedAt = 0
-  root.addEventListener('pointerover', (e) => {
-    if (e.pointerType !== 'mouse') return
-    const el = control(e.target)
-    // Just after a press, what changed under a still mouse is the control
-    // redrawing itself, not the mouse arriving somewhere.
-    if (el && el !== hovered && performance.now() - pressedAt > 400) sound.play('hover')
-    hovered = el
-  })
-  root.addEventListener('pointerout', (e) => {
-    if (e.pointerType === 'mouse' && hovered && !hovered.contains(e.relatedTarget)) hovered = null
-  })
-
   // Listening as events come down, not up: a control that stops its own
   // clicks from bubbling still sounds.
   root.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return
     const el = control(e.target)
     if (!el) return
-    pressedAt = performance.now()
     // A dropdown's option is picked on the way down; it says so at once.
     if (el.getAttribute('role') === 'option') return sound.play('select')
     sound.play('press')

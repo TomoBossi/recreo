@@ -86,8 +86,6 @@ function burst(at, { freq = 2500, q = 1.2, gain = 0.1, length = 0.02 }) {
 
 /** Every sound, by name: a function of the moment to start it. */
 const SOUNDS = {
-  // The pointer arrives on something that can be pressed: barely there.
-  hover: (t) => { tone(t, { freq: 2600, type: 'triangle', gain: 0.035, length: 0.022 }) },
   // A button going down, and coming back up: a soft plastic click pair.
   press: (t) => {
     burst(t, { freq: 2200, gain: 0.07, length: 0.012 })

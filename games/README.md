@@ -305,16 +305,15 @@ and paper.
 
 ## Sound
 
-The room already sounds every control — a faint tick on hover, a click
-down and up, two notes for a choice, a slide for a switch — so a game's
-buttons need nothing. A control can ask for another sound with
+The room already sounds every control — a click down and up, two notes
+for a choice, a slide for a switch — so a game's buttons need nothing. A control can ask for another sound with
 `data-sound="select"`, or for none with `data-sound="none"`.
 
 For what happens in the game itself, `kit/sound.js`:
 
 ```js
 import { sound, countdown } from '../kit/sound.js'
-sound.play('tick')                 // hover press release select on off tick tock last
+sound.play('tick')                 // press release select on off tick tock last
 const ticks = countdown()          // a clock's last five seconds: tick, tock… and a brighter last
 ticks.update(msLeft)               // whenever the clock is redrawn; it sounds each second once
 ```
