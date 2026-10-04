@@ -136,7 +136,7 @@ const rules = {
     return { winners: left.filter((seat) => total(s, seat) === best), reason: `${best} strokes, par ${par}` }
   },
 
-  status(s, names) {
+  status(s, names, { seat: viewer = null } = {}) {
     const name = (seat) => names[seat] ?? `player ${seat + 1}`
     if (s.phase === 'waiting') return 'tee off when everyone is in'
     if (s.phase === 'over') {
@@ -152,7 +152,8 @@ const rules = {
       : last.sunk ? `${name(last.seat)}: ${called(last.strokes, holeOf(s, last.hole).par)} · `
       : last.drowned ? `${name(last.seat)} found the water · `
       : last.gaveUp ? `${name(last.seat)} picked up · ` : ''
-    return `${note}hole ${s.hole + 1} of ${s.course.length}: ${hole.name}, par ${hole.par} — ${name(s.turn)} to putt`
+    const who = s.turn === viewer ? 'your putt!' : `${name(s.turn)} to putt`
+    return `${note}hole ${s.hole + 1} of ${s.course.length}: ${hole.name}, par ${hole.par} — ${who}`
   },
 }
 
@@ -271,6 +272,8 @@ function view(el, ctx) {
     const [cx, cy] = hole.cup
     layer('course').innerHTML = `
       <defs><clipPath id="golf-green-${id}"><rect x="${B}" y="${B}" width="${W - 2 * B}" height="${H - 2 * B}"/></clipPath>
+        <pattern id="golf-planks-${id}" width="120" height="44" patternUnits="userSpaceOnUse">
+          <path d="M0 1 H120 M30 0 V22 M90 22 V44 M0 23 H120" stroke="${WOOD_DARK}" stroke-width="2" opacity="0.28"/></pattern>
         <pattern id="golf-sand-${id}" width="14" height="14" patternUnits="userSpaceOnUse">
           <circle cx="3" cy="4" r="1.4" fill="${WOOD_DARK}" opacity="0.35"/><circle cx="10" cy="10" r="1.2" fill="${WOOD_DARK}" opacity="0.3"/></pattern></defs>
       <rect x="0" y="0" width="${W}" height="${H}" rx="16" fill="${WOOD}" stroke="${INK}" stroke-width="4"/>
@@ -296,6 +299,7 @@ function view(el, ctx) {
         <path d="M${cx - CUP + 4} ${cy + 3} a${CUP - 4} ${CUP - 4} 0 0 0 ${2 * CUP - 8} 0" fill="none" stroke="#fff" stroke-width="2" opacity="0.25"/>
       </g>
       ${merged(walls, WOOD, 2)}
+      <g fill="url(#golf-planks-${id})">${(hole.walls ?? []).filter(([, , w, h]) => w > 60 && h > 60).map(([x, y, w, h]) => `<rect x="${x + 6}" y="${y + 6}" width="${w - 12}" height="${h - 12}" rx="3"/>`).join('')}</g>
       <g fill="none" stroke="#fff" stroke-width="2.5" opacity="0.3">${(hole.walls ?? []).map(([x, y, w, h]) => `<rect x="${x + 5}" y="${y + 5}" width="${Math.max(0, w - 10)}" height="${Math.max(0, h - 10)}" rx="3"/>`).join('')}</g>
       ${merged(posts, WOOD, 2)}
       <g fill="none" stroke="#fff" stroke-width="3" opacity="0.3">${(hole.posts ?? []).map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r * 0.62}"/>`).join('')}</g>

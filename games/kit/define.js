@@ -30,6 +30,11 @@
  *                tick. The role passes
  *                to the next player if the authority leaves.
  *
+ * status(state, names, { seat }) is the line under the board. seat is who
+ * is reading it; a game that words it differently for that player — "your
+ * putt!" — is shown as it wrote it, and otherwise the room tells whoever is
+ * to move "your turn!".
+ *
  * Every game ends somehow, and every player can give up:
  *
  *   outcome(state, names)   null while the game is on; once it is over,

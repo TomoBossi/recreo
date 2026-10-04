@@ -10,16 +10,27 @@ presence, channels) and [mirador](https://github.com/TomoBossi/mirador)
 
 ## Games
 
-| | mode | seats |
+| | kind | seats |
 |---|---|---|
-| Connect four | replicated | 2 |
-| Chess | replicated | 2 |
-| Draw & guess | authoritative (the drawer) | 2–4 |
-| Minigolf | replicated, integer physics | 2–4 |
+| Tic-tac-toe | turns | 2 |
+| Connect four | turns | 2 |
+| Chess | turns, with clocks | 2 |
+| Pictionary | authority (one peer keeps time and judges guesses) | 2–4 |
+| Minigolf | turns, integer physics, nine holes | 1–4 |
 
 Several tables can be open at once; anyone not seated is watching. A dropped
-connection keeps its seat, and so does a reload. `games/README.md` explains
-how to add one.
+connection keeps its seat, and so does a reload.
+
+## Writing a game
+
+A game is a folder under `games/` with one `defineGame()` call: its seats,
+its rules, its view and its styles. The room does the rest — tables, seats,
+options, spectators, shared pointers, keeping peers in step, rejoining,
+endings and forfeits — and gives every game the same tools: boards that
+turn for a player or stand on end on a phone, pointers that land on the
+same square for everyone, touch handling, live sharing of a move in
+progress, a start panel, layout by window size. `games/README.md`
+documents the whole interface.
 
 ## The room
 
@@ -34,20 +45,32 @@ inside a phone's uplink.
 ## Running it
 
 ```sh
-python3 -m http.server 8000      # then open http://localhost:8000
+node tools/serve.mjs              # then open http://127.0.0.1:8000
 ```
 
+Any static file server works (`python3 -m http.server`); `tools/serve.mjs`
+just makes sure the browser never runs a stale copy of a file mid-edit.
 Open it in two browsers with the same room code. `tools/sync-libs.sh`
 refreshes the vendored plaza and mirador from checkouts beside this one.
+
+## Hosting it
+
+The room is plain HTML, CSS and JavaScript modules with relative paths:
+put the folder on any static host, at any path — GitHub Pages included —
+and it runs. Node is only for the tools and tests beside it, never for the
+room itself.
 
 ## Testing it
 
 ```sh
-npm test                          # rules, without a browser
-node nettest/run.mjs              # real browsers in containers
-node nettest/run.mjs phone-c4     # against a phone (ssh phone, Termux)
+npm test                          # rules and the game interface, without a browser
+node tools/play/golf.mjs          # self-play in real browsers: a desk and a phone
+node nettest/run.mjs              # real browsers in containers, broken networks
+node nettest/run.mjs --all        # with the slow set: long outages, a phone
 ```
 
+The scripts in `tools/play/` play each game in Chromium — one player with a
+mouse, one on a phone-sized screen with a finger — and photograph every step.
 The network tests run on plaza's harness (expected at `../plaza`): each peer
 is a real browser, peers find each other through the public trackers, and
 networks are broken for real — a forty-second outage mid-game, a reload, a

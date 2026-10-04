@@ -180,12 +180,16 @@ export class TableView {
 
     const enough = Object.keys(this.tables.seated(table)).length >= (game.minSeats ?? game.seats)
     const everyoneSeated = game.mode === 'authoritative' || enough
-    let status = game.status(table.state, names)
+    // A game may say something different to the player it concerns — "your
+    // putt" — and is then taken at its word; otherwise the room says it.
+    const general = game.status(table.state, names, { seat: null })
+    const personal = mySeat != null ? game.status(table.state, names, { seat: mySeat }) : general
+    let status = personal
     const toMove = turn != null ? table.seats[turn]?.player : null
     const away = toMove && this.players.stateOf(toMove)
     if (!enough && table.moves.length === 0) status = 'waiting for players'
     else if (turn != null && !table.seats[turn]?.player) status = `${names[turn] ?? `seat ${turn + 1}`} is empty — join to play it`
-    else if (turn != null && turn === mySeat) status = 'your turn!'
+    else if (turn != null && turn === mySeat && personal === general) status = 'your turn!'
     else if (away && away !== 'here') status = `waiting for ${names[turn]} to come back…`
     this.statusText.textContent = status
     // Turn-based games end when nobody is to move; a game that runs itself
