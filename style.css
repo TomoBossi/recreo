@@ -612,6 +612,10 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
    four and a half times the font size across. */
 .brand.big { display: flex; justify-content: center; margin: 4px 0 6px; font-size: min(92px, calc((100cqi - 12px) / 4.6)); gap: 0.06em; }
 .brand.big .wordmark.big { font-size: 1em; }
+/* Centred by what is seen, not by the boxes: the bell's drawing leaves a
+   margin on its left, the lettering's shadow reaches past its box on the
+   right, and together they sat it a little right of the middle. */
+.brand.big { position: relative; left: -0.075em; }
 .wordmark.big { font-size: 92px; text-align: center; line-height: 1; letter-spacing: 2px;
   text-shadow: 3px 0px 0 var(--ring), -3px 0px 0 var(--ring), 0px 3px 0 var(--ring), 0px -3px 0 var(--ring), 2.1px 2.1px 0 var(--ring), -2.1px 2.1px 0 var(--ring), 2.1px -2.1px 0 var(--ring), -2.1px -2.1px 0 var(--ring), 5px 5px 0 var(--drop), 6px 6px 0 var(--drop); }
 .tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
