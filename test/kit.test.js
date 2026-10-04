@@ -95,3 +95,29 @@ test('every colour on the custom pad is already inside the readable band', () =>
     }
   }
 })
+
+import { sound, countdown } from '../games/kit/sound.js'
+
+test('a clock ticks its last five seconds, once each, and starts over when wound back up', () => {
+  const heard = []
+  const play = sound.play
+  sound.play = (name) => heard.push(name)
+  try {
+    const ticks = countdown()
+    for (let ms = 9000; ms > 0; ms -= 100) ticks.update(ms)
+    assert.deepEqual(heard, ['tick', 'tock', 'tick', 'tock', 'last'], 'five, four, three, two, one')
+    heard.length = 0
+    ticks.update(0)
+    ticks.update(30000) // a new turn, with a full clock
+    for (let ms = 5600; ms > 3500; ms -= 100) ticks.update(ms)
+    assert.deepEqual(heard, ['tick', 'tock'], 'counted again from five')
+    heard.length = 0
+    const sleepy = countdown()
+    sleepy.update(5000)
+    sleepy.update(1800) // a tab woken from the background: no burst of catching up
+    sleepy.update(900)
+    assert.deepEqual(heard, ['tick', 'last'])
+  } finally {
+    sound.play = play
+  }
+})

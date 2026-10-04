@@ -14,6 +14,7 @@ import { defineGame } from '../kit/define.js'
 import { escape, INK } from '../kit/svg.js'
 import { pick } from '../kit/random.js'
 import { startPanel } from '../kit/lobby.js'
+import { countdown } from '../kit/sound.js'
 import english from './words/en.js'
 import spanish from './words/es.js'
 
@@ -410,11 +411,15 @@ function view(el, ctx) {
   // It ticks only while a phase is timed, and hurries in its last seconds.
   const clock = $('.draw-clock')
   let clockTimer = null
+  // The last five seconds of a timed phase tick aloud.
+  const ticks = countdown()
   const tickClock = () => {
     const total = state.phase === 'drawing' ? DRAW_MS : state.phase === 'choosing' ? CHOOSE_MS : 0
-    const left = Math.max(0, Math.ceil((total - (Date.now() - phaseSeenAt)) / 1000))
+    const ms = total - (Date.now() - phaseSeenAt)
+    const left = Math.max(0, Math.ceil(ms / 1000))
     clock.textContent = total ? `${left}s` : ''
     clock.classList.toggle('hurry', !!total && left <= 10)
+    ticks.update(total ? ms : null)
   }
   const keepClock = () => {
     const timed = state?.phase === 'drawing' || state?.phase === 'choosing'

@@ -1,4 +1,5 @@
 import { store, theme, setTheme } from './store.js'
+import { sound } from '../games/kit/sound.js'
 import { colourButton } from './colours.js'
 
 /**
@@ -47,6 +48,13 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
           ${['show', 'hide'].map((v) => `<button class="btn small" data-cursors="${v}" aria-pressed="${cursors.enabled === (v === 'show')}">${v}</button>`).join('')}
         </span>
       </section>` : ''}
+
+      <section>
+        <h3>sounds</h3>
+        <span class="segmented sounds">
+          ${['on', 'quiet', 'off'].map((v) => `<button class="btn small" data-sound-level="${v}" aria-pressed="${sound.level === v}">${v}</button>`).join('')}
+        </span>
+      </section>
 
       <section>
         <h3>saved data</h3>
@@ -99,6 +107,7 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
     if (b.dataset.theme) { setTheme(b.dataset.theme); render() }
     if (b.dataset.mode) { wm.setMode(b.dataset.mode); render() }
     if (b.dataset.cursors) { cursors.setEnabled(b.dataset.cursors === 'show'); render() }
+    if (b.dataset.soundLevel) { sound.setLevel(b.dataset.soundLevel); render() }
     if (b.classList.contains('reset')) wm.resetFloating()
     if (b.classList.contains('export')) download(store.export())
     if (b.classList.contains('import')) el.querySelector('input[type=file]').click()

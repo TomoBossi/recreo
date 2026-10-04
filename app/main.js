@@ -12,6 +12,7 @@ import { TableView } from './tableview.js'
 import { Players } from './players.js'
 import { shelf } from './shelf.js'
 import { Live } from './live.js'
+import { clickSounds } from './clicks.js'
 import { Cursors } from './cursors.js'
 import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
@@ -22,6 +23,9 @@ import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming } from '../games/index.js'
 
 const $ = (sel) => document.querySelector(sel)
+
+// Every control clicks, everywhere, from the welcome screen on.
+clickSounds()
 
 // Each game's own stylesheet, from its folder.
 for (const game of Object.values(games)) {

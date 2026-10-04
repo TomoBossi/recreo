@@ -5,6 +5,7 @@
  */
 import { defineGame } from '../kit/define.js'
 import { board, shape, escape, INK } from '../kit/svg.js'
+import { countdown } from '../kit/sound.js'
 import { initial, isLegal, play, legalMoves, cannotMate, file, rank } from './rules.js'
 
 const LIGHT = '#fbefd5'
@@ -233,9 +234,13 @@ function view(el, ctx) {
   // with no clock and a finished game wake nothing.
   let shown = ''
   let ticker = null
+  // Each side's last five seconds tick aloud, for players and watchers alike.
+  const ticks = [countdown(), countdown()]
   const tick = () => {
     const now = [0, 1].map((seat) => format(timeLeft(seat))).join() + turn(state) + Object.keys(info.names ?? {}).length
     if (now !== shown) { shown = now; drawClocks() }
+    const running = turn(state)
+    if (running === 0 || running === 1) ticks[running].update(timeLeft(running))
     if (myTurn() && state.clock.moves >= 2 && timeLeft(info.mySeat) <= 0 && flagged !== state.clock.moves) {
       flagged = state.clock.moves
       ctx.play({ timeout: true })
