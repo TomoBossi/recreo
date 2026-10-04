@@ -448,7 +448,15 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------- games */
 
-.table { position: relative; display: flex; flex-direction: column; height: 100%; }
+.table { position: relative; display: flex; flex-direction: column; height: 100%; container: table / size; }
+/* A game shrunk small — a table waiting in the stack — is the game and its
+   status line: the seats and options come back when it is brought forward.
+   (Not on a phone on its side, which keeps them beside the status.) */
+@media (min-height: 521px) {
+  @container table (max-height: 340px) {
+    .table > .seats { display: none; }
+  }
+}
 .seats {
   display: flex;
   align-items: center;
