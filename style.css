@@ -460,11 +460,16 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   min-height: var(--row);
 }
 .seat {
+  /* The colour square and the button sit the same distance from every
+     edge: they stretch to the chip's height less that inset, whatever a
+     screen rounds the border to. */
+  --seat-h: 28px;
+  --inset: 3px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px 0 4px;
+  height: var(--seat-h);
+  padding: 0 10px 0 var(--inset);
   border: var(--line) solid var(--ink);
   /* The inner button's corners plus the gap round it, so the two nest. */
   border-radius: calc(var(--round-small) + 3px);
@@ -474,15 +479,15 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   font-size: 13px;
   line-height: 1;
 }
-.seat:has(.btn) { padding-right: 3px; }
+.seat:has(.btn) { padding-right: var(--inset); }
 .seat.turn { background: var(--sun); color: var(--on-accent); box-shadow: var(--lift-small); }
 .seat.empty { border-style: dashed; background: transparent; color: var(--text-soft); cursor: pointer; }
 .seat.empty:hover { background: var(--field); color: var(--text); }
 .seat.away { opacity: 0.6; }
 .seat.empty.closed { cursor: default; opacity: 0.55; }
 .seat.empty.closed:hover { background: transparent; color: var(--text-soft); }
-.seat .piece { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--ink); flex: none; }
-.seat .btn { height: 20px; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
+.seat .piece { align-self: stretch; margin: var(--inset) 0; aspect-ratio: 1; height: auto; border-radius: 4px; border: 2px solid var(--ink); flex: none; }
+.seat .btn { align-self: stretch; margin: var(--inset) 0; height: auto; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
 .seat .btn:hover, .seat .btn:active { --dx: 0px; --dy: 0px; background: var(--panel-2); }
 .seats .vs { font-weight: 900; color: var(--text-soft); }
 /* The Peers window's menu: hangs below its button, above every window. */
@@ -694,7 +699,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   #topbar .btn.small, #topbar #room-chip { height: 30px; }
   .win-title { height: 27px; font-size: 14px; }
   .seats { padding: 4px 8px; gap: 6px; }
-  .seat { height: 26px; }
+  .seat { --seat-h: 26px; }
   .status { font-size: 13px; padding: 2px 10px; }
   .chat-form { padding: 4px; }
 }
