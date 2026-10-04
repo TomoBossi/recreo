@@ -283,16 +283,19 @@ export class LocalMedia extends Emitter {
     this.#deviceIds[kind] = deviceId
     if (!this.stream) return null
 
-    const wantAudio = this.stream.getAudioTracks().length > 0
-    const wantVideo = this.stream.getVideoTracks().length > 0
+    // Ask for the one device being switched, and nothing else: asking for
+    // both and keeping one left the other capturing, unseen, for good.
+    const type = kind === 'audioinput' ? 'audio' : 'video'
+    const current = this.stream[type === 'audio' ? 'getAudioTracks' : 'getVideoTracks']()[0]
+    if (!current) return []
+    // A camera that is off stays off: the choice is kept for when it is
+    // turned on again, which asks for this device.
+    if (type === 'video' && !this.videoEnabled) return []
 
-    const fresh = await navigator.mediaDevices.getUserMedia({
-      audio: wantAudio ? this.#audioConstraints() : false,
-      video: wantVideo ? this.#videoConstraints() : false,
-    })
+    const fresh = await navigator.mediaDevices.getUserMedia(
+      type === 'audio' ? { audio: this.#audioConstraints() } : { video: this.#videoConstraints() })
 
     const swaps = []
-    const type = kind === 'audioinput' ? 'audio' : 'video'
     const oldTrack = this.stream[type === 'audio' ? 'getAudioTracks' : 'getVideoTracks']()[0]
     const newTrack = fresh[type === 'audio' ? 'getAudioTracks' : 'getVideoTracks']()[0]
 
