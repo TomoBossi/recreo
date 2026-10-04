@@ -1,5 +1,5 @@
 import { avatar } from './avatar.js'
-import { gridLayout, spotlightLayout, SpeakerTracker } from 'mirador'
+import { gridLayout, spotlightLayout, SpeakerTracker, resumeAudio } from 'mirador'
 import { store } from './store.js'
 
 /** How long a speaker keeps the big tile after they pause, in auto. */
@@ -30,7 +30,8 @@ export class Faces {
   #lastSpeaker = null
   #holdTimer = null
 
-  constructor(body, { room, media, me, players }) {
+  constructor(body, { room, media, me, players, onSilenced }) {
+    this.onSilenced = onSilenced
     this.room = room
     this.players = players
     this.media = media
@@ -49,6 +50,42 @@ export class Faces {
     })
 
     new ResizeObserver(() => this.render()).observe(body)
+  }
+
+  /**
+   * Play a tile. A browser lets a page make sound only once it has been
+   * clicked or typed into — and arriving straight from a link, it has not —
+   * so a voice it refuses plays muted, picture and all, until the first
+   * click or key anywhere, which turns every voice on.
+   */
+  #play(tile, self) {
+    tile.video.play().catch((err) => {
+      if (err?.name !== 'NotAllowedError' || self) return
+      tile.video.muted = true
+      tile.silenced = true
+      tile.video.play().catch(() => {})
+      this.#awaitGesture()
+    })
+  }
+
+  #awaitGesture() {
+    if (this.waiting) return
+    this.waiting = true
+    this.onSilenced?.()
+    const unmute = () => {
+      removeEventListener('pointerdown', unmute, true)
+      removeEventListener('keydown', unmute, true)
+      this.waiting = false
+      void resumeAudio()
+      for (const tile of this.#tiles.values()) {
+        if (!tile.silenced) continue
+        tile.silenced = false
+        tile.video.muted = false
+        tile.video.play().catch(() => {})
+      }
+    }
+    addEventListener('pointerdown', unmute, true)
+    addEventListener('keydown', unmute, true)
   }
 
   /** A peer's (or our own) camera stream, for speaking detection. */
@@ -169,7 +206,7 @@ export class Faces {
         tile.stream = person.stream
         tile.video.srcObject = person.stream
         tile.video.muted = !!person.self
-        if (person.stream) tile.video.play().catch(() => {})
+        if (person.stream) this.#play(tile, person.self)
       }
       tile.name.textContent = person.nick + (person.self ? ' (you)' : '')
       tile.mute.hidden = !person.muted

@@ -14,6 +14,13 @@
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     if (dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#16161a')
   } catch {}
+  // A link to a room, for someone who has been here before (a saved name):
+  // straight in, without the welcome screen showing first. app/main.js joins.
+  try {
+    const room = new URLSearchParams(location.hash.slice(1)).get('room') || new URLSearchParams(location.search).get('room')
+    const nick = JSON.parse(localStorage.getItem('recreo:nick') ?? '""')
+    if (room && typeof nick === 'string' && nick.trim()) document.documentElement.dataset.straightIn = '1'
+  } catch {}
 </script>
 <link rel="stylesheet" href="style.css">
 

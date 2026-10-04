@@ -28,12 +28,15 @@ export async function start(page, args, out) {
   await page.goto(`${base}/index.html?room=${encodeURIComponent(room)}`)
   await page.evaluate(() => localStorage.clear())
 
-  // A reload lands on the landing page again, as it does for a person, who
-  // then presses join. So does the driver — on every load, not just the first.
+  // The first load shows the landing page, and the driver presses join, as a
+  // person would. A reload goes straight back in — the name is saved by
+  // then — and the driver only waits for it. Either way, on every load.
   let joining = null
   const join = async () => {
     await page.waitForFunction(() => document.querySelector('#nick-input'))
     await page.evaluate((nick) => {
+      // Someone who has been here before goes straight in from a link: nothing to fill in.
+      if (document.documentElement.dataset.straightIn) return
       document.querySelector('#nick-input').value = nick
       document.querySelector('#join-form').requestSubmit()
     }, args.label)

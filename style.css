@@ -597,6 +597,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------ landing */
 
+/* Arriving from a link with a name saved: the welcome screen never shows. */
+[data-straight-in] #landing { display: none; }
 #landing { height: 100%; display: grid; place-items: center; padding: 16px; overflow-y: auto; }
 #landing-settings { position: fixed; top: 12px; right: 14px; z-index: 10; }
 .card {

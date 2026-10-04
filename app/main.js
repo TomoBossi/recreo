@@ -219,12 +219,24 @@ const CAM = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="0.5" y="3.5" w
   <path d="M9.5 6.2 L13.5 4 V10 L9.5 7.8 Z" fill="currentColor"/>
   <line class="slash" x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
 
+/**
+ * Your microphone and camera start as you last left them — off stays off —
+ * which matters most arriving straight from a link, with no preview first.
+ */
+function toggleMedia(kind) {
+  if (kind === 'audio') media.toggleAudio()
+  else media.toggleVideo()
+  store.set(`media:${kind}`, kind === 'audio' ? media.audioEnabled : media.videoEnabled)
+}
+
 /** See yourself before going in, and sort out permissions while nobody waits. */
 async function startPreview() {
   try {
     await restoreDevices(media)
-    const stream = await media.start({ audio: true, video: true })
-    $('#preview').srcObject = stream
+    await media.start({ audio: true, video: true })
+    if (store.get('media:audio', true) === false) media.setAudioEnabled(false)
+    if (store.get('media:video', true) === false) await media.setVideoEnabled(false)
+    $('#preview').srcObject = media.stream
   } catch {
     // No camera, or no permission: the room works without one.
   }
@@ -251,8 +263,8 @@ $('#preview-devices').append(devicePickers(media).el)
 // The same icons as the Peers window's buttons, drawn larger over the preview.
 $('#preview-mic').innerHTML = MIC
 $('#preview-cam').innerHTML = CAM
-$('#preview-mic').addEventListener('click', () => media.toggleAudio())
-$('#preview-cam').addEventListener('click', () => media.toggleVideo())
+$('#preview-mic').addEventListener('click', () => toggleMedia('audio'))
+$('#preview-cam').addEventListener('click', () => toggleMedia('video'))
 
 void startPreview()
 
@@ -260,7 +272,7 @@ $('#join-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const nick = nickInput.value.trim().slice(0, 24)
   const room = normalizeRoom(roomInput.value)
-  if (!nick || !room) return
+  if (!nick || !room || entering) return
   store.set('nick', nick)
   $('#join-button').disabled = true
   try {
@@ -271,10 +283,45 @@ $('#join-form').addEventListener('submit', async (e) => {
   }
 })
 
+/**
+ * A link to a room, opened by someone who has been here before, goes
+ * straight in: their name, colour, microphone and camera are as they left
+ * them. (The page hides the welcome screen before it paints — see the
+ * script at the top of index.html.) The first visit still shows it, room
+ * filled in, and so does anything that goes wrong.
+ */
+if (document.documentElement.dataset.straightIn) {
+  const nick = store.get('nick', '').trim().slice(0, 24)
+  const room = normalizeRoom(roomFromUrl() ?? '')
+  const welcome = (message = '') => {
+    delete document.documentElement.dataset.straightIn
+    $('#landing-error').textContent = message
+    $('#join-button').disabled = false
+  }
+  if (!nick || !room) welcome()
+  else {
+    $('#join-button').disabled = true
+    enterRoom(room, nick).catch((err) => welcome(err.message))
+  }
+}
+
 // ------------------------------------------------------------------- room
 
-/** The microphone and camera, drawn for the Peers title bar. */
+/** Whether a room is being joined: one at a time, however many presses. */
+let entering = false
+
 async function enterRoom(code, nick) {
+  entering = true
+  try {
+    await joinRoom(code, nick)
+  } catch (err) {
+    entering = false
+    throw err
+  }
+}
+
+/** The microphone and camera, drawn for the Peers title bar. */
+async function joinRoom(code, nick) {
   await resumeAudio()
   const me = { player: playerId(), nick, colour }
   const room = await join({
@@ -314,13 +361,16 @@ async function enterRoom(code, nick) {
     b.title = kind === 'mic' ? 'microphone' : 'camera'
     b.setAttribute('aria-label', b.title)
     b.innerHTML = kind === 'mic' ? MIC : CAM
-    b.addEventListener('click', (e) => { e.stopPropagation(); kind === 'mic' ? media.toggleAudio() : media.toggleVideo() })
+    b.addEventListener('click', (e) => { e.stopPropagation(); toggleMedia(kind === 'mic' ? 'audio' : 'video') })
     return b
   })
   // A menu beside them: the layout, and which camera and microphone.
   const peersMenu = peersMenuButton({ media, faces: () => faces })
   const facesWin = wm.add({ id: 'faces', title: 'Peers', tone: 'sun', body: facesBody, order: 0, weight: 1.3, tools: [...mediaTools, peersMenu] })
-  const faces = new Faces(facesBody, { room, media, me, players })
+  const faces = new Faces(facesBody, {
+    room, media, me, players,
+    onSilenced: () => toast(`${TOUCH ? 'tap' : 'click'} anywhere to hear everyone`),
+  })
   syncToggles()
 
   const chatBody = document.createElement('div')
@@ -689,6 +739,8 @@ async function enterRoom(code, nick) {
     $('#join-button').disabled = false
     $('#landing-error').textContent = `${code} is full — four is the most a room holds. Try another room.`
     delete window.recreo
+    delete document.documentElement.dataset.straightIn
+    entering = false
   }
 
   colourChanged = (next) => {
