@@ -54,7 +54,7 @@ export class WindowManager {
    * window wants relative to its neighbours, until someone drags a divider.
    * `tools` are extra buttons for the title bar.
    */
-  add({ id, title, meta = '', tone = 'sun', body, kind = 'panel', weight = 1, order = 0, closable = false, closeLabel = 'close', collapsed = false, tools = [], onClose }) {
+  add({ id, title, meta = '', tone = 'sun', body, kind = 'panel', weight = 1, order = 0, closable = false, closeLabel = 'close', collapsed = false, tools = [], onClose, phoneHeight = null }) {
     const el = document.createElement('section')
     el.className = `win tone-${tone}`
     el.dataset.id = id
@@ -71,7 +71,7 @@ export class WindowManager {
     el.querySelector('.win-body').append(body)
 
     const win = {
-      id, el, kind, order, onClose,
+      id, el, kind, order, onClose, phoneHeight,
       weight: store.get(`wm:weight:${id}`, weight),
       collapsed: store.get(`wm:collapsed:${id}`, collapsed),
       setTitle: (text) => { el.querySelector('.title').textContent = text },
@@ -274,6 +274,7 @@ export class WindowManager {
    */
   #scroll(list, W) {
     const natural = (win) => win.collapsed ? this.#title()
+      : win.phoneHeight ? Math.round(win.phoneHeight(W))
       : win.kind === 'table' ? Math.round(W * 0.95 + 110)
       : win.id === 'faces' ? Math.round(W * 0.62)
       : 300

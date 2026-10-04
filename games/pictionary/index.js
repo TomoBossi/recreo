@@ -23,6 +23,7 @@ const REVEAL_MS = 5000
 const CYCLES = 1
 const GUESS_POINTS = [10, 8, 6, 4]
 const DRAWER_POINTS = 3
+const WIDTHS = [5, 10, 22]
 const COLOURS = ['#241c3a', '#ff5d8f', '#3c7ff0', '#6bd66b', '#ffd23f', '#ff9a3c', '#9a7bf2', '#8b5a2b']
 
 const PAPER = '#fffaf0'
@@ -278,6 +279,7 @@ function view(el, ctx) {
           <svg class="draw-canvas" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
             <rect width="1000" height="700" fill="${PAPER}"/>
             <g class="strokes"></g><g class="live"></g>
+            <circle class="brush" r="4" fill="none" stroke="${INK}" stroke-width="2" visibility="hidden"/>
           </svg>
           <div class="draw-overlay"></div>
         </div>
@@ -302,27 +304,43 @@ function view(el, ctx) {
   let state = null
   let info = {}
   let colour = COLOURS[0]
-  let width = 8
+  let width = WIDTHS[1]
   let phaseSeenAt = 0
   let lastPhase = null
 
   const name = (seat) => info.names?.[seat] ?? `player ${seat + 1}`
   const iDraw = () => state?.phase === 'drawing' && info.mySeat === state.drawer
 
-  // Tools: colours, two widths, an eraser, and clear.
-  tools.innerHTML = COLOURS.map((c) => `<button class="swatch" data-colour="${c}" style="background:${c}" aria-label="colour"></button>`).join('')
-    + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button>'
-    + '<button class="btn small" data-width="8">thin</button><button class="btn small" data-width="22">thick</button>'
+  // Tools: colours and an eraser, three brush sizes shown as their own
+  // dots, and clear. What is chosen is always marked, from the start.
+  tools.innerHTML = '<span class="tool-group colours">' + COLOURS.map((c) => `<button class="swatch" data-colour="${c}" style="background:${c}" aria-label="colour"></button>`).join('')
+    + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button></span>'
+    + '<span class="tool-group widths">' + WIDTHS.map((w) => `<button class="width" data-width="${w}" aria-label="brush ${w}"><i style="width:${Math.max(4, w * 0.9)}px;height:${Math.max(4, w * 0.9)}px"></i></button>`).join('') + '</span>'
     + '<button class="btn small berry" data-clear>clear</button>'
+  const markTools = () => {
+    for (const t of tools.querySelectorAll('.swatch')) t.classList.toggle('on', (t.dataset.colour === 'eraser' ? PAPER : t.dataset.colour) === colour)
+    for (const t of tools.querySelectorAll('[data-width]')) t.classList.toggle('on', Number(t.dataset.width) === width)
+    // The size dots wear the current colour.
+    for (const i of tools.querySelectorAll('.width i')) i.style.background = colour === PAPER ? '#cfc8b8' : colour
+  }
   tools.addEventListener('click', (e) => {
     const b = e.target.closest('button')
     if (!b) return
     if (b.dataset.colour) colour = b.dataset.colour === 'eraser' ? PAPER : b.dataset.colour
     if (b.dataset.width) width = Number(b.dataset.width)
     if ('clear' in b.dataset) ctx.intend({ type: 'clear' })
-    for (const t of tools.querySelectorAll('.swatch')) t.classList.toggle('on', (t.dataset.colour === 'eraser' ? PAPER : t.dataset.colour) === colour)
-    for (const t of tools.querySelectorAll('[data-width]')) t.setAttribute('aria-pressed', String(Number(t.dataset.width) === width))
+    markTools()
   })
+  markTools()
+
+  // With a mouse, the brush's size follows the pointer over the paper.
+  const brush = svg.querySelector('.brush')
+  svg.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || !iDraw()) { brush.setAttribute('visibility', 'hidden'); return }
+    const [x, y] = point(e)
+    Object.entries({ cx: x, cy: y, r: width / 2 + 1.5, visibility: 'visible' }).forEach(([k, v]) => brush.setAttribute(k, v))
+  })
+  svg.addEventListener('pointerleave', () => brush.setAttribute('visibility', 'hidden'))
 
   // Drawing: points are batched and sent a few times a second, so a
   // stroke appears for everyone while it is still being drawn.
@@ -389,12 +407,21 @@ function view(el, ctx) {
 
   // A clock in the corner, counting down from when this peer saw the
   // phase begin — machines' clocks disagree, arrival times do not much.
+  // It ticks only while a phase is timed, and hurries in its last seconds.
   const clock = $('.draw-clock')
-  const clockTimer = setInterval(() => {
-    if (!state) return
+  let clockTimer = null
+  const tickClock = () => {
     const total = state.phase === 'drawing' ? DRAW_MS : state.phase === 'choosing' ? CHOOSE_MS : 0
-    clock.textContent = total ? `${Math.max(0, Math.ceil((total - (Date.now() - phaseSeenAt)) / 1000))}s` : ''
-  }, 250)
+    const left = Math.max(0, Math.ceil((total - (Date.now() - phaseSeenAt)) / 1000))
+    clock.textContent = total ? `${left}s` : ''
+    clock.classList.toggle('hurry', !!total && left <= 10)
+  }
+  const keepClock = () => {
+    const timed = state?.phase === 'drawing' || state?.phase === 'choosing'
+    if (timed && !clockTimer) clockTimer = setInterval(tickClock, 250)
+    if (!timed && clockTimer) { clearInterval(clockTimer); clockTimer = null }
+    tickClock()
+  }
 
   function render() {
     const s = state
@@ -411,7 +438,18 @@ function view(el, ctx) {
       word.textContent = ''
     }
 
-    strokesG.innerHTML = s.strokes.map(strokeEl).join('')
+    // Strokes are added as they come, and only the one being drawn is
+    // redrawn — not the whole picture on every point.
+    const nodes = strokesG.children
+    if (s.strokes.length < nodes.length || (s.strokes.length && nodes.length && nodes[0].dataset.id !== s.strokes[0].id)) strokesG.textContent = ''
+    s.strokes.forEach((st, i) => {
+      const node = nodes[i]
+      const d = pathOf(st.pts)
+      if (!node) {
+        strokesG.insertAdjacentHTML('beforeend', strokeEl(st))
+        strokesG.lastElementChild.dataset.id = st.id
+      } else if (node.getAttribute('d') !== d) node.setAttribute('d', d)
+    })
 
     // Starting and playing again are the kit's lobby; choosing a word is ours.
     lobby.update({
@@ -422,7 +460,13 @@ function view(el, ctx) {
       again: s.phase === 'over',
     })
     let over = ''
-    if (s.phase === 'choosing') {
+    if (s.phase === 'reveal') {
+      // The word, big, and what everyone made of it this round.
+      const got = Object.entries(s.guessed).sort((a, b) => a[1] - b[1])
+      const lines = got.map(([seat, order]) => `<li><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(Number(seat)))}<b>+${GUESS_POINTS[order] ?? 2}</b></li>`)
+      if (got.length && s.drawer != null) lines.push(`<li><span class="dot" style="background:${ctx.colours[s.drawer]}"></span>${escape(name(s.drawer))} <i>drew it</i><b>+${got.length * DRAWER_POINTS}</b></li>`)
+      over = `<div class="reveal"><p>the word was</p><strong>${escape(s.word ?? '…')}</strong>${lines.length ? `<ul>${lines.join('')}</ul>` : '<p class="nobody">nobody got it</p>'}</div>`
+    } else if (s.phase === 'choosing') {
       over = info.mySeat === s.drawer
         ? `<p>pick a word to draw</p><div class="choices">${s.choices.map((w, i) => `<button class="btn grape" data-pick="${i}">${escape(w)}${s.levels ? `<small>${s.levels[i]}</small>` : ''}</button>`).join('')}</div>`
         : `<p>${name(s.drawer)} is choosing a word…</p>`
@@ -440,22 +484,27 @@ function view(el, ctx) {
     log.innerHTML = s.log.slice(-40).map((line) => {
       const text = escape(line.text.replace(/seat:(\d)/g, (_, n) => name(Number(n))))
       if (line.kind === 'system') return `<div class="line system">${text}</div>`
-      if (line.kind === 'correct') return `<div class="line correct"><b>${escape(name(line.seat))}</b> guessed it! ${text}</div>`
-      if (line.kind === 'close') return `<div class="line close"><b>${escape(name(line.seat))}</b> ${text} <i>— so close!</i></div>`
-      return `<div class="line"><b>${escape(name(line.seat))}</b> ${text}</div>`
+      const who = `<b style="color:${ctx.colours[line.seat]}">${escape(name(line.seat))}</b>`
+      if (line.kind === 'correct') return `<div class="line correct">${who} guessed it! ${text}</div>`
+      if (line.kind === 'close') return `<div class="line close">${who} ${text} <i>— so close!</i></div>`
+      return `<div class="line">${who} ${text}</div>`
     }).join('')
     log.scrollTop = log.scrollHeight
 
     const canGuess = s.phase === 'drawing' && info.mySeat != null && info.mySeat !== s.drawer && s.guessed[info.mySeat] == null
     guessInput.disabled = !canGuess
     guessForm.querySelector('button').disabled = !canGuess
-    guessInput.placeholder = info.mySeat === s.drawer && s.phase === 'drawing' ? 'you are drawing' : canGuess ? 'your guess' : 'not now'
+    guessInput.placeholder = info.mySeat === s.drawer && s.phase === 'drawing' ? 'you are drawing'
+      : canGuess ? 'your guess'
+        : s.phase === 'drawing' && info.mySeat != null && s.guessed[info.mySeat] != null ? 'you got it!' : 'not now'
     tools.hidden = !iDraw()
+    if (!iDraw()) brush.setAttribute('visibility', 'hidden')
+    keepClock()
   }
 
   return {
     update(next, nextInfo) { state = next; info = nextInfo; render() },
-    destroy() { clearInterval(clockTimer); el.textContent = '' },
+    destroy() { clearInterval(clockTimer); clockTimer = null; el.textContent = '' },
   }
 }
 
@@ -476,6 +525,9 @@ export default defineGame({
   kind: 'authority',
   seats: { min: 2, max: 4 },
   pieces: 'players',
+  // On a phone: the word bar, the paper at its own shape, the scores in a
+  // row, a few lines of guesses, the guess box and the drawing tools.
+  phoneHeight: (width) => width * 0.7 + 330,
   options: {
     words: { label: 'words', choices: { en: 'English', es: 'Español' }, default: 'en' },
   },

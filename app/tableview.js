@@ -116,8 +116,18 @@ export class TableView {
     if (!tables.canForfeit(table)) this.forfeitAsk.hidden = true
 
     this.seatsEl.textContent = ''
+    let shownSeats = 0
     for (let seat = 0; seat < game.seats; seat++) {
       const claim = table.seats[seat]
+      // A seat nobody sat in, mid-game, is not a place anyone can take:
+      // it is left out rather than shown as an empty chair.
+      if (!claim?.player && playing && !out.has(seat)) continue
+      if (shownSeats++) {
+        const vs = document.createElement('span')
+        vs.className = 'vs'
+        vs.textContent = game.seats === 2 ? 'vs' : '·'
+        this.seatsEl.append(vs)
+      }
       const chip = document.createElement('span')
       chip.className = 'seat'
       chip.dataset.cursorAnchor = `seat-${seat}`
@@ -126,7 +136,7 @@ export class TableView {
       if (!claim?.player && playing) {
         // Mid-game the game plays on with whoever started it.
         chip.classList.add('empty', 'closed')
-        chip.querySelector('.who').textContent = out.has(seat) ? `${claim?.nick ?? 'player'} left` : 'empty'
+        chip.querySelector('.who').textContent = `${claim?.nick ?? 'player'} left`
       } else if (!claim?.player) {
         chip.classList.add('empty')
         chip.querySelector('.who').textContent = 'join'
@@ -153,12 +163,6 @@ export class TableView {
         }
       }
       this.seatsEl.append(chip)
-      if (seat < game.seats - 1) {
-        const vs = document.createElement('span')
-        vs.className = 'vs'
-        vs.textContent = game.seats === 2 ? 'vs' : '·'
-        this.seatsEl.append(vs)
-      }
     }
     if (game.options.length) this.seatsEl.append(this.#options())
     const watchers = this.watchers()

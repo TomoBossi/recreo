@@ -592,6 +592,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .draw-word { font-weight: 900; font-size: 22px; letter-spacing: 2px; line-height: 1; white-space: pre-wrap; }
 .draw-clock { font-weight: 900; font-size: 17px; line-height: 1.15; padding: 2px 11px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--on-accent); }
 .draw-clock:empty { display: none; }
+.draw-clock.hurry { background: var(--berry); color: #fff; animation: draw-hurry 1s ease-in-out infinite; }
+@keyframes draw-hurry { 50% { transform: scale(1.08); } }
 .draw-main { flex: 1; min-height: 0; display: flex; gap: 10px; }
 .draw-paper { position: relative; flex: 1; min-width: 0; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
 .draw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
@@ -616,6 +618,22 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .draw-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 50%; cursor: pointer; padding: 0; flex: none; }
 .swatch.on { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
+.draw-tools .tool-group { display: inline-flex; align-items: center; gap: 6px; }
+.draw-tools .widths { padding: 0 6px; border-left: 2px solid var(--panel-2); border-right: 2px solid var(--panel-2); }
+.draw-tools .width { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; }
+.draw-tools .width i { display: block; border-radius: 50%; border: 1.5px solid var(--ink); }
+.draw-tools .width.on { border-color: var(--text); background: var(--panel-2); }
+.draw-tools .btn[data-clear] { margin-left: auto; }
+/* The reveal: the word, big, over the drawing, and the round's points. */
+.draw-overlay .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; animation: outcome-pop 300ms cubic-bezier(.3, 1.4, .6, 1) both; }
+.draw-overlay .reveal p { font-size: 15px; font-weight: 800; color: var(--text-soft); }
+.draw-overlay .reveal strong { font-size: 40px; line-height: 1.05; font-weight: 900; letter-spacing: 1px; }
+.draw-overlay .reveal ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.draw-overlay .reveal li { display: flex; align-items: center; gap: 7px; min-width: 180px; }
+.draw-overlay .reveal li b { margin-left: auto; }
+.draw-overlay .reveal li i { color: var(--text-soft); font-weight: 700; }
+.draw-overlay .reveal .dot { width: 11px; height: 11px; border-radius: 4px; border: 1.5px solid var(--ink); flex: none; }
+@keyframes outcome-pop { from { transform: scale(0.7); opacity: 0; } }
 .swatch.eraser { background: repeating-linear-gradient(45deg, #fff 0 4px, #ddd 4px 8px); border-radius: 6px; }
 
 /* Minigolf */
@@ -748,8 +766,16 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   .popover { position: fixed; left: 8px; right: 8px; top: var(--pop-top, 96px); max-width: none; width: auto; max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
   .settings { width: auto; }
   .shelf { justify-content: center; }
-  .draw-main { flex-direction: column; }
-  .draw-side { width: auto; flex: 0 0 170px; }
+  /* Pictionary in a phone's column: the paper full width at its own shape,
+     then the scores in one row, a few lines of guesses and the guess box. */
+  .draw { gap: 6px; padding: 8px; }
+  .draw-main { flex-direction: column; gap: 6px; }
+  .draw-paper { flex: none; aspect-ratio: 10 / 7; }
+  .draw-side { width: auto; flex: 1; min-height: 0; gap: 6px; }
+  .draw-scores { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .draw-scores .score { flex: 1 1 30%; min-width: 0; }
+  .draw-log { min-height: 0; flex: 1; }
+  .draw-tools { gap: 6px; }
 }
 
 /* Touch: bigger targets, and dragging never scrolls the page. */
@@ -852,6 +878,6 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 
 /* Asked for less motion: none of the flourishes. */
 @media (prefers-reduced-motion: reduce) {
-  .c4 .disc.winning, .golf .spin, .ttt .mark.fresh path, .ttt .win-line, .c4 .disc.falling, .outcome { animation: none; }
+  .c4 .disc.winning, .golf .spin, .ttt .mark.fresh path, .ttt .win-line, .c4 .disc.falling, .outcome, .draw-clock.hurry, .draw-overlay .reveal { animation: none; }
   .ttt .mark.fresh path, .ttt .win-line { stroke-dasharray: none; stroke-dashoffset: 0; } /* drawn at once */
 }

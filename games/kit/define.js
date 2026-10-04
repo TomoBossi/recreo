@@ -56,6 +56,12 @@
  * otherwise with optionsOpen(state) — a game that plays round after round
  * can open them between rounds, and must then read them in decide.
  *
+ * On a phone the windows stack in one scrolling column, each as tall as it
+ * asks to be. A game whose stage is not a roughly square board says how tall
+ * it wants to be for a given width:
+ *
+ *   phoneHeight: (width) => width * 0.7 + 300   // css px for the stage
+ *
  * Mistakes are caught here, when the game loads, with a message naming the
  * game and what is missing — not later, mid-match, as a desync.
  */
@@ -102,6 +108,7 @@ export function defineGame(spec) {
     return { id, label: String(o.label ?? id), choices, default: fallback }
   })
   if (rules.optionsOpen && typeof rules.optionsOpen !== 'function') fail('optionsOpen must be a function of the state')
+  if (spec.phoneHeight != null && typeof spec.phoneHeight !== 'function') fail('phoneHeight must be a function of the width')
 
   const view = typeof spec.view === 'function' ? { mount: spec.view } : spec.view
   if (typeof view?.mount !== 'function') fail('needs a view: a function (el, ctx) returning { update, destroy }')
@@ -133,6 +140,9 @@ export function defineGame(spec) {
     authority: rules.authority ?? ((state, here) => (here.length ? Math.min(...here) : null)),
     options,
     optionsOpen: rules.optionsOpen ?? null,
+    // The stage's height in a phone's column, for a given width: by default
+    // a little less than square, which suits a board.
+    phoneHeight: spec.phoneHeight ?? ((width) => width * 0.95),
     view,
   }
 }

@@ -462,6 +462,8 @@ async function enterRoom(code, nick) {
       closable: true,
       closeLabel: 'end this game',
       onClose: () => views.get(table.id)?.view.askClose(),
+      // The window's title, seats and status bars plus what the game asks for.
+      phoneHeight: (width) => 110 + game.phoneHeight(width - 24),
     })
     const view = new TableView(body, { tables, table, players, me })
     views.set(table.id, { win, view })
