@@ -313,7 +313,7 @@ For what happens in the game itself, `kit/sound.js`:
 
 ```js
 import { sound, countdown } from '../kit/sound.js'
-sound.play('tick')                 // press release select on off tick tock last
+sound.play('tick')                 // press release select on off message tick tock last
 const ticks = countdown()          // a clock's last five seconds: tick, tock… and a brighter last
 ticks.update(msLeft)               // whenever the clock is redrawn; it sounds each second once
 ```

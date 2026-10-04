@@ -103,6 +103,11 @@ const SOUNDS = {
   // Something switched on, or off: a slide up, or down.
   on: (t) => { tone(t, { freq: 560, to: 1050, type: 'triangle', gain: 0.14, length: 0.08 }) },
   off: (t) => { tone(t, { freq: 1000, to: 520, type: 'triangle', gain: 0.12, length: 0.08 }) },
+  // Someone else said something in the chat: a soft pop, and a note above it.
+  message: (t) => {
+    tone(t, { freq: 520, to: 880, gain: 0.13, length: 0.07, attack: 0.004 })
+    tone(t + 0.075, { freq: 1320, type: 'triangle', gain: 0.07, length: 0.09, attack: 0.004 })
+  },
   // A clock's last seconds: a wooden tick and tock, and the last one brighter.
   tick: (t) => {
     burst(t, { freq: 3200, q: 3, gain: 0.12, length: 0.018 })

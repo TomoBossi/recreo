@@ -1,4 +1,6 @@
 
+import { sound } from '../games/kit/sound.js'
+
 /**
  * The room's chat, as a narrow window.
  *
@@ -42,6 +44,8 @@ export class Chat {
     who.style.color = this.players.colourOf(player)
     line.append(who, document.createTextNode(text))
     this.#append(line)
+    // Someone else's message makes a sound; your own and the room's notices do not.
+    if (!self) sound.play('message')
   }
 
   system(text) {
