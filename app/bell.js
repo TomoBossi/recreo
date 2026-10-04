@@ -1,7 +1,7 @@
 /**
  * recreo's mark: a recess bell, drawn from shapes like everything else —
- * a red dome with its bolt, the box it hangs on, and the striker's arm
- * curling up to a knob. It sits beside the wordmark, and is the page's icon.
+ * a red dome with its bolt, the box it hangs on, and the striker's blue
+ * arm curling up to a knob. It sits beside the wordmark, and is the page's icon.
  */
 
 const INK = '#241c3a'
@@ -13,7 +13,9 @@ const INK = '#241c3a'
  */
 function bell({ shadow = true, line = 3.5, detail = true, knob = 5, reach = 1 } = {}) {
   const arm = 'M43 49 C 55 49, 57 38, 56.5 25'
-  const armWidth = (line + 1) * reach
+  // The arm is a coloured bar with the outline round it, like every shape.
+  const armInner = line * 1.1 * reach
+  const armWidth = armInner + line * 1.4
   const shapes = (fill, stroke) => `
     <path d="${arm}" fill="none" stroke="${stroke ?? fill}" stroke-width="${armWidth}" stroke-linecap="round"/>
     <circle cx="56.5" cy="22" r="${knob}" fill="${fill}"/>
@@ -22,6 +24,7 @@ function bell({ shadow = true, line = 3.5, detail = true, knob = 5, reach = 1 } 
   return `
     ${shadow ? `<g class="bell-drop" transform="translate(3 3)">${shapes('var(--drop, #241c3a)')}</g>` : ''}
     <path d="${arm}" fill="none" stroke="${INK}" stroke-width="${armWidth}" stroke-linecap="round"/>
+    <path d="${arm}" fill="none" stroke="#3ec6ff" stroke-width="${armInner}" stroke-linecap="round"/>
     <circle cx="56.5" cy="22" r="${knob}" fill="#ffd23f" stroke="${INK}" stroke-width="${line}"/>
     <rect x="13" y="38" width="31" height="19" rx="5" fill="#9a7bf2" stroke="${INK}" stroke-width="${line}"/>
     ${detail ? `<path class="vents" d="M21 46.5 V51.5 M28.5 46.5 V51.5 M36 46.5 V51.5" stroke="${INK}" stroke-width="${line * 0.85}" stroke-linecap="round"/>` : ''}
