@@ -21,7 +21,7 @@ games/
   tictactoe/        the smallest complete game: copy this one to start
   connect4/         turns, two seats, tap-to-preview on touchscreens
   chess/            turns, two seats, a board turned for black, clocks beside it
-  minigolf/         turns, one to four seats, integer physics, a board that stands on end
+  minigolf/         turns, one to four seats, integer physics, a board that stands on end (shelved)
   pictionary/       authority, two to four seats, word lists, an option, live drawing
   index.js          the list of games: one import line each
 ```
@@ -30,7 +30,8 @@ games/
 
 1. Copy `tictactoe/` to a new folder named after the game's id.
 2. Change the id, name, rules, view, styles and icon.
-3. Add one import line to `games/index.js`.
+3. Add one import line to `games/index.js`. (A game listed in `shelved` there
+   is kept but not offered on the shelf.)
 4. `sh tools/test.sh` checks every registered game against the interface
    (or open `/test/` in a browser).
 5. Play it against yourself in two browsers (see [Trying it](#trying-it)).

@@ -21,7 +21,7 @@ import { clampColour, colourFor, colourButton, PRESETS } from '../games/kit/colo
 import { ownCursor } from './pointer.js'
 import { CAPACITY } from './limits.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
-import { games, upcoming } from '../games/index.js'
+import { games, upcoming, shelved } from '../games/index.js'
 
 const $ = (sel) => document.querySelector(sel)
 
@@ -667,7 +667,7 @@ async function joinRoom(code, nick) {
 
   const toggleShelf = popover($('#new-table'), $('#shelf-pop'))
   $('#shelf-pop').append(shelf({
-    games,
+    games: Object.fromEntries(Object.entries(games).filter(([id]) => !shelved.has(id))),
     upcoming,
     onPick: (gameId) => {
       toggleShelf(false)
