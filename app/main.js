@@ -19,7 +19,7 @@ import { settingsPanel, GEAR } from './settings.js'
 import { BELL, setPageIcon } from './bell.js'
 import { clampColour, colourFor, colourButton, PRESETS } from '../games/kit/colours.js'
 import { ownCursor } from './pointer.js'
-import { CAPACITY } from './limits.js'
+import { CAPACITY, TABLES } from './limits.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming, shelved } from '../games/index.js'
 
@@ -559,6 +559,8 @@ async function joinRoom(code, nick) {
     const extra = label(table)
     entry.win.setTitle(extra ? `${gameName(table)} (${extra})` : gameName(table))
     entry.win.setMeta(entry.view.summary({ withPlayers: !extra }))
+    // A title that names its players says it all: the line after it goes.
+    entry.win.el.classList.toggle('named', !!extra)
     entry.win.setClosable(tables.seatOf(table, me.player) != null)
   }
   /** Every game window: one table's change can change another's title. */
@@ -672,6 +674,7 @@ async function joinRoom(code, nick) {
     onPick: (gameId) => {
       toggleShelf(false)
       const table = tables.open(gameId)
+      if (!table) { toast(`${TABLES} games at once is the most — end one to start another`); return }
       tables.sit(table.id, 0)
     },
   }))

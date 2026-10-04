@@ -154,6 +154,7 @@ export class TableView {
         const state = this.players.stateOf(claim.player)
         const note = out.has(seat) ? ' (forfeited)' : state === 'here' ? '' : state === 'reconnecting' ? ' (reconnecting)' : ' (away)'
         chip.querySelector('.who').textContent = names[seat] + note
+        chip.title = names[seat] + note // all of it, where the chip has room for only some
         chip.classList.toggle('turn', turn === seat)
         chip.classList.toggle('away', state !== 'here')
         chip.classList.toggle('out', out.has(seat))

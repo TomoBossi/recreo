@@ -1,3 +1,4 @@
+import { TABLES } from './limits.js'
 import { Emitter } from 'plaza'
 
 /**
@@ -98,9 +99,11 @@ export class Tables extends Emitter {
 
   // ---------------------------------------------------------------- actions
 
+  /** Open a new table, or null when the room already has as many as it holds. */
   open(gameId) {
     const game = this.games[gameId]
     if (!game) throw new Error(`no game called ${gameId}`)
+    if (this.openCount() >= TABLES) return null
     const table = {
       id: `${this.me.player.slice(0, 6)}-${Date.now().toString(36)}`,
       game: gameId,
@@ -118,6 +121,9 @@ export class Tables extends Emitter {
     this.emit('opened', this.tables.get(table.id), this.me.player)
     return this.tables.get(table.id)
   }
+
+  /** Tables open now, closed ones left out. */
+  openCount() { return [...this.tables.values()].filter((t) => !t.closed).length }
 
   sit(tableId, seat) { this.#claim(tableId, seat, this.me.player) }
 

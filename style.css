@@ -287,8 +287,15 @@ button, input, select { font: inherit; color: inherit; }
   flex: none;
 }
 .win.collapsed .win-title { border-bottom: none; height: 29px; }
-.win-title .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-title .meta { font-weight: 700; font-size: 12px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* What gives way when a title bar is short: first the line after the title
+   (who plays, who watches), shortened to "…"; never the title, unless the
+   title names the players itself (several games of one kind) — then the
+   line goes and the title shortens instead. */
+.win-title .title { flex: none; white-space: nowrap; }
+.win-title .meta { flex: 1 1 0; min-width: 0; margin-left: 8px; text-align: right; font-weight: 700; font-size: 12px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win.named .win-title .title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.win.named .win-title .meta { display: none; }
+.win.named .win-title .tools { margin-left: auto; }
 .win-title .tools { display: inline-flex; gap: 5px; }
 .win.tone-berry .win-title { background: var(--berry); color: var(--on-strong); }
 .win.tone-leaf .win-title { background: var(--leaf); }
@@ -448,15 +455,12 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------- games */
 
-.table { position: relative; display: flex; flex-direction: column; height: 100%; container: table / size; }
-/* A game shrunk small — a table waiting in the stack — is the game and its
-   status line: the seats and options come back when it is brought forward.
-   (Not on a phone on its side, which keeps them beside the status.) */
-@media (min-height: 521px) {
-  @container table (max-height: 340px) {
-    .table > .seats { display: none; }
-  }
-}
+.table { position: relative; display: flex; flex-direction: column; height: 100%; }
+/* A game in the stack beside the one being played is shown small: the game
+   and its status line. Its seats and options come back when it is brought
+   forward. */
+.win.side .table > .seats { display: none; }
+.win.side .table > .status { grid-column: 1 / -1; }
 .seats {
   display: flex;
   align-items: center;
@@ -488,6 +492,10 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   line-height: 1;
 }
 .seat:has(.btn) { padding-right: var(--inset); }
+/* A long name stays on one line and ends in "…" where a row is short. */
+.seat { min-width: 0; max-width: 100%; }
+.seat .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat .btn { flex: none; }
 .seat.turn { background: var(--sun); color: var(--on-accent); box-shadow: var(--lift-small); }
 .seat.empty { border-style: dashed; background: transparent; color: var(--text-soft); cursor: pointer; }
 .seat.empty:hover { background: var(--field); color: var(--text); }
@@ -749,6 +757,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 @media (max-height: 520px) {
   .table { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); }
   .table > .seats { grid-column: 1; grid-row: 1; flex-wrap: nowrap; overflow: hidden; }
+  .table > .seats .seat { flex: 0 1 auto; min-width: 5.6em; } /* shrinks to "Bart…", no further */
   .table > .status { grid-column: 2; grid-row: 1; border-top: none; border-bottom: var(--line) solid var(--ink); background: var(--panel-2); padding: 0 12px; max-width: 46vw; }
   .table > .status .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .table > .stage { grid-column: 1 / -1; grid-row: 2; }

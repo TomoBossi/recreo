@@ -5,3 +5,9 @@
  * Games may seat anywhere from one player up to this.
  */
 export const CAPACITY = 4
+
+/**
+ * How many games a room has open at once. Everyone can be at a game of their
+ * own with one more to spare; more than that is only clutter.
+ */
+export const TABLES = 5

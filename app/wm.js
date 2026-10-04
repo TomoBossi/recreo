@@ -12,6 +12,12 @@ import { store } from './store.js'
  *
  * On a narrow screen there is no room for two columns, so the windows become
  * one scrolling column and floating is not offered.
+ *
+ * At most two games are open at once — the one being played, and one more
+ * shrunk small beside it — and the rest wait collapsed to their title bars,
+ * so a room with five games stays as tidy as one with two. Bringing a game
+ * forward, or opening one up, collapses whichever was looked at longest ago.
+ * Floating, windows go where they are put, and nothing is collapsed for them.
  */
 
 const GAP = 14
@@ -21,6 +27,7 @@ const NARROW = 760
 const MIN_W = 220
 const MIN_H = 120
 const CORNER = 16     // how close to a corner a pointer must be to resize
+const OPEN_GAMES = 2  // games open at once when tiled; the rest wait collapsed
 
 export class WindowManager {
   /** @param {HTMLElement} desk */
@@ -30,6 +37,7 @@ export class WindowManager {
     this.mode = store.get('wm:mode', 'tiled')
     this.mfact = store.get('wm:mfact', 0.68)
     this.master = null
+    this.recent = []    // game windows, the one brought forward last first
     this.floatRects = new Map(Object.entries(store.get('wm:float', {})))
     this.z = 1
     this.onChange = () => {}
@@ -79,6 +87,9 @@ export class WindowManager {
       collapse: (on = !win.collapsed) => {
         win.collapsed = on
         store.set(`wm:collapsed:${id}`, on)
+        // A game opened up from its title bar joins the one being played,
+        // and the game looked at longest ago steps back.
+        if (!on && kind === 'table') this.#bring(win, this.master && this.master !== win ? 1 : 0)
         this.layout()
       },
       close: () => this.remove(win),
@@ -98,6 +109,8 @@ export class WindowManager {
     this.#resizeWindow(win)
 
     this.windows.push(win)
+    // A game arriving last in line: open if there is room, else waiting.
+    if (kind === 'table') { this.recent.push(win); this.#settle({ refill: false }) }
     this.desk.append(el)
     this.layout()
     return win
@@ -105,8 +118,11 @@ export class WindowManager {
 
   remove(win) {
     this.windows = this.windows.filter((w) => w !== win)
+    this.recent = this.recent.filter((w) => w !== win)
     win.el.remove()
     if (this.master === win) this.master = null
+    // A game gone leaves room: of those waiting, the one seen last comes back.
+    this.#settle({ refill: true })
     this.layout()
   }
 
@@ -117,11 +133,46 @@ export class WindowManager {
    * is raised when floating.
    */
   focus(win, { expand = false } = {}) {
-    if (expand && win.collapsed) win.collapse(false)
     win.el.style.zIndex = String(++this.z)
-    if (win.kind === 'table' && this.master !== win) {
-      this.master = win
-      this.layout()
+    if (win.kind !== 'table') return
+    if (expand && win.collapsed) {
+      win.collapsed = false
+      store.set(`wm:collapsed:${win.id}`, false)
+    }
+    const changed = this.master !== win || this.recent[0] !== win
+    this.master = win
+    this.#bring(win, 0)
+    if (changed || expand) this.layout()
+  }
+
+  /** Put a game at a place in the line of those seen last, and keep the line tidy. */
+  #bring(win, at) {
+    this.recent = this.recent.filter((w) => w !== win)
+    this.recent.splice(at, 0, win)
+    this.#settle({ refill: false })
+  }
+
+  /**
+   * At most two games open, the ones seen last; any others collapse. With
+   * `refill`, a free place is taken by the game waiting that was seen last.
+   * Floating, nothing is decided for the windows.
+   */
+  #settle({ refill }) {
+    if (this.mode === 'floating' && !this.narrow) return
+    let open = 0
+    for (const win of this.recent) {
+      if (!win.collapsed) open++
+      if (win.collapsed || open <= OPEN_GAMES) continue
+      win.collapsed = true
+      store.set(`wm:collapsed:${win.id}`, true)
+    }
+    if (!refill) return
+    for (const win of this.recent) {
+      if (open >= OPEN_GAMES) break
+      if (!win.collapsed) continue
+      win.collapsed = false
+      store.set(`wm:collapsed:${win.id}`, false)
+      open++
     }
   }
 
@@ -136,6 +187,7 @@ export class WindowManager {
     }
     this.mode = mode
     store.set('wm:mode', mode)
+    this.#settle({ refill: false })
     this.layout()
     this.onChange()
   }
@@ -171,6 +223,7 @@ export class WindowManager {
     // fitting inside one — and has no height to wait for.
     if (this.narrow) {
       this.desk.classList.remove('floating')
+      for (const w of this.windows) w.el.classList.remove('side')
       return this.#scroll(this.#sorted(this.windows), W)
     }
     if (this.desk.style.height) this.desk.style.height = ''
@@ -178,15 +231,20 @@ export class WindowManager {
     if (!H) return
     const floating = this.mode === 'floating'
     this.desk.classList.toggle('floating', floating)
-    if (floating) return this.#layoutFloating(W, H)
+    if (floating) {
+      for (const w of this.windows) w.el.classList.remove('side')
+      return this.#layoutFloating(W, H)
+    }
 
     // A game is the master whenever there is one: the game is the stage.
     const tables = this.windows.filter((w) => w.kind === 'table')
     const kept = this.master && this.windows.includes(this.master)
       && (this.master.kind === 'table' || tables.length === 0)
-    let master = kept ? this.master : tables[0]
+    let master = kept ? this.master : this.recent.find((w) => !w.collapsed) ?? this.recent[0] ?? tables[0]
     if (!master) master = this.#sorted(this.windows)[0]
     this.master = master
+    // Games in the stack beside the master are shown small: just the game.
+    for (const t of tables) t.el.classList.toggle('side', t !== master)
     const rest = this.#sorted(this.windows.filter((w) => w !== master))
 
     if (!master) return
@@ -219,13 +277,25 @@ export class WindowManager {
     const share = Math.max(0, h - fixed)
     const weights = open.reduce((sum, win) => sum + win.weight, 0) || 1
     let top = y
-    list.forEach((win, i) => {
+    const bottoms = [] // where each window ends, for the dividers
+    list.forEach((win) => {
       const height = win.collapsed ? this.#title() : Math.round(share * win.weight / weights)
       this.#place(win, x, top, w, height)
-      const next = list[i + 1]
-      if (next && !win.collapsed && !next.collapsed) this.#hgutter(win, next, x, top + height, w)
+      bottoms.push(top + height)
       top += height + GAP
     })
+    // A divider between every two open windows, collapsed ones between them
+    // or not, each trading height between those two alone. It sits where one
+    // kind of window meets another: just under a panel above, just over a
+    // panel below — under the peers and over the chat, the games between.
+    for (let i = 0; i < open.length - 1; i++) {
+      const above = open[i]
+      const below = open[i + 1]
+      const a = list.indexOf(above)
+      const b = list.indexOf(below)
+      const at = above.kind !== 'table' ? a : b - 1
+      this.#hgutter(above, below, x, bottoms[at], w)
+    }
     return open.length ? y + h : top - GAP
   }
 
@@ -243,8 +313,11 @@ export class WindowManager {
       const b = below.el.getBoundingClientRect()
       const span = a.height + b.height
       const total = above.weight + below.weight
+      const from = e.clientY
+      // Followed by how far the pointer moved, so windows collapsed between
+      // the two make no difference.
       const move = (ev) => {
-        const ha = Math.min(span - MIN_H, Math.max(MIN_H, ev.clientY - a.top))
+        const ha = Math.min(span - MIN_H, Math.max(MIN_H, a.height + ev.clientY - from))
         above.weight = total * ha / span
         below.weight = total - above.weight
         this.layout()
