@@ -21,7 +21,7 @@ import spanish from './words/es.js'
 const CHOOSE_MS = 15000
 const DRAW_MS = 80000
 const REVEAL_MS = 5000
-const CYCLES = 1
+const ROUNDS = ['1', '2', '3', '5'] // each player draws once a round
 const GUESS_POINTS = [10, 8, 6, 4]
 const DRAWER_POINTS = 3
 const WIDTHS = [5, 10, 22]
@@ -104,9 +104,12 @@ function startTurn(s, at) {
 
 // ------------------------------------------------------------------ rules
 
+/** How many rounds a game plays: a choice from ROUNDS, else three. */
+const roundsOf = (value) => (ROUNDS.includes(String(value)) ? Number(value) : 3)
+
 function init({ seed, options }) {
   return {
-    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', order: [], out: [], turn: 0, drawer: null,
+    phase: 'waiting', rng: seed >>> 0, language: options?.words ?? 'en', rounds: roundsOf(options?.rounds), order: [], out: [], turn: 0, drawer: null,
     word: null, choices: [], levels: null, strokes: [], hints: [], guessed: {}, scores: {}, log: [], phaseAt: 0,
   }
 }
@@ -127,7 +130,7 @@ const rules = {
   decide(s, intent, seat, { now, seated, options }) {
     switch (intent?.type) {
       case 'start':
-        if ((s.phase === 'waiting' || s.phase === 'over') && seated.length >= 2) return [{ type: 'start', order: seated, language: options?.words, at: now }]
+        if ((s.phase === 'waiting' || s.phase === 'over') && seated.length >= 2) return [{ type: 'start', order: seated, language: options?.words, rounds: options?.rounds, at: now }]
         return []
       case 'choose':
         if (s.phase === 'choosing' && seat === s.drawer && s.choices.includes(intent.word)) return [{ type: 'choose', word: intent.word, at: now }]
@@ -166,7 +169,7 @@ const rules = {
   apply(s, move) {
     switch (move.type) {
       case 'start': {
-        const fresh = init({ seed: s.rng, options: { words: POOLS[move.language] ? move.language : s.language } })
+        const fresh = init({ seed: s.rng, options: { words: POOLS[move.language] ? move.language : s.language, rounds: move.rounds ?? s.rounds } })
         return startTurn({ ...fresh, order: move.order, scores: Object.fromEntries(move.order.map((x) => [x, 0])) }, move.at)
       }
       case 'choose':
@@ -208,12 +211,16 @@ const rules = {
         return { ...s, phase: 'reveal', phaseAt: move.at, log: [...s.log, { kind: 'system', text: `${move.why} — the word was "${s.word ?? '…'}"` }] }
       case 'next': {
         // The pencil skips whoever has forfeited.
+        const turns = s.order.length * (s.rounds ?? 1)
         let turn = s.turn + 1
-        while (turn < s.order.length * CYCLES && s.out.includes(s.order[turn % s.order.length])) turn++
-        if (turn >= s.order.length * CYCLES) {
+        while (turn < turns && s.out.includes(s.order[turn % s.order.length])) turn++
+        if (turn >= turns) {
           return { ...s, phase: 'over', turn, drawer: null, phaseAt: move.at, log: [...s.log, { kind: 'system', text: 'game over' }] }
         }
-        return startTurn({ ...s, turn }, move.at)
+        // A new round, said so — the pencil has been round everyone once more.
+        const round = Math.floor(turn / s.order.length)
+        const said = round > Math.floor(s.turn / s.order.length) ? [{ kind: 'system', text: `round ${round + 1} of ${s.rounds}` }] : []
+        return startTurn({ ...s, turn, log: [...s.log, ...said] }, move.at)
       }
       default:
         return s
@@ -247,12 +254,24 @@ const rules = {
     return { winners: left.filter((seat) => (s.scores[seat] ?? 0) === best), reason: `${best} points` }
   },
 
-  status(s, names) {
-    const name = (seat) => names[seat] ?? `player ${seat + 1}`
+  /** Said to whoever reads it: the drawer is told they draw, guessers to guess. */
+  status(s, names, { seat = null } = {}) {
+    const name = (n) => names[n] ?? `player ${n + 1}`
+    const playing = seat != null && s.order.includes(seat) && !s.out.includes(seat)
     switch (s.phase) {
       case 'waiting': return 'press start when everyone is seated'
-      case 'choosing': return `${name(s.drawer)} is choosing a word…`
-      case 'drawing': return `${name(s.drawer)} is drawing`
+      case 'choosing': return seat === s.drawer ? 'pick a word to draw' : `${name(s.drawer)} is choosing a word…`
+      case 'drawing':
+        if (seat === s.drawer) {
+          // Named, and only those still at it: the line shortens as they get it.
+          const guessing = s.order.filter((n) => n !== s.drawer && !s.out.includes(n) && s.guessed[n] == null).map(name)
+          if (!guessing.length) return 'you\'re drawing'
+          const list = guessing.length === 1 ? guessing[0] : `${guessing.slice(0, -1).join(', ')} and ${guessing.at(-1)}`
+          return `you're drawing — ${list} ${guessing.length === 1 ? 'is' : 'are'} guessing`
+        }
+        if (playing && s.guessed[seat] != null) return 'you got it! — waiting for the others'
+        if (playing) return `guess what ${name(s.drawer)} is drawing`
+        return `${name(s.drawer)} is drawing`
       case 'reveal': return `the word was “${s.word ?? '…'}”`
       case 'over': {
         const result = rules.outcome(s, names)
@@ -271,17 +290,16 @@ function view(el, ctx) {
   el.classList.add('draw-stage')
   el.innerHTML = `
     <div class="draw">
-      <div class="draw-top">
-        <span class="draw-word" data-cursor-anchor="word"></span>
-        <span class="draw-clock"></span>
-      </div>
       <div class="draw-main">
         <div class="draw-paper">
+          <span class="draw-word" data-cursor-anchor="word"></span>
+          <span class="draw-clock"></span>
           <svg class="draw-canvas" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
             <rect width="1000" height="700" fill="${PAPER}"/>
             <g class="strokes"></g><g class="live"></g>
             <circle class="brush" r="4" fill="none" stroke="${INK}" stroke-width="2" visibility="hidden"/>
           </svg>
+          <div class="draw-tools"></div>
           <div class="draw-overlay game-panel"></div>
         </div>
         <div class="draw-side">
@@ -290,7 +308,6 @@ function view(el, ctx) {
           <form class="draw-guess"><input class="input" maxlength="60" placeholder="your guess" aria-label="guess"><button class="btn small sun">guess</button></form>
         </div>
       </div>
-      <div class="draw-tools"></div>
     </div>`
   const $ = (sel) => el.querySelector(sel)
   const svg = $('.draw-canvas')
@@ -312,17 +329,16 @@ function view(el, ctx) {
   const name = (seat) => info.names?.[seat] ?? `player ${seat + 1}`
   const iDraw = () => state?.phase === 'drawing' && info.mySeat === state.drawer
 
-  // Tools: colours and an eraser, three brush sizes shown as their own
-  // dots, and clear. What is chosen is always marked, from the start.
+  // Tools: colours and an eraser, three brush sizes, and clear beside them.
+  // What is chosen is always marked, from the start.
+  const SIZES = ['thin', 'medium', 'thick']
   tools.innerHTML = '<span class="tool-group colours">' + COLOURS.map((c) => `<button class="swatch" data-colour="${c}" style="background:${c}" aria-label="colour"></button>`).join('')
     + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button></span>'
-    + '<span class="tool-group widths">' + WIDTHS.map((w) => `<button class="width" data-width="${w}" aria-label="brush ${w}"><i style="width:${Math.max(4, w * 0.9)}px;height:${Math.max(4, w * 0.9)}px"></i></button>`).join('') + '</span>'
+    + '<span class="segmented widths">' + WIDTHS.map((w, i) => `<button class="btn small" data-width="${w}">${SIZES[i]}</button>`).join('') + '</span>'
     + '<button class="btn small berry" data-clear>clear</button>'
   const markTools = () => {
     for (const t of tools.querySelectorAll('.swatch')) t.classList.toggle('on', (t.dataset.colour === 'eraser' ? PAPER : t.dataset.colour) === colour)
-    for (const t of tools.querySelectorAll('[data-width]')) t.classList.toggle('on', Number(t.dataset.width) === width)
-    // The size dots wear the current colour.
-    for (const i of tools.querySelectorAll('.width i')) i.style.background = colour === PAPER ? '#cfc8b8' : colour
+    for (const t of tools.querySelectorAll('[data-width]')) t.setAttribute('aria-pressed', String(Number(t.dataset.width) === width))
   }
   tools.addEventListener('click', (e) => {
     const b = e.target.closest('button')
@@ -438,7 +454,7 @@ function view(el, ctx) {
     const word = $('.draw-word')
     const know = info.mySeat === s.drawer || (info.mySeat != null && s.guessed[info.mySeat] != null) || s.phase === 'reveal'
     if (s.phase === 'drawing' || s.phase === 'reveal') {
-      word.textContent = know ? s.word : `${masked(s.word, s.hints)}  (${letterAt(s.word).length})`
+      word.textContent = know ? s.word : masked(s.word, s.hints) // the blanks, and no count: let them count
     } else {
       word.textContent = ''
     }
@@ -499,6 +515,8 @@ function view(el, ctx) {
     const canGuess = s.phase === 'drawing' && info.mySeat != null && info.mySeat !== s.drawer && s.guessed[info.mySeat] == null
     guessInput.disabled = !canGuess
     guessForm.querySelector('button').disabled = !canGuess
+    // The drawer cannot guess: the box says so, at full width.
+    guessForm.querySelector('button').hidden = info.mySeat === s.drawer && s.phase === 'drawing'
     guessInput.placeholder = info.mySeat === s.drawer && s.phase === 'drawing' ? 'you are drawing'
       : canGuess ? 'your guess'
         : s.phase === 'drawing' && info.mySeat != null && s.guessed[info.mySeat] != null ? 'you got it!' : 'not now'
@@ -533,9 +551,10 @@ export default defineGame({
   pieces: 'players',
   // On a phone: the word bar, the paper at its own shape, the scores in a
   // row, a few lines of guesses, the guess box and the drawing tools.
-  phoneHeight: (width) => width * 0.7 + 330,
+  phoneHeight: (width) => width * 0.7 + 292,
   options: {
     words: { label: 'words', choices: { en: 'English', es: 'Español' }, default: 'en' },
+    rounds: { label: 'rounds', choices: Object.fromEntries(ROUNDS.map((n) => [n, n])), default: '3' },
   },
   rules,
   view,

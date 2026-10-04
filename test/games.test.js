@@ -64,7 +64,7 @@ function act(s, intent, seat, ctx) {
 }
 
 test('a round of pictionary, start to finish', () => {
-  const ctx = { now: 1000, seated: [0, 1, 2], here: [0, 1, 2] }
+  const ctx = { now: 1000, seated: [0, 1, 2], here: [0, 1, 2], options: { rounds: '1' } }
   let s = pictionary.init({ seed: 42 })
   assert.equal(pictionary.authority(s, [1, 2]), 1, 'before a drawer, the first seat here runs it')
   s = act(s, { type: 'start' }, 2, ctx)
@@ -107,6 +107,22 @@ test('a round of pictionary, start to finish', () => {
   s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0])
   assert.equal(s.phase, 'over')
   assert.match(pictionary.status(s, { 0: 'ana', 1: 'tomo', 2: 'lu' }), /wins — \d+ points/)
+})
+
+test('pictionary plays the rounds chosen: everyone draws once a round, and each new round is said', () => {
+  const ctx = { now: 0, seated: [0, 1, 2], here: [0, 1, 2], options: { rounds: '2' } }
+  let s = act(pictionary.init({ seed: 3, options: { rounds: '2' } }), { type: 'start' }, 0, ctx)
+  const drawers = []
+  while (s.phase !== 'over') {
+    drawers.push(s.drawer)
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 16000, here: [0, 1, 2] })[0]) // auto-pick
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 81000, here: [0, 1, 2] })[0]) // time up
+    s = pictionary.apply(s, pictionary.tick(s, { now: s.phaseAt + 6000, here: [0, 1, 2] })[0]) // next
+    if (drawers.length > 10) break
+  }
+  assert.deepEqual(drawers, [0, 1, 2, 0, 1, 2])
+  assert.ok(s.log.some((l) => l.text === 'round 2 of 2'))
+  assert.equal(pictionary.init({ seed: 1 }).rounds, 3, 'three rounds unless chosen otherwise')
 })
 
 test('when the drawer leaves, the next player takes over and ends the round', () => {

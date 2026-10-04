@@ -225,6 +225,9 @@ button, input, select { font: inherit; color: inherit; }
   flex: none;
 }
 #topbar .brand { font-size: 30px; margin-right: 6px; }
+/* The room's name, said; inviting is the button beside it. */
+#topbar #room-chip { cursor: default; }
+#invite .link { display: none; width: 17px; height: 17px; }
 #topbar .wordmark { font-size: 30px; line-height: 1; }
 #topbar .spacer { flex: 1; }
 /* One height for every button in the bar, icon or text. */
@@ -657,11 +660,13 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 /* The phone header, for any screen that is narrow — or short, like a phone
    on its side, where the full bar would take height the game needs. */
 @media (max-width: 760px), (max-height: 520px) {
-  /* A phone's header: one row — the name, the room, three compact actions.
-     The room name invites (the share sheet), so there is no invite button,
-     and "+ new game" is its plus. */
-  #topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; padding: 10px 12px; }
-  #topbar .spacer, #topbar #invite { display: none; }
+  /* A phone's header: one row — the name, the room, four compact actions.
+     "invite" is its link (the share sheet), and "+ new game" its plus. */
+  #topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 8px; padding: 10px 12px; }
+  #topbar .spacer { display: none; }
+  #invite .label { display: none; }
+  #invite .link { display: block; }
+  #invite { width: 36px; padding: 0; justify-content: center; }
   #topbar #room-chip { min-width: 0; max-width: 100%; justify-self: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #new-table .label { display: none; }
   #new-table { width: 36px; padding: 0; justify-content: center; }
@@ -675,6 +680,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
     text-shadow: 1.5px 0 0 var(--ring), -1.5px 0 0 var(--ring), 0 1.5px 0 var(--ring), 0 -1.5px 0 var(--ring),
       1px 1px 0 var(--ring), -1px 1px 0 var(--ring), 1px -1px 0 var(--ring), -1px -1px 0 var(--ring), 2.5px 2.5px 0 var(--drop); }
   #topbar #room-chip { height: 34px; display: inline-flex; align-items: center; }
+  /* A long room name ends in "…" rather than being cut through a letter. */
+  #topbar #room-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #topbar #room-chip .label { display: none; }
   #topbar #settings .gear { width: 18px; height: 18px; }
 }

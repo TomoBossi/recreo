@@ -1,8 +1,11 @@
 /* Pictionary: loaded with the game (styles in its defineGame). */
 .draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-.draw-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
-.draw-word { font-weight: 900; font-size: 22px; letter-spacing: 2px; line-height: 1; white-space: pre-wrap; }
-.draw-clock { font-weight: 900; font-size: 17px; line-height: 1.15; padding: 2px 11px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--on-accent); }
+/* The word and the clock sit in the paper's top corners, over the drawing. */
+/* Above the panels too (z-index 2): the clock counts down the word choice. */
+.draw-word, .draw-clock { position: absolute; top: 8px; z-index: 3; pointer-events: none; font-weight: 900; border: var(--line) solid var(--ink); border-radius: var(--round-small); box-shadow: var(--lift-small); }
+.draw-word { left: 8px; max-width: calc(100% - 110px); padding: 3px 12px; font-size: 19px; letter-spacing: 2px; line-height: 1.15; white-space: pre; overflow: hidden; text-overflow: ellipsis; background: var(--field); color: var(--text); }
+.draw-word:empty { display: none; }
+.draw-clock { right: 8px; font-size: 17px; line-height: 1.15; padding: 2px 11px; background: var(--sun); color: var(--on-accent); }
 .draw-clock:empty { display: none; }
 .draw-clock.hurry { background: var(--berry); color: #fff; animation: draw-hurry 1s ease-in-out infinite; }
 @keyframes draw-hurry { 50% { transform: scale(1.08); } }
@@ -16,26 +19,32 @@
 .draw-overlay .choices small { font-size: 11px; font-weight: 800; opacity: 0.8; letter-spacing: 0.5px; }
 .draw-side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .draw-scores { display: flex; flex-direction: column; gap: 4px; }
+.draw-scores:empty { display: none; } /* before anyone plays: the log lines up with the paper */
 .score { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); font-weight: 800; font-size: 13px; line-height: 1; }
 .score .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .score .dot { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink); flex: none; }
 .score.drawer { background: var(--sun); color: var(--on-accent); }
 .score.got { background: var(--tint-leaf); }
-.draw-log { flex: 1; min-height: 60px; overflow-y: auto; border: 2px solid var(--ink); border-radius: var(--round-small); background: var(--field); padding: 6px 8px; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 3px; }
+.draw-log { flex: 1; min-height: 60px; overflow-y: auto; border: var(--line) solid var(--ink); border-radius: var(--round-small); background: var(--field); padding: 6px 8px; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 3px; }
 .draw-log .system { color: var(--text-soft); font-style: italic; }
 .draw-log .correct { color: #2e9d3a; font-weight: 800; }
 .draw-log .close { color: var(--tang); }
 .draw-guess { display: flex; gap: 6px; }
 .draw-guess .input { flex: 1; min-width: 0; padding: 5px 9px; }
-.draw-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 50%; cursor: pointer; padding: 0; flex: none; }
-.swatch.on { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--text); }
+.draw-guess .btn[hidden] { display: none; }
+/* The drawer's tools float along the bottom of the paper, like the word and
+   the clock along its top: the whole stage is drawing. */
+.draw-tools {
+  position: absolute; left: 8px; bottom: 8px; z-index: 1; max-width: calc(100% - 16px);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px;
+  background: var(--panel); border: var(--line) solid var(--ink); border-radius: var(--round); box-shadow: var(--lift-small);
+}
+.draw-tools[hidden] { display: none; }
+.swatch { width: 28px; height: 28px; border: var(--line) solid var(--ink); border-radius: 8px; cursor: pointer; padding: 0; flex: none; transition: transform 80ms, box-shadow 80ms; }
+/* The chosen colour stands up off the bar, a ring of paper inside its outline. */
+.swatch.on { transform: translate(-1px, -2px); box-shadow: inset 0 0 0 2.5px var(--panel), 2px 3px 0 var(--ink); }
 .draw-tools .tool-group { display: inline-flex; align-items: center; gap: 6px; }
-.draw-tools .widths { padding: 0 6px; border-left: 2px solid var(--panel-2); border-right: 2px solid var(--panel-2); }
-.draw-tools .width { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; }
-.draw-tools .width i { display: block; border-radius: 50%; border: 1.5px solid var(--ink); }
-.draw-tools .width.on { border-color: var(--text); background: var(--panel-2); }
-.draw-tools .btn[data-clear] { margin-left: auto; }
+.draw-tools .widths { margin-left: 6px; }
 /* The reveal: the word, big, over the drawing, and the round's points. */
 .draw-overlay .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; animation: outcome-pop 300ms cubic-bezier(.3, 1.4, .6, 1) both; }
 .draw-overlay .reveal p { font-size: 15px; font-weight: 800; color: var(--text-soft); }
@@ -46,7 +55,7 @@
 .draw-overlay .reveal li i { color: var(--text-soft); font-weight: 700; }
 .draw-overlay .reveal .dot { width: 11px; height: 11px; border-radius: 4px; border: 1.5px solid var(--ink); flex: none; }
 @keyframes outcome-pop { from { transform: scale(0.7); opacity: 0; } }
-.swatch.eraser { background: repeating-linear-gradient(45deg, #fff 0 4px, #ddd 4px 8px); border-radius: 6px; }
+.swatch.eraser { background: repeating-linear-gradient(45deg, #fff 0 4px, #ddd 4px 8px); }
 .score.out { opacity: 0.55; }
 .score i { font-size: 11px; font-weight: 800; color: var(--text-soft); }
 
@@ -61,5 +70,14 @@
   .draw-scores { flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .draw-scores .score { flex: 1 1 30%; min-width: 0; }
   .draw-log { min-height: 0; flex: 1; }
-  .draw-tools { gap: 6px; }
+  /* A slim strip over a small paper: smaller swatches and buttons. */
+  .draw-tools { gap: 4px; padding: 4px 6px; left: 6px; bottom: 6px; max-width: calc(100% - 12px); }
+  .draw-tools .tool-group { gap: 4px; }
+  .draw-tools .swatch { width: 22px; height: 22px; }
+  .draw-tools .swatch { border-radius: 7px; }
+  .draw-tools .swatch.on { box-shadow: inset 0 0 0 2px var(--panel), 1.5px 2.5px 0 var(--ink); }
+  .draw-tools .btn.small { padding: 2px 8px; font-size: 12px; }
+  .draw-tools .widths { margin-left: 2px; }
+  .draw-word { font-size: 16px; padding: 2px 9px; }
+  .draw-clock { font-size: 15px; padding: 1px 9px; }
 }

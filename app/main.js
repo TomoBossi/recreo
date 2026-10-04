@@ -268,6 +268,9 @@ $('#preview-cam').addEventListener('click', () => toggleMedia('video'))
 
 void startPreview()
 
+/** Whether a room is being joined: one at a time, however many presses. */
+let entering = false
+
 $('#join-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const nick = nickInput.value.trim().slice(0, 24)
@@ -307,9 +310,6 @@ if (document.documentElement.dataset.straightIn) {
 
 // ------------------------------------------------------------------- room
 
-/** Whether a room is being joined: one at a time, however many presses. */
-let entering = false
-
 async function enterRoom(code, nick) {
   entering = true
   try {
@@ -346,6 +346,7 @@ async function joinRoom(code, nick) {
   // The welcome screen's preview is gone from view; stop it drawing frames.
   $('#preview').srcObject = null
   $('#room-name').textContent = code
+  $('#room-chip').title = code // all of it, where a phone has room for only some
 
   const wm = new WindowManager($('#desk'))
   const players = new Players({ room, me })
@@ -710,7 +711,6 @@ async function joinRoom(code, nick) {
     }
   }
   $('#invite').addEventListener('click', copyInvite)
-  $('#room-chip').addEventListener('click', copyInvite)
 
   $('#leave').addEventListener('click', async () => {
     await room.leave()
@@ -750,7 +750,7 @@ async function joinRoom(code, nick) {
     renderGames()
   }
 
-  chat.system(`welcome to ${code} — ${TOUCH ? 'tap the room name up top to invite friends' : 'invite friends with the button up top'}`)
+  chat.system(`welcome to ${code} — invite friends with the button up top`)
   refreshFaces()
 
   // A handle for the console, and for the test harness.
