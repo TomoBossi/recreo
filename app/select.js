@@ -45,7 +45,9 @@ export function select({ value, choices, onPick, label, open = false, onToggle }
   /** Put the open list beside its button, on screen, as tall as there is room for. */
   const place = () => {
     if (list.hidden || !wrap.isConnected) return
-    const b = button.getBoundingClientRect()
+    // The wrapper, not the button: a button shifts a pixel while hovered
+    // or pressed, and the list should line up with where it rests.
+    const b = wrap.getBoundingClientRect()
     const gap = 6
     const margin = 8
     list.style.minWidth = `${b.width}px`

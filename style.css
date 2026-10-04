@@ -219,6 +219,9 @@ button, input, select { font: inherit; color: inherit; }
 /* One height for every button in the bar, icon or text. */
 #topbar .btn.small { height: 27px; padding-top: 0; padding-bottom: 0; }
 #topbar #settings .gear { width: 17px; height: 17px; }
+/* At night a plain button would sink into the dark bar beside bright ones:
+   the settings button gets a light fill and a dark gear, like its neighbours. */
+:root[data-theme="dark"] .settings-button { background: #cdbfff; color: var(--on-accent); }
 
 .anchor { position: relative; }
 .popover {
@@ -488,7 +491,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .select-button .caret { width: 10px; height: 6px; transition: transform 120ms; }
 .select-button[aria-expanded="true"] .caret { transform: rotate(180deg); }
 .select-list {
-  position: fixed; z-index: 10001; margin: 0; padding: 4px; list-style: none; overflow-y: auto;
+  position: fixed; z-index: 10001; box-sizing: border-box; margin: 0; padding: 4px; list-style: none; overflow-y: auto;
   border: var(--line) solid var(--ink); border-radius: var(--round-small); background: var(--panel); box-shadow: var(--lift);
 }
 .select-list[hidden] { display: none; }

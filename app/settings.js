@@ -166,5 +166,4 @@ function escape(text) {
 /** The gear drawn for the settings button: teeth around a ring, and a hole. */
 export const GEAR = `<svg class="gear" viewBox="0 0 24 24" aria-hidden="true">
   <g fill="currentColor">${Array.from({ length: 8 }, (_, i) => `<rect x="10" y="1" width="4" height="6" rx="1" transform="rotate(${i * 45} 12 12)"/>`).join('')}
-  <circle cx="12" cy="12" r="7.5"/></g>
-  <circle cx="12" cy="12" r="3.2" fill="var(--panel)"/></svg>`
+  <path fill-rule="evenodd" d="M4.5 12a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0 -15 0Z M8.8 12a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0 -6.4 0Z"/></g></svg>`
