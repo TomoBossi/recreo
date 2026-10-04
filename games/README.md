@@ -30,7 +30,8 @@ games/
 1. Copy `tictactoe/` to a new folder named after the game's id.
 2. Change the id, name, rules, view, styles and icon.
 3. Add one import line to `games/index.js`.
-4. `npm test` checks every registered game against the interface.
+4. `sh tools/test.sh` checks every registered game against the interface
+   (or open `/test/` in a browser).
 5. Play it against yourself in two browsers (see [Trying it](#trying-it)).
 
 ## defineGame
@@ -321,14 +322,15 @@ A room runs for hours on phones, so a still game must cost nothing.
 ## Trying it
 
 ```sh
-npm test                                  # every game against the interface, and their rules
-node tools/serve.mjs                      # the room at http://127.0.0.1:8000, never stale
+python3 tools/serve.py                    # the room at http://127.0.0.1:8000, never stale
+sh tools/test.sh                          # every game against the interface, and their rules
 node tools/play/golf.mjs                  # two players, desk and phone, putting round the course
 ```
 
 `tools/play/` has scripts that play each game in real browsers — one player
 at a desk with a mouse, one on a phone with a finger — and photograph every
-step into `tools/shots/play/`. `golf-solve.mjs` and `golf-par.mjs` check
-minigolf's holes: that each can be sunk, that no ball ends inside a wall,
-and what par a decent player makes. They need Playwright
-(`npm install` in `tools/`); the game itself needs nothing.
+step into `tools/shots/play/`; they need Playwright (`npm install` in
+`tools/`). The tests are a page, `/test/`, and so is minigolf's course
+checker, `/tools/golf/`: that each hole can be sunk, that no ball ends
+inside a wall, and what par a decent player makes. The game itself needs
+nothing.

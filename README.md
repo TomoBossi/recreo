@@ -45,11 +45,11 @@ inside a phone's uplink.
 ## Running it
 
 ```sh
-node tools/serve.mjs              # then open http://127.0.0.1:8000
+python3 tools/serve.py            # then open http://127.0.0.1:8000
 ```
 
-Any static file server works (`python3 -m http.server`); `tools/serve.mjs`
-just makes sure the browser never runs a stale copy of a file mid-edit.
+Any static file server works; `tools/serve.py` just makes sure the browser
+never runs a stale copy of a file mid-edit.
 Open it in two browsers with the same room code. `tools/sync-libs.sh`
 refreshes the vendored plaza and mirador from checkouts beside this one.
 
@@ -57,20 +57,23 @@ refreshes the vendored plaza and mirador from checkouts beside this one.
 
 The room is plain HTML, CSS and JavaScript modules with relative paths:
 put the folder on any static host, at any path — GitHub Pages included —
-and it runs. Node is only for the tools and tests beside it, never for the
-room itself.
+and it runs. The tests and the course checker are pages too. Node is only
+for the scripts that drive browsers from outside — self-play and the network
+tests, on Playwright and plaza's harness — never for the room itself.
 
 ## Testing it
 
 ```sh
-npm test                          # rules and the game interface, without a browser
+sh tools/test.sh                  # rules and the game interface, in a headless browser
 node tools/play/golf.mjs          # self-play in real browsers: a desk and a phone
 node nettest/run.mjs              # real browsers in containers, broken networks
 node nettest/run.mjs --all        # with the slow set: long outages, a phone
 ```
 
-The scripts in `tools/play/` play each game in Chromium — one player with a
-mouse, one on a phone-sized screen with a finger — and photograph every step.
+The tests are a page: open `/test/` in any browser while `tools/serve.py`
+runs, or let `tools/test.sh` run it headless. The scripts in `tools/play/`
+play each game in Chromium — one player with a mouse, one on a phone-sized
+screen with a finger — and photograph every step.
 The network tests run on plaza's harness (expected at `../plaza`): each peer
 is a real browser, peers find each other through the public trackers, and
 networks are broken for real — a forty-second outage mid-game, a reload, a

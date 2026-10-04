@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>recreo tests</title>
+<style>
+  :root { color-scheme: light dark; --ok: #2e9d3a; --fail: #e0245e; }
+  body { margin: 0; padding: 24px 16px; font: 15px/1.45 ui-rounded, system-ui, sans-serif; background: Canvas; color: CanvasText; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  #summary { margin: 0 0 18px; font-weight: 800; }
+  #summary.ok { color: var(--ok); }
+  #summary.fail { color: var(--fail); }
+  ol { margin: 0; padding: 0; list-style: none; }
+  li { padding: 3px 0; border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
+  li::before { content: "✓ "; color: var(--ok); font-weight: 900; }
+  li.fail::before { content: "✗ "; color: var(--fail); }
+  li small { opacity: 0.55; }
+  pre { margin: 6px 0 4px 18px; white-space: pre-wrap; font-size: 13px; color: var(--fail); }
+  #report { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>recreo tests</h1>
+  <p id="summary">running…</p>
+  <ol id="results"></ol>
+</main>
+<!-- The same results as plain text, for tools/test.sh to read. -->
+<pre id="report"></pre>
+<script type="module">
+  import { run } from './harness.js'
+  import './kit.test.js'
+  import './games.test.js'
+
+  const results = await run()
+  const failed = results.filter((r) => !r.ok)
+  const list = document.querySelector('#results')
+  for (const r of results) {
+    const li = document.createElement('li')
+    li.className = r.ok ? '' : 'fail'
+    li.textContent = `${r.name} `
+    li.insertAdjacentHTML('beforeend', `<small>${r.ms.toFixed(1)}ms</small>`)
+    if (!r.ok) {
+      const pre = document.createElement('pre')
+      pre.textContent = r.error?.stack ?? String(r.error)
+      li.append(pre)
+    }
+    list.append(li)
+  }
+  const summary = document.querySelector('#summary')
+  summary.textContent = `${results.length - failed.length} of ${results.length} passed`
+  summary.className = failed.length ? 'fail' : 'ok'
+  document.title = `${failed.length ? '✗' : '✓'} recreo tests`
+  document.querySelector('#report').textContent = [
+    ...results.map((r) => (r.ok ? `ok   ${r.name}` : `FAIL ${r.name}\n     ${String(r.error?.message ?? r.error).replaceAll('\n', '\n     ')}`)),
+    `pass ${results.length - failed.length} fail ${failed.length}`,
+  ].join('\n')
+</script>
+</body>
+</html>

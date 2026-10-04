@@ -1,5 +1,4 @@
-import { test } from 'node:test'
-import assert from 'node:assert/strict'
+import { test, assert } from './harness.js'
 import { initial, fromFen, perft, play, isLegal } from '../games/chess/rules.js'
 import connect4 from '../games/connect4/index.js'
 import chess from '../games/chess/index.js'

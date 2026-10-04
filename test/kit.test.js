@@ -1,6 +1,4 @@
-import { test } from 'node:test'
-import assert from 'node:assert/strict'
-import { readdirSync, statSync } from 'node:fs'
+import { test, assert } from './harness.js'
 import { defineGame } from '../games/kit/define.js'
 import { games } from '../games/index.js'
 import { CAPACITY } from '../app/limits.js'
@@ -11,10 +9,15 @@ const turns = { init: () => ({}), turn: () => null, legal: () => true, apply: (s
 const authority = { init: () => ({}), decide: () => [], apply: (s) => s, status: () => '', outcome: () => null, forfeit: (s) => s }
 const spec = (over) => ({ id: 'x', name: 'X', kind: 'turns', seats: 2, rules: turns, view: noop, ...over })
 
-test('every folder under games/ with an index.js is registered, under its folder name', () => {
-  const folders = readdirSync(new URL('../games/', import.meta.url))
-    .filter((f) => f !== 'kit' && statSync(new URL(`../games/${f}`, import.meta.url)).isDirectory())
-  assert.deepEqual(Object.keys(games).sort(), folders.sort())
+test('every game folder is registered, under its folder name', async () => {
+  // Each registered game lives in the folder named after it.
+  for (const game of Object.values(games)) assert.ok(game.styles?.includes(`/games/${game.id}/`), `${game.id} lives in games/${game.id}/`)
+  // And no folder is left out: read from the directory listing the
+  // development server gives (tools/serve.py). A host without listings
+  // skips this half.
+  const listing = await fetch(new URL('../games/', import.meta.url)).then((r) => (r.ok ? r.text() : '')).catch(() => '')
+  const folders = [...listing.matchAll(/href="([a-z0-9-]+)\/"/g)].map((m) => m[1]).filter((f) => f !== 'kit')
+  if (folders.length) assert.deepEqual(Object.keys(games).sort(), folders.sort())
 })
 
 test('every registered game is a defineGame result within the room capacity', () => {
