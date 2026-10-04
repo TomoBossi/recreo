@@ -607,8 +607,11 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   background: var(--panel);
   box-shadow: var(--lift);
 }
-.landing-card { display: flex; flex-direction: column; gap: 14px; }
-.brand.big { display: flex; justify-content: center; margin: 4px 0 6px; font-size: 92px; gap: 0.06em; }
+.landing-card { display: flex; flex-direction: column; gap: 14px; container-type: inline-size; }
+/* As big as the card allows: the bell and the lettering together are about
+   four and a half times the font size across. */
+.brand.big { display: flex; justify-content: center; margin: 4px 0 6px; font-size: min(92px, calc((100cqi - 12px) / 4.6)); gap: 0.06em; }
+.brand.big .wordmark.big { font-size: 1em; }
 .wordmark.big { font-size: 92px; text-align: center; line-height: 1; letter-spacing: 2px;
   text-shadow: 3px 0px 0 var(--ring), -3px 0px 0 var(--ring), 0px 3px 0 var(--ring), 0px -3px 0 var(--ring), 2.1px 2.1px 0 var(--ring), -2.1px 2.1px 0 var(--ring), 2.1px -2.1px 0 var(--ring), -2.1px -2.1px 0 var(--ring), 5px 5px 0 var(--drop), 6px 6px 0 var(--drop); }
 .tagline { margin: -4px 0 0; text-align: center; font-weight: 700; color: var(--text-soft); line-height: 1.3; }
@@ -689,7 +692,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   html, body { overflow: auto; }
   #app { height: auto; min-height: 100%; }
   #desk { margin: 0 8px 8px; flex: none; }
-  .brand.big, .wordmark.big { font-size: 64px; }
+
   /* Popovers span the screen rather than hanging off their buttons. */
   .popover { position: fixed; left: 8px; right: 8px; top: var(--pop-top, 96px); max-width: none; width: auto; max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
   .settings { width: auto; }
