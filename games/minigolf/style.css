@@ -62,7 +62,7 @@
 .golf-card th:first-child { text-align: left; white-space: nowrap; }
 .golf-card .par { color: var(--text-soft); }
 .golf-card tr.out th, .golf-card tr.out td { opacity: 0.55; }
-.golf-card td.under { background: #c9f0c0; }
+.golf-card td.under { background: var(--tint-leaf); color: var(--text); }
 .golf-card td.over { color: var(--text-soft); }
 .golf-card .sum { padding: 3px 10px; }
 .golf-card .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); margin-right: 6px; vertical-align: -1px; }
