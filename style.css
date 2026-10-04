@@ -533,8 +533,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   animation: outcome-in 320ms cubic-bezier(.3, 1.4, .6, 1) both;
 }
 .outcome[hidden] { display: none; }
-.outcome.win { background: var(--sun); color: var(--on-accent); }
-.outcome.lose { background: var(--tint-berry); }
+.outcome.mood-win { background: var(--sun); color: var(--on-accent); }
+.outcome.mood-lose { background: var(--tint-berry); }
 .outcome .title { font-size: 28px; font-weight: 900; line-height: 1.1; }
 .outcome .reason { font-size: 14px; font-weight: 800; opacity: 0.85; }
 .outcome .close {
@@ -578,7 +578,13 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* Tic-tac-toe */
 .ttt.my-turn .hits rect { cursor: pointer; }
-.ttt .winning { animation: c4-win 650ms ease-in-out 6 alternate both; transform-box: fill-box; transform-origin: center; }
+/* Marks draw themselves in, like a pen: the X stroke by stroke, the O round. */
+.ttt .mark.fresh path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 180ms ease-out forwards; }
+.ttt .mark.fresh path.second { animation-delay: 150ms; }
+.ttt .mark.ghost { opacity: 0.22; }
+.ttt .spent { opacity: 0.3; transition: opacity 400ms ease 300ms; }
+.ttt .win-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ttt-draw 360ms ease-in-out 120ms forwards; }
+@keyframes ttt-draw { to { stroke-dashoffset: 0; } }
 
 /* Pictionary */
 .draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
@@ -846,5 +852,6 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 
 /* Asked for less motion: none of the flourishes. */
 @media (prefers-reduced-motion: reduce) {
-  .c4 .disc.winning, .ttt .winning, .golf .spin, .c4 .disc.falling, .outcome { animation: none; }
+  .c4 .disc.winning, .golf .spin, .ttt .mark.fresh path, .ttt .win-line, .c4 .disc.falling, .outcome { animation: none; }
+  .ttt .mark.fresh path, .ttt .win-line { stroke-dasharray: none; stroke-dashoffset: 0; } /* drawn at once */
 }

@@ -67,17 +67,21 @@ const rules = {
 const X = (i) => 30 + (i % 3) * 100 + 50
 const Y = (i) => 30 + Math.floor(i / 3) * 100 + 50
 
-function mark(seat, colour) {
-  const stroke = { fill: 'none', stroke: colour, 'stroke-width': 14, 'stroke-linecap': 'round' }
-  const outline = { fill: 'none', stroke: INK, 'stroke-width': 20, 'stroke-linecap': 'round' }
+/**
+ * A mark, flat in its player's colour like the icon's. pathLength="1" lets
+ * CSS draw it in — the X stroke by stroke, the O round — when it is new.
+ */
+function mark(seat, colour, { fresh = false, ghost = false } = {}) {
+  const line = { fill: 'none', stroke: colour, 'stroke-width': 13, 'stroke-linecap': 'round', pathLength: 1 }
+  const cls = `mark${fresh ? ' fresh' : ''}${ghost ? ' ghost' : ''}`
   return seat === 0
-    ? shape('g', {}, [
-      shape('path', { d: 'M-26 -26 L26 26 M26 -26 L-26 26', ...outline }),
-      shape('path', { d: 'M-26 -26 L26 26 M26 -26 L-26 26', ...stroke }),
+    ? shape('g', { class: cls }, [
+      shape('path', { d: 'M-23 -23 L23 23', ...line }),
+      shape('path', { d: 'M23 -23 L-23 23', ...line, class: 'second' }),
     ])
-    : shape('g', {}, [
-      shape('circle', { r: 28, ...outline }),
-      shape('circle', { r: 28, ...stroke }),
+    : shape('g', { class: cls }, [
+      // A path rather than a circle, so it draws from the top, clockwise.
+      shape('path', { d: 'M0 -25 A25 25 0 1 1 -0.01 -25', ...line }),
     ])
 }
 
@@ -86,28 +90,67 @@ function view(el, ctx) {
   svg.innerHTML = `
     <rect x="10" y="10" width="340" height="340" rx="16" fill="${PAPER}" stroke="${INK}" stroke-width="2.5"/>
     <path d="M130 40 V320 M230 40 V320 M40 130 H320 M40 230 H320" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>
+    <g class="strike"></g>
     <g class="marks"></g>
+    <g class="ghost"></g>
     <g class="hits"></g>`
   const marks = svg.querySelector('.marks')
+  const ghost = svg.querySelector('.ghost')
+  const strike = svg.querySelector('.strike')
   const hits = svg.querySelector('.hits')
   for (let i = 0; i < 9; i++) {
     hits.append(shape('rect', { x: X(i) - 50, y: Y(i) - 50, width: 100, height: 100, fill: 'transparent', 'data-cell': i }))
   }
+
+  let state = null
+  let info = {}
+  let drawn = Array(9).fill(-1) // what is already on the paper, so only new marks draw in
+  const myTurn = () => info.mySeat != null && info.turn === info.mySeat
+
+  // On your turn, a faint mark follows the mouse over the empty cells.
+  const preview = (cell) => {
+    ghost.textContent = ''
+    if (cell == null || !myTurn() || state.cells[cell] !== -1) return
+    ghost.append(shape('g', { transform: `translate(${X(cell)}, ${Y(cell)})` }, [mark(info.mySeat, ctx.colours[info.mySeat], { ghost: true })]))
+  }
+  hits.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') preview(e.target.dataset?.cell == null ? null : Number(e.target.dataset.cell)) })
+  hits.addEventListener('pointerleave', () => preview(null))
   hits.addEventListener('click', (e) => {
     const cell = e.target.dataset?.cell
-    if (cell != null) ctx.play({ cell: Number(cell) })
+    if (cell == null) return
+    ctx.play({ cell: Number(cell) })
+    preview(null)
   })
 
   return {
-    update(state, info) {
-      svg.classList.toggle('my-turn', info.mySeat != null && info.turn === info.mySeat)
+    update(next, nextInfo) {
+      state = next
+      info = nextInfo
+      svg.classList.toggle('my-turn', myTurn())
+      // A new game (a rematch) starts a clean sheet.
+      if (state.cells.every((c) => c === -1)) drawn = Array(9).fill(-1)
       marks.textContent = ''
       state.cells.forEach((seat, i) => {
         if (seat === -1) return
-        const g = shape('g', { transform: `translate(${X(i)}, ${Y(i)})` }, [mark(seat, ctx.colours[seat])])
-        if (state.line?.includes(i)) g.classList.add('winning')
+        const g = shape('g', { transform: `translate(${X(i)}, ${Y(i)})` }, [mark(seat, ctx.colours[seat], { fresh: drawn[i] !== seat })])
+        // Once there is a winner, everything but the winning three steps back.
+        if (state.line && !state.line.includes(i)) g.classList.add('spent')
         marks.append(g)
       })
+      drawn = state.cells.slice()
+      // Three in a row: a stroke through them, drawn beneath the marks so
+      // they stay crisp and it shows in the gaps between them.
+      strike.textContent = ''
+      if (state.line) {
+        const [a, , c] = state.line
+        const dx = Math.sign(X(c) - X(a)) * 34
+        const dy = Math.sign(Y(c) - Y(a)) * 34
+        strike.append(shape('path', {
+          d: `M${X(a) - dx} ${Y(a) - dy} L${X(c) + dx} ${Y(c) + dy}`,
+          fill: 'none', stroke: INK, 'stroke-width': 9, 'stroke-linecap': 'round', pathLength: 1, class: 'win-line',
+        }))
+      }
+      ghost.textContent = ''
     },
     destroy() { svg.remove() },
   }

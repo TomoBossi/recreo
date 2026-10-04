@@ -263,7 +263,8 @@ export class TableView {
     else if (mine) { title = 'you lose'; mood = 'lose' }
     else if (who.length) { title = `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'}!`; mood = 'win' }
     else { title = 'game over'; mood = 'draw' }
-    this.outcomeEl.className = `outcome ${mood}`
+    // Namespaced: a bare "draw" would collide with Pictionary's .draw.
+    this.outcomeEl.className = `outcome mood-${mood}`
     this.outcomeEl.dataset.cursorAnchor = 'outcome'
     this.outcomeEl.innerHTML = '<button class="close" aria-label="close">×</button><b class="title"></b><span class="reason"></span>'
     this.outcomeEl.querySelector('.title').textContent = title
