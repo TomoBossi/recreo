@@ -290,7 +290,7 @@ function view(el, ctx) {
     }
     for (let sq = 0; sq < 64; sq++) {
       const p = state.board[sq]
-      if (!p) continue
+      if (!p || (drag?.lifted && sq === drag.from)) continue
       const { x, y } = at(sq)
       const fill = p[0] === 'w' ? WHITE : BLACK
       const line = p[0] === 'w' ? 'var(--ink)' : '#120d22'
@@ -305,8 +305,15 @@ function view(el, ctx) {
         ? `<circle cx="${x + 50}" cy="${y + 50}" r="44" fill="none" stroke="var(--ink)" stroke-width="6" opacity="0.5" pointer-events="none"/>`
         : `<circle cx="${x + 50}" cy="${y + 50}" r="14" fill="var(--ink)" opacity="0.4" pointer-events="none"/>`
     }
+    // A piece being dragged, over everything, unclipped by the board's edge.
+    let lifted = ''
+    const held = drag?.lifted && state.board[drag.from]
+    if (held) {
+      lifted = `<g class="piece lifted" transform="${liftedAt(drag)}" pointer-events="none"
+        fill="${held[0] === 'w' ? WHITE : BLACK}" stroke="${held[0] === 'w' ? 'var(--ink)' : '#120d22'}" color="${held[0] === 'w' ? 'var(--ink)' : '#c9bdf0'}" stroke-width="4" stroke-linejoin="round">${PIECES[held[1]]}</g>`
+    }
     space.innerHTML = `<defs><clipPath id="chess-clip-${id}"><rect width="800" height="800" rx="8"/></clipPath></defs>
-      <rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/><g clip-path="url(#chess-clip-${id})">${html}</g>`
+      <rect x="-6" y="-6" width="812" height="812" rx="14" fill="var(--ink)"/><g clip-path="url(#chess-clip-${id})">${html}</g>${lifted}`
     let top = '<g class="clocks"></g>'
     if (promoting) {
       top += `<rect x="150" y="300" width="500" height="200" rx="18" fill="#fffaf0" stroke="var(--ink)" stroke-width="6"/>`
@@ -333,6 +340,14 @@ function view(el, ctx) {
     }
     const sq = Number(e.target.dataset?.sq)
     if (!Number.isInteger(sq)) return
+    pressSquare(sq)
+  })
+
+  /**
+   * A square pressed — clicked, or dropped on: pick up one of yours, move the
+   * piece picked up there, or, while the other side thinks, queue a premove.
+   */
+  function pressSquare(sq) {
     const mine = state.board[sq]?.[0] === myColour()
     if (!myTurn()) {
       // The other side is thinking: queue a premove, as on lichess. A
@@ -355,7 +370,64 @@ function view(el, ctx) {
     picked = mine && sq !== picked ? sq : null
     if (picked != null) sound.play('pick', { from: el })
     draw()
+  }
+
+  /**
+   * Drag and drop: press one of your pieces and it lifts, its moves marked,
+   * following the pointer; let go over a square to move there. A press that
+   * does not move far is a click, and picks the piece as clicking does.
+   */
+  let drag = null // { id, from, x, y, lifted }
+  const squareAtPoint = ({ x, y }) => (x < 0 || y < 0 || x >= 800 || y >= 800 ? null : (7 - Math.floor(y / 100)) * 8 + Math.floor(x / 100))
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button > 0 || drag || promoting || !state || !playing()) return
+    const sq = Number(e.target.dataset?.sq)
+    if (!Number.isInteger(sq) || state.board[sq]?.[0] !== myColour()) return
+    const p = b.point(e)
+    drag = { id: e.pointerId, from: sq, x: p.x, y: p.y, start: p, lifted: false }
+    svg.setPointerCapture(e.pointerId)
   })
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return
+    const p = b.point(e)
+    drag.x = p.x
+    drag.y = p.y
+    if (!drag.lifted) {
+      if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 12) return
+      drag.lifted = true
+      if (picked !== drag.from) sound.play('pick', { from: el })
+      picked = drag.from
+      draw()
+      return
+    }
+    const g = space.querySelector('.lifted')
+    if (g) g.setAttribute('transform', liftedAt(drag))
+  })
+  const drop = (e, cancelled) => {
+    if (!drag || e.pointerId !== drag.id) return
+    const d = drag
+    drag = null
+    // Pressed and let go without moving: a click on that square. (The
+    // pointer was captured, so the browser's own click lands on the board,
+    // not the square — it is answered here instead.)
+    if (!d.lifted) { if (!cancelled) pressSquare(d.from); return }
+    // The click that follows this release is not a click on a square — it
+    // would otherwise call off a promotion the drop has just asked about.
+    const eat = (ev) => { ev.stopPropagation(); ev.preventDefault() }
+    addEventListener('click', eat, { capture: true, once: true })
+    setTimeout(() => removeEventListener('click', eat, { capture: true }), 400)
+    const to = cancelled ? null : squareAtPoint({ x: d.x, y: d.y })
+    picked = d.from
+    if (to != null && to !== d.from) pressSquare(to)
+    // Moved, queued, or dropped where it cannot go: either way, put down.
+    if (!promoting) picked = null
+    draw()
+  }
+  svg.addEventListener('pointerup', (e) => drop(e, false))
+  svg.addEventListener('pointercancel', (e) => drop(e, true))
+  /** Where the lifted piece is drawn: centred under the pointer, upright. */
+  const liftedAt = (d) => `translate(${d.x - 50} ${d.y - 50}) ${b.upright(50, 50)}`
+
   // A right click clears a queued premove.
   svg.addEventListener('contextmenu', (e) => {
     if (!premove && picked == null) return

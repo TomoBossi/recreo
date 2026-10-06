@@ -3,3 +3,5 @@
 .chess .promo { cursor: pointer; }
 .chess .clock-time { font: 900 50px var(--font); font-variant-numeric: tabular-nums; }
 .chess .clock-name { font: 800 20px var(--font); opacity: 0.85; }
+.chess.my-turn rect[data-sq] { cursor: pointer; }
+.chess .lifted { filter: drop-shadow(3px 5px 0 rgb(0 0 0 / 0.25)); }
