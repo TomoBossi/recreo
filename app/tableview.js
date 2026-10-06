@@ -1,3 +1,4 @@
+import { notify } from './notify.js'
 import { select } from './select.js'
 
 /**
@@ -29,7 +30,7 @@ export class TableView {
           <button class="btn small no">keep playing</button>
         </div>
         <div class="seats"></div>
-        <div class="stage"><div class="outcome" hidden></div></div>
+        <div class="stage"></div>
         <div class="status" data-cursor-anchor="status"><span class="text"></span><button class="btn small sun rematch" data-cursor-anchor="rematch" hidden>rematch</button></div>
       </div>`
     this.seatsEl = body.querySelector('.seats')
@@ -43,15 +44,8 @@ export class TableView {
     this.forfeitAsk.querySelector('.yes').addEventListener('click', () => { this.forfeitAsk.hidden = true; tables.forfeit(table.id) })
     this.forfeitAsk.querySelector('.no').addEventListener('click', () => { this.forfeitAsk.hidden = true })
 
-    // The end of a game, said to each player in their own terms. Closing it
-    // keeps it closed until the next game ends.
-    this.outcomeEl = body.querySelector('.outcome')
-    this.outcomeSeen = null
-    this.outcomeEl.addEventListener('click', (e) => {
-      if (!e.target.closest('.close')) return
-      this.outcomeSeen = this.#outcomeKey()
-      this.outcomeEl.hidden = true
-    })
+    // The end of a game is said to each player as a notice (see #renderOutcome).
+    this.outcomeShown = undefined
 
     const view = this
     this.view = this.game.view.mount(body.querySelector('.stage'), {
@@ -262,30 +256,28 @@ export class TableView {
     return `${this.table.gen}:${this.table.moves.length}`
   }
 
-  /** The end-of-game card: you win, you lose, a draw — or, watching, who won. */
+  /**
+   * The end of a game, said to each player in their own terms — "you win!",
+   * "you lose", "it's a draw" — as a notice at the bottom of the screen, with
+   * its jingle. Whoever watches has the status line and the chat. A table
+   * that was already over when it was first drawn says nothing.
+   */
   #renderOutcome(names, mySeat) {
     const result = this.game.outcome(this.table.state, names)
     const key = this.#outcomeKey()
-    if (!result || this.outcomeSeen === key) { this.outcomeEl.hidden = true; this.outcomeShown = null; return }
-    if (this.outcomeShown === key) return // already up; don't replay its entrance
+    const first = this.outcomeShown === undefined
+    if (!result) { this.outcomeShown = null; return }
+    if (this.outcomeShown === key) return
     this.outcomeShown = key
-    const winners = result.winners ?? []
-    const who = winners.map((seat) => names[seat] ?? `player ${seat + 1}`)
     const mine = mySeat != null && this.table.seats[mySeat]?.player === this.me.player
+    if (first || !mine) return
+    const winners = result.winners ?? []
     let title
     let mood
     if (result.draw) { title = "it's a draw"; mood = 'draw' }
-    else if (mine && winners.includes(mySeat)) { title = winners.length > 1 ? 'a tie for first!' : 'you win!'; mood = 'win' }
-    else if (mine) { title = 'you lose'; mood = 'lose' }
-    else if (who.length) { title = `${who.join(' & ')} ${who.length > 1 ? 'win' : 'wins'}!`; mood = 'win' }
-    else { title = 'game over'; mood = 'draw' }
-    // Namespaced: a bare "draw" would collide with Pictionary's .draw.
-    this.outcomeEl.className = `outcome mood-${mood}`
-    this.outcomeEl.dataset.cursorAnchor = 'outcome'
-    this.outcomeEl.innerHTML = '<button class="close" aria-label="close">×</button><b class="title"></b><span class="reason"></span>'
-    this.outcomeEl.querySelector('.title').textContent = title
-    this.outcomeEl.querySelector('.reason').textContent = result.reason ?? ''
-    this.outcomeEl.hidden = false
+    else if (winners.includes(mySeat)) { title = winners.length > 1 ? 'a tie for first!' : 'you win!'; mood = 'win' }
+    else { title = 'you lose'; mood = 'lose' }
+    notify(result.reason ? `${title} — ${result.reason}` : title, { sound: mood, ms: 4500 })
   }
 
   /** Ending is for everyone, so it asks first — inline, not in a dialog. */

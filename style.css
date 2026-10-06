@@ -464,7 +464,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 /* And only to look at: no previews, no moves, no end-of-game card, no
    rematch. Pressing it brings it forward; the others' pointers still show. */
 .win.side .stage { pointer-events: none; }
-.win.side .outcome, .win.side .rematch, .win.side .ask { display: none !important; }
+.win.side .rematch, .win.side .ask { display: none !important; }
 .seats {
   display: flex;
   align-items: center;
@@ -571,26 +571,6 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   padding: 8px 10px; background: var(--tint-berry); border-bottom: var(--line) solid var(--ink); font-weight: 800;
 }
 
-/* The end of a game, said to each player: a card over the board. */
-.outcome {
-  position: absolute; left: 50%; top: 14px; z-index: 4; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  min-width: 220px; max-width: calc(100% - 28px); padding: 12px 40px 12px;
-  border: var(--line) solid var(--ink); border-radius: var(--round); box-shadow: var(--lift);
-  background: var(--panel); color: var(--text); text-align: center;
-  animation: outcome-in 320ms cubic-bezier(.3, 1.4, .6, 1) both;
-}
-.outcome[hidden] { display: none; }
-.outcome.mood-win { background: var(--sun); color: var(--on-accent); }
-.outcome.mood-lose { background: var(--tint-berry); }
-.outcome .title { font-size: 28px; font-weight: 900; line-height: 1.1; }
-.outcome .reason { font-size: 14px; font-weight: 800; opacity: 0.85; }
-.outcome .close {
-  position: absolute; top: 6px; right: 8px; width: 24px; height: 24px; padding: 0;
-  border: none; background: none; color: inherit; font: 900 20px/1 var(--font); cursor: pointer; opacity: 0.7;
-}
-.outcome .close:hover { opacity: 1; }
-@keyframes outcome-in { from { transform: translateX(-50%) scale(0.6); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 .seat.out .who, .seat.out .piece { opacity: 0.5; }
 
 /* Shared by games: the panel over a board that offers start and play again
@@ -615,11 +595,16 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* ------------------------------------------------------------------ toast */
 
+/* Every notice the room gives (app/notify.js): one bar, bottom centre. A
+   long one wraps rather than leaving the screen. */
 .toast {
   position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20000;
-  padding: 8px 16px; line-height: 1.2; border: var(--line) solid var(--ink); border-radius: var(--round-small);
+  max-width: calc(100vw - 32px); width: max-content; text-align: center;
+  padding: 8px 16px; line-height: 1.25; border: var(--line) solid var(--ink); border-radius: var(--round-small);
   background: var(--sun); color: var(--on-accent); box-shadow: var(--lift); font-weight: 800;
 }
+.toast.show { animation: toast-in 220ms cubic-bezier(.3, 1.4, .6, 1); }
+@keyframes toast-in { from { transform: translate(-50%, 12px); opacity: 0; } }
 
 /* ------------------------------------------------------------------ landing */
 
@@ -839,6 +824,5 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
    — unless it is marked essential: motion the game is played by, like a
    windmill's sails. */
 @media (prefers-reduced-motion: reduce) {
-  .outcome { animation: none; }
   .stage *:not(.essential) { animation-duration: 1ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
 }

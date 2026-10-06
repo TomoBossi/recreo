@@ -121,6 +121,53 @@ const SOUNDS = {
     burst(t, { freq: 3800, q: 3, gain: 0.13, length: 0.02 })
     tone(t, { freq: 1900, gain: 0.22, length: 0.07 })
   },
+
+  // Pieces. A piece lifted: a light wooden tick.
+  pick: (t) => {
+    burst(t, { freq: 2600, q: 4, gain: 0.08, length: 0.012 })
+    tone(t, { freq: 880, to: 990, gain: 0.07, length: 0.03 })
+  },
+  // A piece set down: a wooden clack, low and round.
+  place: (t) => {
+    burst(t, { freq: 1300, q: 2.5, gain: 0.16, length: 0.03 })
+    tone(t, { freq: 420, to: 300, gain: 0.2, length: 0.07 })
+  },
+  // One piece knocking another off: two clacks, the second harder.
+  capture: (t) => {
+    burst(t, { freq: 1500, q: 2.5, gain: 0.12, length: 0.025 })
+    tone(t, { freq: 470, to: 360, gain: 0.14, length: 0.05 })
+    burst(t + 0.07, { freq: 1100, q: 2, gain: 0.19, length: 0.035 })
+    tone(t + 0.07, { freq: 360, to: 250, gain: 0.22, length: 0.09 })
+  },
+  // A disc landing in its column: a plastic knock with a little ring.
+  land: (t) => {
+    burst(t, { freq: 2200, q: 3, gain: 0.13, length: 0.02 })
+    tone(t, { freq: 660, to: 520, type: 'triangle', gain: 0.16, length: 0.09 })
+  },
+  // A pen stroke on paper: a short scratch of noise.
+  mark: (t) => {
+    burst(t, { freq: 4200, q: 1.5, gain: 0.08, length: 0.05 })
+    burst(t + 0.05, { freq: 3600, q: 1.5, gain: 0.06, length: 0.04 })
+  },
+  // Someone got it right: three bright notes up.
+  correct: (t) => {
+    tone(t, { freq: 784, type: 'triangle', gain: 0.13, length: 0.08 })
+    tone(t + 0.07, { freq: 988, type: 'triangle', gain: 0.13, length: 0.08 })
+    tone(t + 0.14, { freq: 1319, type: 'triangle', gain: 0.14, length: 0.16 })
+  },
+
+  // Endings, with the notice that says so.
+  win: (t) => {
+    ;[523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.09, { freq: f, type: 'triangle', gain: 0.14, length: i === 3 ? 0.28 : 0.1 }))
+  },
+  lose: (t) => {
+    tone(t, { freq: 494, type: 'triangle', gain: 0.13, length: 0.14 })
+    tone(t + 0.16, { freq: 370, type: 'triangle', gain: 0.13, length: 0.3 })
+  },
+  draw: (t) => {
+    tone(t, { freq: 587, type: 'triangle', gain: 0.12, length: 0.12 })
+    tone(t + 0.14, { freq: 587, type: 'triangle', gain: 0.12, length: 0.2 })
+  },
 }
 
 export const sound = {
@@ -128,8 +175,14 @@ export const sound = {
   names: Object.keys(SOUNDS),
 
   /** Play a sound now, if sounds are on and the page has been touched. */
-  play(name) {
+  /**
+   * Play a sound now, if sounds are on and the page has been touched.
+   * `from`: the element it belongs to — a game's stage, say; a game folded
+   * away to its title bar makes no sound.
+   */
+  play(name, { from = null } = {}) {
     if (!audio || level === 'off' || audio.state !== 'running') return
+    if (from && (!from.isConnected || from.closest('.win.collapsed'))) return
     SOUNDS[name]?.(audio.currentTime + 0.003)
   },
 

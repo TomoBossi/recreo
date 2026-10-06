@@ -13,6 +13,7 @@ import { Players } from './players.js'
 import { shelf } from './shelf.js'
 import { Live } from './live.js'
 import { clickSounds } from './clicks.js'
+import { notify, notices } from './notify.js'
 import { Cursors } from './cursors.js'
 import { store, ago } from './store.js'
 import { settingsPanel, GEAR } from './settings.js'
@@ -757,7 +758,7 @@ async function joinRoom(code, nick) {
   refreshFaces()
 
   // A handle for the console, and for the test harness.
-  window.recreo = { room, tables, wm, players, me, media, cursors }
+  window.recreo = { room, tables, wm, players, me, media, cursors, notices }
 }
 
 function mediaPresence() {
@@ -765,11 +766,5 @@ function mediaPresence() {
   return { audio: s.audioEnabled && s.hasStream, video: s.videoEnabled && s.hasStream }
 }
 
-let toastTimer = null
-function toast(text) {
-  const el = $('#toast')
-  el.textContent = text
-  el.hidden = false
-  clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { el.hidden = true }, 2600)
-}
+/** The room's notices, at the bottom of the screen (app/notify.js). */
+function toast(text) { notify(text) }

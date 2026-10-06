@@ -122,9 +122,10 @@ replays them.
 
 Every game says how it ended. `outcome` returns `null` while the game is on,
 then `{ winners: [seat…], draw?: true, reason }` — `reason` is a few words,
-"four in a row", "ana forfeited", "18 strokes, par 16". The room turns it
-into a card over the board for each viewer — "you win!", "you lose", "it's a
-draw", or "tomo wins!" for someone watching — and a line in the chat.
+"four in a row", "ana forfeited", "18 strokes, par 16". The room tells each
+player in a notice at the bottom of the screen, with a jingle — "you win! —
+four in a row", "you lose", "it's a draw" — puts the result in the status
+line for everyone watching, and says it in the chat.
 
 Anyone seated can forfeit while a game is on; their seat offers it in place
 of "leave". `forfeit` says what that means in this game:
@@ -241,8 +242,7 @@ big their window. The letterboxing round a board is not shared: leaving the
 board is leaving. Controls outside the board that everyone has — a start
 button, a scoreboard — opt in with `data-cursor-anchor="name"`, and a
 pointer over one lands on the same control, at the same spot in it, for
-everyone. (The seats, options, status line and end-of-game card already
-do.)
+everyone. (The seats, options and status line already do.)
 
 **Turning.** A game turns its board for a player with `b.turn()`; chess
 turns it for whoever plays black. `fit: true` lets a board wider than it is
@@ -274,8 +274,8 @@ Use pointer events: one code path for mice, pens and fingers.
 
 The stage is positioned and clips what it holds. A `board()` fills it with a
 12px margin. Panels over the board share the start panel's look with the
-class `game-panel` (Pictionary's word choice and reveal). The room draws the
-end-of-game card itself.
+class `game-panel` (Pictionary's word choice and reveal). The room says how a
+game ended itself.
 
 The stage is a CSS container named `stage`, so a game lays itself out by the
 size of its own window — on a phone, in a narrow tiled column, or in a big
@@ -307,14 +307,16 @@ and paper.
 ## Sound
 
 The room already sounds every control — a click down and up, two notes
-for a choice, a slide for a switch — so a game's buttons need nothing. A control can ask for another sound with
+for a choice, a slide for a switch, and the same for windows opening,
+folding and coming forward — so a game's buttons need nothing. A control can ask for another sound with
 `data-sound="select"`, or for none with `data-sound="none"`.
 
 For what happens in the game itself, `kit/sound.js`:
 
 ```js
 import { sound, countdown } from '../kit/sound.js'
-sound.play('tick')                 // press release select on off message tick tock last
+sound.play('place', { from: el })  // see SOUNDS in kit/sound.js for the names
+                                   // from: a game folded to its title bar is quiet
 const ticks = countdown()          // a clock's last five seconds: tick, tock… and a brighter last
 ticks.update(msLeft)               // whenever the clock is redrawn; it sounds each second once
 ```

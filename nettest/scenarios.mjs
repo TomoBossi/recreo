@@ -154,9 +154,11 @@ export const scenarios = {
     if (state.winner !== 1 || state.forfeited !== 0) throw new Error(`expected tomo to win by forfeit: ${table.board}`)
     if (table.moves !== 2) throw new Error(`the forfeit should have replaced tomo's disc: ${table.moves} moves`)
 
-    const card = (label) => js(run, label, `(() => { const el = document.querySelector('.win[data-id="table:' + ${T} + '"] .outcome'); return el.hidden ? null : el.querySelector('.title').textContent + ' / ' + el.querySelector('.reason').textContent })()`)
-    const cards = { ana: await card('ana'), tomo: await card('tomo'), lu: await card('lu') }
-    if (!cards.ana?.startsWith('you lose') || !cards.tomo?.startsWith('you win!') || !cards.lu?.startsWith('tomo wins!')) throw new Error(`cards: ${JSON.stringify(cards)}`)
+    // Each player is told in a notice; whoever watches reads the status line.
+    const told = (label) => js(run, label, `recreo.notices.findLast((n) => /^(you win|you lose|it's a draw)/.test(n)) ?? null`)
+    const status = (label) => js(run, label, `document.querySelector('.win[data-id="table:' + ${T} + '"] .status .text').textContent`)
+    const cards = { ana: await told('ana'), tomo: await told('tomo'), lu: await status('lu') }
+    if (!cards.ana?.startsWith('you lose') || !cards.tomo?.startsWith('you win!') || !cards.lu?.includes('tomo wins')) throw new Error(`told: ${JSON.stringify(cards)}`)
     if (!/ana forfeited/.test(cards.tomo)) throw new Error(`reason: ${cards.tomo}`)
     if ((await button('ana')) !== 'leave') throw new Error('after the game ana should be able to leave')
     const shots = [await shoot(run, 'tomo', 'forfeit-winner'), await shoot(run, 'ana', 'forfeit-loser')]

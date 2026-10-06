@@ -3,6 +3,7 @@
  */
 import { defineGame } from '../kit/define.js'
 import { shape, board, INK, PAPER } from '../kit/svg.js'
+import { sound } from '../kit/sound.js'
 
 const COLS = 7
 const ROWS = 6
@@ -151,10 +152,11 @@ function view(el, ctx) {
             shape('circle', { class: 'ring', r: 13.5, fill: 'none', stroke: INK, 'stroke-width': 2 }),
           ])
           if (winning.has(at(c, r))) inner.classList.add('winning')
-          // The newest disc falls into place.
+          // The newest disc falls into place, and lands with a knock as the fall ends.
           if (previous && previous.cells[at(c, r)] === -1) {
             inner.style.setProperty('--fall', `${-(cy(r) - 20)}px`)
             inner.classList.add('falling')
+            setTimeout(() => sound.play('land', { from: el }), 300)
           }
           discs.append(shape('g', { transform: `translate(${cx(c)}, ${cy(r)})` }, [inner]))
         }

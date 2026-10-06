@@ -5,7 +5,7 @@
  */
 import { defineGame } from '../kit/define.js'
 import { board, shape, escape, INK } from '../kit/svg.js'
-import { countdown } from '../kit/sound.js'
+import { countdown, sound } from '../kit/sound.js'
 import { initial, isLegal, play, legalMoves, cannotMate, file, rank } from './rules.js'
 
 const LIGHT = '#fbefd5'
@@ -336,6 +336,7 @@ function view(el, ctx) {
       }
       premove = null
       picked = mine && sq !== picked ? sq : null
+      if (picked != null) sound.play('pick', { from: el })
       draw()
       return
     }
@@ -345,6 +346,7 @@ function view(el, ctx) {
       if (candidates.length === 1) { send(candidates[0]); picked = null; draw(); return }
     }
     picked = mine && sq !== picked ? sq : null
+    if (picked != null) sound.play('pick', { from: el })
     draw()
   })
   // A right click clears a queued premove.
@@ -359,8 +361,15 @@ function view(el, ctx) {
   return {
     update(next, nextInfo) {
       const wasMyTurn = state && myTurn()
+      const before = state
       state = next
       info = nextInfo
+      // A move, anyone's, is heard: a piece set down, or one knocked off.
+      if (before && before.board.join() !== state.board.join()) {
+        const pieces = (b) => b.filter(Boolean).length
+        const lost = pieces(before.board) - pieces(state.board)
+        if (lost >= 0) sound.play(lost > 0 ? 'capture' : 'place', { from: el })
+      }
       const count = state.clock?.moves ?? Object.keys(state.seen ?? {}).length
       if (count !== seenMoves) { seenMoves = count; receivedAt = performance.now() }
       if (!state.result && info.turn === null) premove = null

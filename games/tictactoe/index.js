@@ -7,6 +7,7 @@
  */
 import { defineGame } from '../kit/define.js'
 import { shape, board, INK, PAPER } from '../kit/svg.js'
+import { sound } from '../kit/sound.js'
 
 const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
 const PINK = '#ff5d8f'
@@ -105,6 +106,7 @@ function view(el, ctx) {
   let state = null
   let info = {}
   let drawn = Array(9).fill(-1) // what is already on the paper, so only new marks draw in
+  let seen = false              // whether this view has shown the table once
   const myTurn = () => info.mySeat != null && info.turn === info.mySeat
 
   // On your turn, a faint mark follows the mouse over the empty cells.
@@ -137,6 +139,9 @@ function view(el, ctx) {
         if (state.line && !state.line.includes(i)) g.classList.add('spent')
         marks.append(g)
       })
+      // A new mark is heard being drawn — not the marks already there when the table first shows.
+      if (seen && state.cells.some((seat, i) => seat !== -1 && drawn[i] !== seat)) sound.play('mark', { from: el })
+      seen = true
       drawn = state.cells.slice()
       // Three in a row: a stroke through them, drawn beneath the marks so
       // they stay crisp and it shows in the gaps between them.

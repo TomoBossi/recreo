@@ -6,13 +6,14 @@ import { sound, unlock } from '../games/kit/sound.js'
  * comes back up, two notes for a choice picked from several, and a slide
  * up or down for a switch turned on or off.
  *
- * What counts as a control: buttons, the choices in a dropdown, and
+ * What counts as a control: buttons, anything that acts as one
+ * (role="button", like an empty seat), the choices in a dropdown, and
  * anything marked data-sound. A choice is a button in a segmented group or
  * a dropdown's option; a switch is a button that carries aria-pressed on
  * its own, like the microphone and camera toggles. data-sound="none" silences a
  * control; data-sound="<name>" plays that sound when it is used.
  */
-const CONTROL = 'button, [role="option"], [data-sound]'
+const CONTROL = 'button, [role="button"], [role="option"], [data-sound]'
 
 export function clickSounds(root = document) {
   // The first touch of the page starts the audio: browsers allow nothing sooner.

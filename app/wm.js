@@ -1,4 +1,5 @@
 import { store } from './store.js'
+import { sound } from '../games/kit/sound.js'
 
 /**
  * A small window manager for the room.
@@ -100,7 +101,13 @@ export class WindowManager {
     win.setMeta(meta)
 
     el.querySelector('.wbtn.collapse').addEventListener('click', (e) => { e.stopPropagation(); win.collapse() })
-    el.querySelector('.wbtn.close')?.addEventListener('click', (e) => { e.stopPropagation(); win.onClose ? win.onClose() : win.close() })
+    // A small game is brought forward before it asks whether to end: its
+    // own question has no room to show while it is small.
+    el.querySelector('.wbtn.close')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (el.classList.contains('side') || win.collapsed) this.focus(win, { expand: true })
+      win.onClose ? win.onClose() : win.close()
+    })
     // Pressing a window's own buttons does what they say, not "focus": a
     // focus would rearrange the desk under the press and swallow the click.
     el.addEventListener('pointerdown', (e) => {
@@ -108,10 +115,10 @@ export class WindowManager {
       // A waiting game opens, as its button does, small beside the one
       // played; a small game comes forward. Either way the click is spent
       // on that: it never reaches the game that just grew under it.
-      if (kind === 'table' && win.collapsed && this.#tiled) { win.collapse(false); this.#swallowClick(); return }
+      if (kind === 'table' && win.collapsed && this.#tiled) { win.collapse(false); sound.play('on'); this.#swallowClick(); return }
       const small = el.classList.contains('side')
       this.focus(win)
-      if (small) this.#swallowClick()
+      if (small) { sound.play('select'); this.#swallowClick() }
     })
     // A panel collapses on a double click of its title; a game's clicks
     // already open it and bring it forward.
@@ -386,6 +393,9 @@ export class WindowManager {
 
   #place(win, x, y, w, h) {
     win.el.classList.toggle('collapsed', win.collapsed)
+    // Its button sounds what it does: a slide down to fold, up to open.
+    const fold = win.el.querySelector('.wbtn.collapse')
+    if (fold) fold.dataset.sound = win.collapsed ? 'on' : 'off'
     Object.assign(win.el.style, {
       left: `${x}px`, top: `${y}px`, width: `${w}px`, height: win.collapsed ? '' : `${h}px`,
     })

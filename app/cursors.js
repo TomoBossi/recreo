@@ -10,7 +10,7 @@ import { arrow } from './pointer.js'
  *   - On a game board, a point in the board's own drawing coordinates, which
  *     lands on the same square of the same board for everyone.
  *   - On a shared control of a table — a seat, an option, the rematch
- *     button, the end-of-game card — that control, and where inside it.
+ *     button — that control, and where inside it.
  *     Each sits somewhere else on each screen, but means the same thing.
  *     Anything can opt in by naming itself with data-cursor-anchor.
  *   - Anywhere else — settings, the shelf, the top bar, your own camera — a

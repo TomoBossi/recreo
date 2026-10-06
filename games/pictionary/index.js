@@ -14,7 +14,7 @@ import { defineGame } from '../kit/define.js'
 import { escape, INK } from '../kit/svg.js'
 import { pick } from '../kit/random.js'
 import { startPanel } from '../kit/lobby.js'
-import { countdown } from '../kit/sound.js'
+import { countdown, sound } from '../kit/sound.js'
 import { colourPicker } from '../kit/colours.js'
 import english from './words/en.js'
 import spanish from './words/es.js'
@@ -488,9 +488,17 @@ function view(el, ctx) {
     tickClock()
   }
 
+  let heardGuesses = null // `${turn}:${how many got it}` as last seen, for the chime
+
   function render() {
     const s = state
     if (s.phase !== lastPhase) { phaseSeenAt = Date.now(); lastPhase = s.phase }
+    // Someone guessed it: a bright chime, for everyone — once each, and not
+    // for guesses made before this view first looked.
+    const guesses = `${s.turn}:${Object.keys(s.guessed ?? {}).length}`
+    const [turnWas, countWas] = (heardGuesses ?? '').split(':').map(Number)
+    if (heardGuesses != null && turnWas === s.turn && Object.keys(s.guessed ?? {}).length > countWas) sound.play('correct', { from: el })
+    heardGuesses = guesses
     el.classList.toggle('drawing', iDraw())
 
     // The word: the drawer sees it, guessers see blanks, and those who
