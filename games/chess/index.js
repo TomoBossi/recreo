@@ -217,10 +217,12 @@ function view(el, ctx) {
       const ink = low ? '#fff' : running ? 'var(--on-accent)' : 'var(--text)'
       const name = info.names?.[seat] ?? (seat === 0 ? 'white' : 'black')
       const short = name.length > 15 ? `${name.slice(0, 14)}…` : name
+      // A lit card is bright: the ink outline, not the light one meant for dark ground.
+      const line = running ? 'var(--ink)' : 'var(--seat-line)'
       // Two rows: whose clock — their colour and name — and under it, big, the time.
       return `<g class="clock">
-        <rect x="${x}" y="${y}" width="${CARD.w}" height="${CARD.h}" rx="12" fill="${fill}" stroke="var(--seat-line)" stroke-width="4"/>
-        <rect x="${x + 16}" y="${y + 16}" width="22" height="22" rx="5" fill="${seat === 0 ? WHITE : BLACK}" stroke="var(--seat-line)" stroke-width="3"/>
+        <rect x="${x}" y="${y}" width="${CARD.w}" height="${CARD.h}" rx="12" fill="${fill}" stroke="${line}" stroke-width="4"/>
+        <rect x="${x + 16}" y="${y + 16}" width="22" height="22" rx="5" fill="${seat === 0 ? WHITE : BLACK}" stroke="${line}" stroke-width="3"/>
         <text x="${x + 48}" y="${y + 34}" class="clock-name" fill="${ink}">${escape(short)}</text>
         <text x="${x + 16}" y="${y + CARD.h - 18}" class="clock-time" fill="${ink}">${format(ms)}</text>
       </g>`
@@ -421,7 +423,7 @@ export default defineGame({
   seats: 2,
   pieces: [WHITE, BLACK],
   options: {
-    time: { label: 'clock', choices: { '1m': '1m', '3m': '3m', '5m': '5m', '10m': '10m', '15m': '15m', '30m': '30m', none: 'none' }, default: '10m' },
+    time: { label: 'clock', choices: { '1m': '1m', '3m': '3m', '5m': '5m', '10m': '10m', '15m': '15m', '30m': '30m', none: 'none' }, default: '5m' },
     increment: { label: 'per move', choices: { '+0': '+0s', '+1': '+1s', '+2': '+2s', '+3': '+3s', '+5': '+5s', '+10': '+10s', '+20': '+20s' }, default: '+0' },
   },
   rules,
