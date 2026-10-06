@@ -259,7 +259,7 @@ function view(el, ctx) {
       <g class="tunnel-in" data-tunnel="${i}"><circle cx="${ax}" cy="${ay}" r="22" fill="${TUNNEL}" stroke="${INK}" stroke-width="3"/>
         <circle cx="${ax}" cy="${ay}" r="14" fill="${INK}"/>
         <path d="M${ax - 7} ${ay} a7 7 0 0 1 7 -7 a10 10 0 0 1 10 10" fill="none" stroke="${TUNNEL}" stroke-width="3" stroke-linecap="round" opacity="0.8"/></g>
-      <g class="tunnel-out" data-tunnel="${i}"><circle cx="${bx}" cy="${by}" r="20" fill="none" stroke="${TUNNEL}" stroke-width="5" stroke-dasharray="7 6"/>
+      <g class="tunnel-out" data-tunnel="${i}"><circle cx="${bx}" cy="${by}" r="20" fill="none" stroke="${TUNNEL}" stroke-width="5" opacity="0.7"/>
         <circle cx="${bx}" cy="${by}" r="6" fill="${TUNNEL}"/></g>`).join('')
 
     const bumpers = (hole.bumpers ?? []).map(([x, y, r], i) => `

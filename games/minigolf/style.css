@@ -8,7 +8,7 @@
 .golf .aim.faint { opacity: 0.55; }
 /* Nothing loops forever but the windmill, whose sails are the game: an
    endless animation repaints the board for as long as it is on screen. */
-.golf .turn-ring { animation: golf-ring 1.1s ease-in-out 4; transform-box: fill-box; transform-origin: center; stroke-dasharray: 6 5; }
+.golf .turn-ring { animation: golf-ring 1.1s ease-in-out 4; transform-box: fill-box; transform-origin: center; }
 @keyframes golf-ring { 50% { transform: scale(1.25); opacity: 0.5; } }
 .golf .sails { animation: golf-sails var(--turn) linear infinite; } /* marked essential in the markup */
 @keyframes golf-sails { to { transform: rotate(360deg); } }

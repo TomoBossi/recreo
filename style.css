@@ -207,6 +207,13 @@ button, input, select { font: inherit; color: inherit; }
    shadow where a dark one would vanish into the page. */
 :root[data-theme="dark"] .wordmark { --ring: #06040d; --drop: #7b5fd6; }
 
+/* Seat chips: outlined in ink by day; at night ink would vanish into the
+   dark bar, so they take a light lavender line. A free seat's line is quieter. */
+:root { --seat-line: var(--ink); --seat-free: color-mix(in srgb, var(--ink) 40%, transparent); }
+:root[data-theme="dark"] { --seat-line: #a99be0; --seat-free: color-mix(in srgb, #a99be0 45%, transparent); }
+/* The table's options share the bar, and the light line at night. */
+:root[data-theme="dark"] .table-options .btn { border-color: var(--seat-line); }
+
 /* The mark: the bell beside the wordmark, its drop shadow the lettering's. */
 .brand { display: inline-flex; align-items: center; gap: 0.1em; --drop: #241c3a; }
 :root[data-theme="dark"] .brand { --drop: #7b5fd6; }
@@ -486,7 +493,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   gap: 6px;
   height: var(--seat-h);
   padding: 0 10px 0 var(--inset);
-  border: var(--line) solid var(--ink);
+  border: var(--line) solid var(--seat-line);
   /* The inner button's corners plus the gap round it, so the two nest. */
   border-radius: calc(var(--round-small) + 3px);
   background: var(--field);
@@ -501,14 +508,16 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .seat .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .seat .btn { flex: none; }
 .seat.turn { background: var(--sun); color: var(--on-accent); box-shadow: var(--lift-small); }
-.seat.empty { border-style: dashed; background: transparent; color: var(--text-soft); cursor: pointer; }
-.seat.empty:hover { background: var(--field); color: var(--text); }
+/* A free seat: a quieter outline and no fill, until pointed at. */
+.seat.empty { border-color: var(--seat-free); background: transparent; color: var(--text-soft); cursor: pointer; }
+.seat.empty:hover { border-color: var(--seat-line); background: var(--field); color: var(--text); }
 .seat.away { opacity: 0.6; }
 .seat.empty.closed { cursor: default; opacity: 0.55; }
 .seat.empty.closed:hover { background: transparent; color: var(--text-soft); }
-.seat .piece { align-self: stretch; margin: var(--inset) 0; aspect-ratio: 1; height: auto; border-radius: 4px; border: 2px solid var(--ink); flex: none; }
-.seat .btn { align-self: stretch; margin: var(--inset) 0; height: auto; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; }
-.seat .btn:hover, .seat .btn:active { --dx: 0px; --dy: 0px; background: var(--panel-2); }
+.seat .piece { align-self: stretch; margin: var(--inset) 0; aspect-ratio: 1; height: auto; border-radius: 4px; border: 2px solid var(--seat-line); flex: none; }
+/* Getting up — leave, or forfeit — stands out, in the room's leaving colour. */
+.seat .btn { align-self: stretch; margin: var(--inset) 0; height: auto; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; border-color: var(--seat-line); background: var(--berry); color: var(--on-strong); }
+.seat .btn:hover, .seat .btn:active { --dx: 0px; --dy: 0px; background: color-mix(in srgb, var(--berry) 85%, #000); }
 .seats .vs { font-weight: 900; color: var(--text-soft); }
 /* The Peers window's menu: hangs below its button, above every window. */
 .popover.peers-menu { position: fixed; z-index: 10000; }
