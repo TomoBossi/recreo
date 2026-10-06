@@ -21,6 +21,8 @@ const BLACK = '#3b2f5c'
  */
 const BASE = `<path d="M23 86 H77 Q81 86 81 82 V79 Q81 75 77 75 H23 Q19 75 19 79 V82 Q19 86 23 86 Z"/>
   <rect x="29" y="69" width="42" height="7" rx="3"/>`
+/** The knight's head and neck, in one outline. */
+const HEAD = 'M33 69 C33 60 37 53 44 48 C39 47 33 49 28 47 C22 45 21 38 26 34 L39 22 C41 16 45 12 51 11 L54 4 L58 12 C69 15 75 28 73 44 C72 54 69 62 67 69 Z'
 const STEM = (top, half) => `<path d="M${50 - half} ${top} Q${50 - half + 2} ${(top + 69) / 2} ${50 - half - 9} 69 H${50 + half + 9} Q${50 + half - 2} ${(top + 69) / 2} ${50 + half} ${top} Z"/>`
 const PIECES = {
   P: `${BASE}${STEM(46, 8)}
@@ -29,9 +31,13 @@ const PIECES = {
   R: `${BASE}<path d="M36 36 L38 69 H62 L64 36 Z"/>
       <rect x="31" y="31" width="38" height="7" rx="2"/>
       <path d="M31 14 H39 V20 H46 V14 H54 V20 H61 V14 H69 V31 H31 Z"/>`,
+  // The mane runs from the back of the ear, on the outline itself so no
+  // sliver shows between them; the head is filled, then the mane drawn,
+  // then the outline laid over both, so the mane tucks under the border.
   N: `${BASE}
-      <path d="M33 69 C33 60 37 53 44 48 C39 47 33 49 28 47 C22 45 21 38 26 34 L39 22 C41 16 45 12 51 11 L54 4 L58 12 C69 15 75 28 73 44 C72 54 69 62 67 69 Z"/>
-      <path class="detail" d="M59 15 C66 24 68 36 66 50" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <path d="${HEAD}" stroke="none"/>
+      <path class="detail" d="M58 12 C66 22 68 36 66 50" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <path d="${HEAD}" fill="none"/>
       <circle class="detail" cx="47" cy="24" r="2.6" fill="currentColor" stroke="none"/>
       <circle class="detail" cx="29.5" cy="40" r="1.6" fill="currentColor" stroke="none"/>`,
   B: `${BASE}${STEM(53, 7)}
