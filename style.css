@@ -211,6 +211,9 @@ button, input, select { font: inherit; color: inherit; }
    dark bar, so they take a light lavender line. A free seat's line is quieter. */
 :root { --seat-line: var(--ink); --seat-free: color-mix(in srgb, var(--ink) 40%, transparent); }
 :root[data-theme="dark"] { --seat-line: #a99be0; --seat-free: color-mix(in srgb, #a99be0 45%, transparent); }
+/* The light line is for dark ground: a seat lit up for its turn is bright,
+   and takes the ink outline again, inside and out. */
+:root[data-theme="dark"] .seat.turn { --seat-line: var(--ink); }
 /* The table's options share the bar, and the light line at night. */
 :root[data-theme="dark"] .table-options .btn { border-color: var(--seat-line); }
 
