@@ -186,7 +186,7 @@ function view(el, ctx) {
   }
   // Clock cards, in board units (a square is 100): beside the board, top
   // and bottom edges level with it; or above and below it in a tall window.
-  const CARD = { w: 250, h: 66, gap: 22 }
+  const CARD = { w: 250, h: 112, gap: 22 }
   const STACK = CARD.h + 20 // room above and below the board for a card and its gap
   function frame() {
     layout = clockLayout()
@@ -210,14 +210,13 @@ function view(el, ctx) {
       const fill = low ? 'var(--berry)' : running ? 'var(--sun)' : 'var(--panel)'
       const ink = low ? '#fff' : running ? 'var(--on-accent)' : 'var(--text)'
       const name = info.names?.[seat] ?? (seat === 0 ? 'white' : 'black')
-      const short = name.length > 9 ? `${name.slice(0, 8)}…` : name
-      // One row: whose clock on the left, the time on the right.
-      const mid = y + CARD.h / 2
+      const short = name.length > 15 ? `${name.slice(0, 14)}…` : name
+      // Two rows: whose clock — their colour and name — and under it, big, the time.
       return `<g class="clock">
-        <rect x="${x}" y="${y}" width="${CARD.w}" height="${CARD.h}" rx="12" fill="${fill}" stroke="var(--ink)" stroke-width="4"/>
-        <rect x="${x + 14}" y="${mid - 9}" width="18" height="18" rx="4" fill="${seat === 0 ? WHITE : BLACK}" stroke="var(--ink)" stroke-width="3"/>
-        <text x="${x + 40}" y="${mid + 7}" class="clock-name" fill="${ink}">${escape(short)}</text>
-        <text x="${x + CARD.w - 14}" y="${mid + 13}" text-anchor="end" class="clock-time" fill="${ink}">${format(ms)}</text>
+        <rect x="${x}" y="${y}" width="${CARD.w}" height="${CARD.h}" rx="12" fill="${fill}" stroke="var(--seat-line)" stroke-width="4"/>
+        <rect x="${x + 16}" y="${y + 16}" width="22" height="22" rx="5" fill="${seat === 0 ? WHITE : BLACK}" stroke="var(--seat-line)" stroke-width="3"/>
+        <text x="${x + 48}" y="${y + 34}" class="clock-name" fill="${ink}">${escape(short)}</text>
+        <text x="${x + 16}" y="${y + CARD.h - 18}" class="clock-time" fill="${ink}">${format(ms)}</text>
       </g>`
     }
     // Beside the board both stack in one column; above and below it the

@@ -1,5 +1,5 @@
 /* Chess: loaded with the game (styles in its defineGame). */
 .chess.my-turn rect[data-sq] { cursor: pointer; }
 .chess .promo { cursor: pointer; }
-.chess .clock-time { font: 900 38px var(--font); font-variant-numeric: tabular-nums; }
-.chess .clock-name { font: 800 19px var(--font); opacity: 0.85; }
+.chess .clock-time { font: 900 50px var(--font); font-variant-numeric: tabular-nums; }
+.chess .clock-name { font: 800 20px var(--font); opacity: 0.85; }
