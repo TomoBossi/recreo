@@ -12,13 +12,14 @@ presence, channels) and [mirador](https://github.com/TomoBossi/mirador)
 
 | | kind | seats |
 |---|---|---|
-| Tic-tac-toe | turns | 2 |
 | Connect four | turns | 2 |
 | Chess | turns, with clocks | 2 |
 | Pictionary | authority (one peer keeps time and judges guesses) | 2–4 |
 
-Minigolf (turns, integer physics, nine holes) is in `games/minigolf/` but
-shelved: not offered, while it is reworked (`shelved` in `games/index.js`).
+Shelved — kept in `games/` and still working, but not offered (`shelved` in
+`games/index.js`): tic-tac-toe, the smallest complete game and the one to copy
+when writing a new one; and minigolf (integer physics, nine holes), while it is
+reworked.
 
 Several tables can be open at once; anyone not seated is watching. A dropped
 connection keeps its seat, and so does a reload.

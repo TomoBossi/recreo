@@ -17,4 +17,4 @@ export const upcoming = []
  * Games kept but not offered: off the shelf, so nobody opens a new table,
  * yet still known, so a table someone already has open keeps working.
  */
-export const shelved = new Set(['minigolf'])
+export const shelved = new Set(['minigolf', 'tictactoe'])

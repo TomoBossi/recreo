@@ -18,7 +18,7 @@ games/
     lobby.js        startPanel(): "start!" / "waiting" / "play again" over a board
     random.js       next(), int(), pick(): a seeded generator kept in the state
     sound.js        sound.play(), countdown(): sounds made by Web Audio, no files
-  tictactoe/        the smallest complete game: copy this one to start
+  tictactoe/        the smallest complete game: copy this one to start (shelved)
   connect4/         turns, two seats, tap-to-preview on touchscreens
   chess/            turns, two seats, a board turned for black, clocks beside it
   minigolf/         turns, one to four seats, integer physics, a board that stands on end (shelved)
