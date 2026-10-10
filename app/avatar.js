@@ -18,7 +18,7 @@ const chance = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32
  * 1 − RECOVERY^n, against 1 for a character you have not had lately.
  */
 const MEMORY = 8
-const RECOVERY = 0.5
+const RECOVERY = 0.8
 
 /** The characters you have had, the one you have now first. */
 const recent = () => {

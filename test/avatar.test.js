@@ -18,8 +18,8 @@ test('recent characters are less likely, the more recent the less, but never rul
   const seen = tally(history[0], history)
   const fresh = PLAYABLE.slice(4)
   const freshMean = fresh.reduce((sum, id) => sum + seen[id], 0) / fresh.length
-  // Weights 0.5, 0.75 and 0.875 against 1 for a character not had lately.
-  for (const [n, expected] of [[1, 0.5], [2, 0.75], [3, 0.875]]) {
+  // Weights 1 − 0.8^n against 1 for a character not had lately.
+  for (const [n, expected] of [[1, 0.2], [2, 0.36], [3, 0.488]]) {
     const ratio = seen[history[n]] / freshMean
     assert.ok(Math.abs(ratio - expected) < 0.1, `${n} rolls ago: ${ratio.toFixed(2)}, expected about ${expected}`)
   }
