@@ -193,6 +193,8 @@ export class YouTube {
       player: player?.getPlayerState?.() ?? null,
       expected: this.#expected(),
       joined: this.#view?.joined ?? null,
+      error: this.#view?.error ?? null,
+      modules: player?.getOptions?.() ?? null,
     }
   }
 
@@ -549,10 +551,17 @@ export class YouTube {
       view.player = new YT.Player($('.yt-frame'), {
         width: '100%',
         height: '100%',
-        playerVars: { controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, origin: location.origin },
+        playerVars: { controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, cc_load_policy: 0, origin: location.origin },
         events: {
           onReady: () => { view.loaded = undefined; this.#applySound(view); this.#sync() },
-          onStateChange: (e) => { if (e.data === 0 && this.state.now) this.#ask({ type: 'ended', key: this.state.now.key }) },
+          onStateChange: (e) => {
+            if (e.data === 0 && this.state.now) this.#ask({ type: 'ended', key: this.state.now.key })
+            if (e.data === 1) noCaptions(view.player)
+          },
+          // Captions are a module the player loads with each video, whatever
+          // the viewer's own YouTube settings say: unloaded as soon as it is.
+          onApiChange: () => noCaptions(view.player),
+          onError: (e) => { view.error = e.data },
         },
       })
     }).catch((err) => this.toast(err.message))
@@ -655,6 +664,13 @@ export class YouTube {
     view.cleanup?.()
     try { view.player?.destroy?.() } catch { /* already gone */ }
     this.wm.remove(view.win)
+  }
+}
+
+/** No captions: the player's preference setting cannot promise that, unloading the module can. */
+function noCaptions(player) {
+  for (const module of ['captions', 'cc']) {
+    try { player?.unloadModule?.(module) } catch { /* not loaded */ }
   }
 }
 

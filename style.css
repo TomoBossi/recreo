@@ -936,8 +936,8 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .win.side .yt-controls, .win.side .yt-add, .win.side .yt-queue, .win.side .yt-wait .without { display: none; }
 
 /* A slider drawn like the rest: an outlined track, coloured up to the thumb
-   (--fill, kept by app/controls.js), and a round thumb with the hard shadow
-   buttons have; the thumb is light in both themes, to stand out on the track. */
+   (--fill, kept by app/controls.js), and a round outlined thumb, light in both
+   themes, to stand out on the track. */
 input.slider {
   --tone: var(--sun); --fill: 0%;
   -webkit-appearance: none; appearance: none; height: 18px; margin: 0; background: transparent; cursor: pointer;
@@ -953,10 +953,10 @@ input.slider::-moz-range-track {
 }
 input.slider::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -5px;
-  border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0; box-shadow: 1.5px 1.5px 0 var(--ink);
+  border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0;
 }
 input.slider::-moz-range-thumb {
-  width: 11px; height: 11px; border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0; box-shadow: 1.5px 1.5px 0 var(--ink);
+  width: 11px; height: 11px; border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0;
 }
 input.slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
 input.slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
