@@ -1,4 +1,5 @@
 import { store, theme, setTheme } from './store.js'
+import { cleanName, NAME_MAX } from './limits.js'
 import { sound } from '../games/kit/sound.js'
 import { colourButton } from '../games/kit/colours.js'
 import { avatar, randomCharacter, REFRESH } from './avatar.js'
@@ -26,7 +27,7 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
             <button type="button" class="btn icon reroll" title="another character" aria-label="another character">${REFRESH}</button>
           </span>` : ''}
           <form class="row name-form">
-            <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
+            <input class="input" name="nick" maxlength="${NAME_MAX}" autocomplete="nickname" aria-label="your name" placeholder="name">
           </form>
         </div>
       </section>` : ''}
@@ -84,12 +85,12 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
   // it a moment after you stop. An empty field changes nothing, and gives
   // the name back when you leave it.
   let saved = null
-  const savedNick = () => saved ?? (room?.nick || store.get('nick', ''))
+  const savedNick = () => saved ?? cleanName(room?.nick || store.get('nick', ''))
   const field = () => el.querySelector('[name=nick]')
   let typing = null
   const apply = () => {
     clearTimeout(typing)
-    const nick = field().value.trim().slice(0, 24)
+    const nick = cleanName(field().value)
     if (!nick || nick === savedNick()) return
     saved = nick
     store.set('nick', nick)

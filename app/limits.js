@@ -11,3 +11,9 @@ export const CAPACITY = 4
  * own with one more to spare; more than that is only clutter.
  */
 export const TABLES = 5
+
+/** How long a name can be. */
+export const NAME_MAX = 15
+
+/** A name as typed, ready to keep: no space at either end, at most NAME_MAX long. */
+export const cleanName = (typed) => String(typed ?? '').trim().slice(0, NAME_MAX).trimEnd()

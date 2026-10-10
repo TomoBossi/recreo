@@ -20,7 +20,7 @@ import { settingsPanel, GEAR } from './settings.js'
 import { BELL, setPageIcon } from './bell.js'
 import { clampColour, colourFor, colourButton, PRESETS } from '../games/kit/colours.js'
 import { ownCursor } from './pointer.js'
-import { CAPACITY, TABLES } from './limits.js'
+import { CAPACITY, TABLES, cleanName } from './limits.js'
 import { playerId, renewPlayerId, shouldYield } from './identity.js'
 import { games, upcoming, shelved } from '../games/index.js'
 
@@ -150,7 +150,7 @@ function popover(button, pop, fill) {
 
 const nickInput = $('#nick-input')
 const roomInput = $('#room-input')
-nickInput.value = store.get('nick', '')
+nickInput.value = cleanName(store.get('nick', ''))
 $('#preview-placeholder').innerHTML = avatar(character)
 $('.preview').style.setProperty('--who', colour)
 $('#preview-character').innerHTML = avatar(character)
@@ -384,7 +384,7 @@ let entering = false
 
 $('#join-form').addEventListener('submit', async (e) => {
   e.preventDefault()
-  const nick = nickInput.value.trim().slice(0, 24)
+  const nick = cleanName(nickInput.value)
   const room = normalizeRoom(roomInput.value)
   if (!nick || !room || entering) return
   store.set('nick', nick)
@@ -405,7 +405,7 @@ $('#join-form').addEventListener('submit', async (e) => {
  * filled in, and so does anything that goes wrong.
  */
 if (document.documentElement.dataset.straightIn) {
-  const nick = store.get('nick', '').trim().slice(0, 24)
+  const nick = cleanName(store.get('nick', ''))
   const room = normalizeRoom(roomFromUrl() ?? '')
   const welcome = (message = '') => {
     delete document.documentElement.dataset.straightIn
