@@ -31,13 +31,14 @@ export function soundButton(onToggle) {
 
 /**
  * Show how far along a slider is: the track is coloured up to the thumb.
- * Called whenever its value changes, by hand or not.
+ * Called whenever its value changes, by hand or not. The track is drawn by
+ * the box round the slider (.slider-box), so its ends sit under the thumb.
  */
 export function fill(input) {
   const min = Number(input.min) || 0
   const max = Number(input.max) || 1
   const at = max > min ? (Number(input.value) - min) / (max - min) : 0
-  input.style.setProperty('--fill', `${Math.max(0, Math.min(1, at)) * 100}%`)
+  ;(input.closest('.slider-box') ?? input).style.setProperty('--fill', `${Math.max(0, Math.min(1, at)) * 100}%`)
 }
 
 /** A volume slider, 0 to 1, for over a video. */
@@ -45,7 +46,7 @@ export function volumeSlider(value, onInput) {
   const label = document.createElement('label')
   label.className = 'volume'
   label.title = 'volume'
-  label.innerHTML = `${SPEAKER}<input type="range" class="slider" min="0" max="1" step="0.05" aria-label="volume">`
+  label.innerHTML = `${SPEAKER}<span class="slider-box"><input type="range" class="slider" min="0" max="1" step="0.05" aria-label="volume"></span>`
   const input = label.querySelector('input')
   input.value = String(value)
   fill(input)

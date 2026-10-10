@@ -19,7 +19,11 @@ import { store } from './store.js'
  * while the others can go on without them, until the next video.
  *
  * Positions are given on the runner's clock; each peer measures how far its
- * own is from it. A player more than a little off where it should be seeks.
+ * own is from it, keeping the measurement that took the shortest round trip
+ * (a slow line skews the others). A player a little off where it should be
+ * plays a touch faster or slower until it is there, which needs no new data;
+ * only one far off seeks, aiming ahead by what its last seek cost, and one
+ * whose seeks keep missing seeks less readily.
  *
  * A browser that will not play sound before the page has been clicked plays
  * the video muted, in step, with a "join playback" button for the sound; it
@@ -38,7 +42,9 @@ const TICK_MS = 250
 const REPORT_MS = 500
 const HOLD_AFTER = 1500    // stuck this long holds everyone
 const ESCAPE_AFTER = 15000 // held this long offers to go on without them
-const DRIFT = 0.6          // seconds off before a player seeks
+const LEVEL = 0.12         // seconds off that count as in step
+const NUDGE = 0.3          // seconds off before a player changes speed to catch up
+const LEAP = 3             // seconds off before a player seeks instead
 const GRACE = 2500         // after loading or seeking, a player is not judged stuck
 const QUIET = 3000         // no report for this long: not counted
 
@@ -95,6 +101,7 @@ export class YouTube {
   state = closed()
   #runner = null       // who runs it, by peer id
   #offset = 0          // the runner's clock minus ours, in ms
+  #samples = []        // recent measurements of it: { rtt, offset }
   #reports = new Map() // runner only: peer id -> { report, at }
   #view = null         // the window and its player, while open
   #revealNext = false  // we opened it: show it once it is there
@@ -122,7 +129,7 @@ export class YouTube {
     this.#elect()
     setInterval(() => this.#tick(), TICK_MS)
     setInterval(() => this.#report(), REPORT_MS)
-    setInterval(() => this.#measure(), 15000)
+    setInterval(() => this.#measure(), 10000)
   }
 
   get #runs() { return this.#runner === this.room.selfId }
@@ -147,7 +154,8 @@ export class YouTube {
     if (id === this.#runner) return
     this.#runner = id
     this.#reports.clear()
-    void this.#measure()
+    this.#samples = []
+    void this.#measure(5)
   }
 
   /**
@@ -164,14 +172,19 @@ export class YouTube {
   }
 
   /** How far the runner's clock is from ours, the way NTP asks. */
-  async #measure() {
-    if (this.#runs) { this.#offset = 0; return }
+  async #measure(times = 1) {
+    if (this.#runs) { this.#offset = 0; this.#samples = []; return }
     const runner = this.#runner
-    const sent = Date.now()
-    const theirs = await this.room.request('yt.clock', null, { target: runner, timeout: 4000 }).catch(() => null)
-    if (typeof theirs !== 'number' || runner !== this.#runner) return
-    const back = Date.now()
-    this.#offset = theirs - (sent + back) / 2
+    for (let i = 0; i < times; i++) {
+      const sent = Date.now()
+      const theirs = await this.room.request('yt.clock', null, { target: runner, timeout: 4000 }).catch(() => null)
+      if (typeof theirs !== 'number' || runner !== this.#runner) return
+      const back = Date.now()
+      this.#samples = [...this.#samples, { rtt: back - sent, offset: theirs - (sent + back) / 2 }].slice(-8)
+      // The quickest round trip had the least room to be lopsided.
+      this.#offset = this.#samples.reduce((a, b) => (b.rtt < a.rtt ? b : a)).offset
+      if (i < times - 1) await new Promise((r) => setTimeout(r, 250))
+    }
   }
 
   /** Where the video should be now, in seconds. */
@@ -196,6 +209,8 @@ export class YouTube {
       error: this.#view?.error ?? null,
       modules: player?.getOptions?.() ?? null,
       muted: player?.isMuted?.() ?? null,
+      rate: this.#view?.rate ?? null,
+      patience: this.#view?.patience ?? null,
     }
   }
 
@@ -367,8 +382,10 @@ export class YouTube {
       view.loaded = s.now?.key ?? null
       view.grace = now + GRACE
       view.caught = false
-      view.aligned = false
       view.lastTime = null
+      view.raw = null
+      // A new video may start at its own speed: set it again, not assumed.
+      view.rate = null
       if (!s.now) { player.stopVideo(); return }
       const opts = { videoId: s.now.id, startSeconds: this.#expected(now) }
       if (s.playing) player.loadVideoById(opts)
@@ -376,15 +393,19 @@ export class YouTube {
       return
     }
     if (!s.now) return
-    // Every stretch of playing — after loading, playing on, a seek, a hold —
-    // starts with one exact lining-up.
-    if (view.stretch !== s.at) { view.stretch = s.at; view.aligned = false }
 
     const t = player.getCurrentTime?.() ?? 0
     const state = player.getPlayerState()
     const moving = view.lastTime != null && t - view.lastTime > 0.05
     view.lastTime = t
     if (moving) view.movedAt = now
+    // The player tells the page where it is only now and then — less often
+    // on a phone — so between tellings it is where it was plus the time
+    // since, at its speed: an old answer would always look behind.
+    if (t !== view.raw) { view.raw = t; view.rawAt = now }
+    const at = state === 1 ? t + Math.min(1, (now - view.rawAt) / 1000) * (view.rate ?? 1) : t
+    // What a seek costs this player, learnt from the last one.
+    if (view.seekAt && moving) { view.seekCost = Math.min(3, (view.seekCost + (now - view.seekAt) / 1000) / 2); view.seekAt = 0 }
     const want = this.#expected(now)
     const mine = s.waiting.includes(this.room.selfId)
 
@@ -407,6 +428,7 @@ export class YouTube {
     if (s.playing && s.held && mine) {
       // Stuck: keep going until the video itself moves again (an advert
       // only runs while it plays), then come back to where everyone stopped.
+      this.#speed(view, 1)
       if (!view.caught) {
         if (moving && state === 1) { view.caught = true; player.pauseVideo(); player.seekTo(s.pos, true) }
         else if (state !== 1 && state !== 3) player.playVideo()
@@ -416,21 +438,49 @@ export class YouTube {
     view.caught = false
     if (s.playing && !s.held) {
       if (state !== 1 && state !== 3) player.playVideo()
-      // Starting took this player a moment others may not have needed: the
-      // first time it really plays, it lines up exactly.
-      if (!view.aligned && state === 1 && moving) {
-        view.aligned = true
-        if (Math.abs(t - want) > 0.25) { player.seekTo(want, true); view.grace = now + GRACE; return }
-      }
       // Only a player that is moving is put right: one waiting for data
-      // gains nothing from seeking, and would only seem never to be stuck.
-      if (state === 1 && moving && Math.abs(t - want) > DRIFT && now > view.grace) { player.seekTo(want, true); view.grace = now + GRACE }
+      // gains nothing from it, and would only seem never to be stuck.
+      if (state === 1 && moving && now > view.grace) this.#steer(view, at - want, want, now)
     } else {
+      this.#speed(view, 1)
       if (state === 1 || state === 3) player.pauseVideo()
       // A video only cued starts playing when sought, so it is left where
       // it was cued, which was the right place.
       if (state !== 5 && Math.abs(t - want) > 0.15 && now > view.grace) { player.seekTo(want, true); view.grace = now + 800 }
     }
+  }
+
+  /**
+   * Bring a playing player to where it should be, `off` seconds ahead (or,
+   * negative, behind). Close: a touch faster or slower until level, which
+   * needs no new data, so nothing stalls. Far: a seek, aimed ahead by what
+   * seeking costs here. A player whose seeks keep missing — a slow line
+   * pays for every one — seeks less readily.
+   */
+  #steer(view, off, want, now) {
+    const player = view.player
+    view.seeks = (view.seeks ?? []).filter((t) => now - t < 60000)
+    const patience = view.seeks.length >= 3 ? Math.min(4, (view.patience ?? 1) * 2) : (view.patience ?? 1)
+    view.patience = patience
+    if (Math.abs(off) > LEAP * patience) {
+      this.#speed(view, 1)
+      player.seekTo(want + view.seekCost, true)
+      view.seekAt = now
+      view.seeks.push(now)
+      view.grace = now + GRACE
+      return
+    }
+    const rates = view.rates ??= player.getAvailablePlaybackRates?.() ?? [1]
+    let rate = view.rate
+    if (Math.abs(off) < LEVEL) rate = 1
+    else if (Math.abs(off) > NUDGE) rate = off < 0 ? (rates.includes(1.25) ? 1.25 : 1) : (rates.includes(0.75) ? 0.75 : 1)
+    this.#speed(view, rate)
+  }
+
+  #speed(view, rate) {
+    if (view.rate === rate) return
+    view.rate = rate
+    view.player?.setPlaybackRate?.(rate)
   }
 
   /** What this player tells the runner: how long it has been stuck, whether it is ready to go on. */
@@ -464,21 +514,23 @@ export class YouTube {
   #openView() {
     const body = document.createElement('div')
     body.className = 'yt-body'
+    // Pointers are shared over the picture and the shared controls, each an
+    // anchor, the same for everyone; the volume is each one's own.
+    body.dataset.cursorHost = ''
     body.innerHTML = `
       <div class="yt-screen">
-        <div class="yt-view"><div class="yt-frame"></div></div>
+        <div class="yt-view" data-cursor-anchor="video"><div class="yt-frame"></div><div class="yt-shield" title="play or pause"></div></div>
         <div class="yt-empty">nothing playing — add a video below</div>
-        <div class="yt-shield" title="play or pause"></div>
-        <div class="yt-wait" hidden><span></span><button type="button" class="btn small without" hidden></button></div>
+        <div class="yt-wait" data-cursor-anchor="wait" hidden><span></span><button type="button" class="btn small without" hidden></button></div>
         <button type="button" class="btn sun join" hidden>join playback</button>
       </div>
       <div class="yt-controls">
-        <button type="button" class="wbtn media play" title="play" aria-label="play"></button>
-        <button type="button" class="wbtn media next" title="next in the queue" aria-label="next in the queue">${NEXT}</button>
-        <input type="range" class="seek slider" min="0" max="1" step="0.1" value="0" aria-label="position">
+        <button type="button" class="wbtn media play" title="play" aria-label="play" data-cursor-anchor="play"></button>
+        <button type="button" class="wbtn media next" title="next in the queue" aria-label="next in the queue" data-cursor-anchor="next">${NEXT}</button>
+        <span class="slider-box seek-box" data-cursor-anchor="seek"><input type="range" class="seek slider" min="0" max="1" step="0.1" value="0" aria-label="position"></span>
         <span class="time">0:00 / 0:00</span>
       </div>
-      <form class="yt-add">
+      <form class="yt-add" data-cursor-anchor="add">
         <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link">
         <button type="submit" class="btn small" name="queue">add to queue</button>
         <button type="submit" class="btn small sun" name="now">play now</button>
@@ -503,6 +555,7 @@ export class YouTube {
     const view = {
       win: null, player: null, loaded: undefined, grace: 0, caught: false, lastTime: null, movedAt: 0,
       joined: navigator.userActivation?.hasBeenActive ?? true,
+      rate: 1, seekCost: 0, raw: null, rawAt: 0,
       heard: true,
       volume: store.get('yt:volume', 0.8),
       seeking: false,
@@ -527,6 +580,7 @@ export class YouTube {
       tools: [sound],
       phoneHeight: (w) => Math.round(w * 9 / 16) + 250,
     })
+    view.win.el.dataset.cursorWindow = 'youtube'
 
     // Every control asks the runner; nothing changes here until it answers.
     const toggle = () => this.#ask({ type: this.state.playing ? 'pause' : 'play' })
@@ -663,7 +717,7 @@ export class YouTube {
     const key = JSON.stringify(s.queue)
     if (list.dataset.key !== key) {
       list.dataset.key = key
-      list.innerHTML = s.queue.map((q, i) => `<li data-key="${q.key}">
+      list.innerHTML = s.queue.map((q, i) => `<li data-key="${q.key}" data-cursor-anchor="q:${q.key}">
         <span class="title">${escapeHtml(q.title ?? q.id)}</span>
         <button type="button" class="wbtn media" data-do="now" title="play now" aria-label="play now">${PLAY}</button>
         <button type="button" class="wbtn up" data-do="up" title="earlier" aria-label="earlier" ${i === 0 ? 'disabled' : ''}>↑</button>

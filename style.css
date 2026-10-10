@@ -885,6 +885,7 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 
 /* A shared screen: the picture whole, letterboxed on black. */
 .screen-body { position: relative; height: 100%; background: #000; border-radius: 0 0 calc(var(--round) - var(--line)) calc(var(--round) - var(--line)); overflow: hidden; }
+.screen-frame { position: absolute; }
 .screen-body video { width: 100%; height: 100%; display: block; object-fit: contain; }
 
 /* A volume slider over a video; small windows beside the master go without. */
@@ -895,12 +896,17 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 }
 .volume svg { width: 14px; height: 14px; flex: none; }
 .volume .slash { display: none; }
-.volume input { width: 90px; }
+/* Over a shared screen, the slider only while a pointer is over it, or for a
+   moment after a tap (app/screenshare.js). */
+.screen-body .volume { opacity: 0; pointer-events: none; transition: opacity 150ms; }
+.screen-body.awake .volume { opacity: 1; pointer-events: auto; }
+@media (hover: hover) { .screen-body:hover .volume { opacity: 1; pointer-events: auto; } }
+.volume .slider-box { width: 90px; }
 .win.side .volume { display: none; }
 
 /* YouTube: the video above its controls, then adding and the queue. A small
    window beside the master shows only the video. */
-.yt-body { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.yt-body { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .yt-screen { position: relative; flex: 1; min-height: 120px; background: #000; overflow: hidden; }
 /* The video's own 16:9 box; YouTube's frame overhangs it top and bottom (app/youtube.js). */
 .yt-view { position: absolute; overflow: hidden; }
@@ -908,6 +914,7 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-screen.idle .yt-view { visibility: hidden; }
 .yt-shield { position: absolute; inset: 0; cursor: pointer; }
 .yt-screen.idle .yt-shield { display: none; }
+.yt-view .yt-shield { z-index: 1; }
 .yt-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; font-weight: 800; color: #b6acd6; }
 .yt-empty[hidden] { display: none; }
 .yt-wait {
@@ -923,10 +930,10 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-screen .ask p { margin: 0; }
 .yt-screen .ask .row { display: flex; gap: 8px; }
 .yt-controls { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: var(--line) solid var(--ink); }
-.yt-controls .seek { flex: 1; min-width: 60px; --tone: var(--berry); }
+.yt-controls .seek-box { flex: 1; min-width: 60px; --tone: var(--berry); }
 .yt-controls .time { font-weight: 800; font-size: 12px; color: var(--text-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .yt-controls .volume { position: static; padding: 0; border: 0; background: none; box-shadow: none; }
-.yt-controls .volume input { width: 70px; }
+.yt-controls .volume .slider-box { width: 70px; }
 .yt-add { display: flex; gap: 6px; padding: 0 10px 8px; }
 .yt-add .input { flex: 1; min-width: 0; padding: 5px 10px; }
 .yt-queue { list-style: none; margin: 0; padding: 0 10px 8px; max-height: 132px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
@@ -940,27 +947,30 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 
 /* A slider drawn like the rest: an outlined track, coloured up to the thumb
    (--fill, kept by app/controls.js), and a round outlined thumb, light in both
-   themes, to stand out on the track. */
+   themes, to stand out on the track. The track is drawn by the box round the
+   slider, from the thumb's centre at one end to its centre at the other, so
+   the thumb always covers its ends; the slider's own track is invisible. */
+.slider-box { position: relative; display: inline-flex; align-items: center; --tone: var(--sun); --fill: 0%; }
+.slider-box::before {
+  content: ""; position: absolute; left: 8px; right: 8px; top: 50%; height: 10px; margin-top: -5px; box-sizing: border-box;
+  border: 2px solid var(--ink); border-radius: 99px; pointer-events: none;
+  background: linear-gradient(to right, var(--tone) var(--fill), var(--field) var(--fill));
+}
 input.slider {
-  --tone: var(--sun); --fill: 0%;
+  position: relative; width: 100%;
   -webkit-appearance: none; appearance: none; height: 18px; margin: 0; background: transparent; cursor: pointer;
 }
 input.slider:focus-visible { outline: none; }
-input.slider::-webkit-slider-runnable-track {
-  box-sizing: border-box; height: 10px; border: 2px solid var(--ink); border-radius: 99px;
-  background: linear-gradient(to right, var(--tone) var(--fill), var(--field) var(--fill));
-}
-input.slider::-moz-range-track {
-  box-sizing: border-box; height: 10px; border: 2px solid var(--ink); border-radius: 99px;
-  background: linear-gradient(to right, var(--tone) var(--fill), var(--field) var(--fill));
-}
+input.slider::-webkit-slider-runnable-track { height: 10px; background: transparent; border: 0; }
+input.slider::-moz-range-track { height: 10px; background: transparent; border: 0; }
 input.slider::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -5px;
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -3px; box-sizing: border-box;
   border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0;
 }
 input.slider::-moz-range-thumb {
-  width: 11px; height: 11px; border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0;
+  width: 16px; height: 16px; box-sizing: border-box; border: 2.5px solid var(--ink); border-radius: 50%; background: #fffaf0;
 }
 input.slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
 input.slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
-input.slider:disabled { cursor: default; opacity: 0.5; }
+.slider-box:has(input:disabled) { opacity: 0.5; }
+input.slider:disabled { cursor: default; }

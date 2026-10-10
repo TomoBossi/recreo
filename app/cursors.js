@@ -14,6 +14,10 @@ import { avatar } from './avatar.js'
  *     button — that control, and where inside it.
  *     Each sits somewhere else on each screen, but means the same thing.
  *     Anything can opt in by naming itself with data-cursor-anchor.
+ *   - On an activity — a shared screen, the YouTube player — the same:
+ *     anchors, the picture among them. A window shares pointers by naming
+ *     itself, the same name on every screen, with data-cursor-window, and
+ *     says where they are drawn with data-cursor-host.
  *   - Anywhere else — settings, the shelf, the top bar, your own camera — a
  *     pointer means nothing to anyone else, and is not shown.
  *
@@ -106,10 +110,10 @@ export class Cursors {
 
   /** What a pointer is over that others share: a board point, an anchor, or nothing. */
   #placeOf(target, e) {
-    const win = target?.closest?.('.win[data-id^="table:"]')
+    const win = target?.closest?.('.win[data-id^="table:"], .win[data-cursor-window]')
     if (!win || win.classList.contains('collapsed')) return null
-    const table = win.dataset.id.slice(6)
-    const svg = target.closest('.stage svg')
+    const table = win.dataset.cursorWindow ?? win.dataset.id.slice(6)
+    const svg = win.dataset.cursorWindow ? null : target.closest('.stage svg')
     if (svg) {
       // A game can name the group whose coordinates are its own — a board
       // that turns round for one player, say — and positions travel in those.
@@ -157,8 +161,8 @@ export class Cursors {
     if (!last.t) return
     this.#last = { t: null }
     if (last.a == null && e) {
-      const win = this.desk.querySelector(`.win[data-id="table:${CSS.escape(last.t)}"]`)
-      const svg = win?.querySelector('.stage svg')
+      const win = this.#window(last.t)
+      const svg = win?.dataset.cursorWindow ? null : win?.querySelector('.stage svg')
       const space = svg?.querySelector('[data-cursor-space]') ?? svg
       const p = space && toSpace(space, e)
       if (p) {
@@ -267,14 +271,20 @@ export class Cursors {
     return entry
   }
 
+  /** The window a pointer message names: a game's table, or an activity by its shared name. */
+  #window(name) {
+    return this.desk.querySelector(`.win[data-cursor-window="${CSS.escape(name)}"]`)
+      ?? this.desk.querySelector(`.win[data-id="table:${CSS.escape(name)}"]`)
+  }
+
   /**
    * Put a cursor where it belongs on this screen. Returns false when there
    * is nowhere: the table is closed or collapsed here, or the control it
    * was over is not showing.
    */
   #place(entry) {
-    const win = this.desk.querySelector(`.win[data-id="table:${CSS.escape(entry.table)}"]`)
-    const table = win?.querySelector('.table')
+    const win = this.#window(entry.table)
+    const table = win?.querySelector('.table, [data-cursor-host]')
     if (!table || win.classList.contains('collapsed')) { entry.el.remove(); entry.shown = false; return false }
     // Cursors live in a layer of their own that clips them, so one near an
     // edge can never stretch the window or make it scroll.

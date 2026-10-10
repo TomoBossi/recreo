@@ -94,6 +94,12 @@ export class Screenshare {
     const own = key === 'self'
     const body = document.createElement('div')
     body.className = 'screen-body'
+    body.dataset.cursorHost = ''
+    // The picture's own box, letterboxing left out: a pointer over it is a
+    // place on the shared screen, the same for everyone.
+    const frame = document.createElement('div')
+    frame.className = 'screen-frame'
+    frame.dataset.cursorAnchor = 'screen'
     const video = document.createElement('video')
     video.autoplay = true
     video.playsInline = true
@@ -101,7 +107,20 @@ export class Screenshare {
     // Your own share plays silently: you hear your screen already.
     video.muted = own
     video.srcObject = stream
-    body.append(video)
+    frame.append(video)
+    body.append(frame)
+    const fit = () => {
+      const w = body.clientWidth
+      const h = body.clientHeight
+      const ratio = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16 / 9
+      const fw = Math.min(w, h * ratio)
+      const fh = fw / ratio
+      Object.assign(frame.style, { width: `${fw}px`, height: `${fh}px`, left: `${(w - fw) / 2}px`, top: `${(h - fh) / 2}px` })
+    }
+    const sized = new ResizeObserver(fit)
+    sized.observe(body)
+    // A shared window can change shape mid-share.
+    video.addEventListener('resize', fit)
 
     let heard = !own
     const tools = []
@@ -109,6 +128,15 @@ export class Screenshare {
       const sound = soundButton((on) => { heard = on; video.muted = !on })
       tools.push(sound)
       body.append(volumeSlider(1, (v) => { video.volume = v }))
+      // The slider shows while a pointer is over the screen; a finger has
+      // none, so a tap shows it for a few seconds, kept while it is used.
+      let sleep = null
+      const wake = () => {
+        body.classList.add('awake')
+        clearTimeout(sleep)
+        sleep = setTimeout(() => body.classList.remove('awake'), 3000)
+      }
+      body.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') wake() }, true)
     }
     const win = this.wm.add({
       id: `screen:${key}`,
@@ -123,7 +151,9 @@ export class Screenshare {
       tools,
       phoneHeight: (w) => Math.round(w * 9 / 16) + 40,
     })
-    this.#windows.set(key, { win, video, peerId: peer?.id ?? null })
+    // Named the same on every screen: by whose share it is.
+    win.el.dataset.cursorWindow = `screen:${own ? this.room.selfId : peer.id}`
+    this.#windows.set(key, { win, video, sized, peerId: peer?.id ?? null })
     // A browser holding sound back until the page is clicked plays the
     // share silent, picture and all, until then.
     video.play().catch((err) => {
@@ -143,6 +173,7 @@ export class Screenshare {
     if (!entry) return
     this.#windows.delete(key)
     entry.video.srcObject = null
+    entry.sized.disconnect()
     this.wm.remove(entry.win)
   }
 }
