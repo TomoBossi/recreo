@@ -18,7 +18,7 @@
  * names a drawing in ROSTER below: to add a character to the game, draw it
  * there and put its id here.
  */
-export const PLAYABLE = ['glorp', 'dingding', 'moai', 'sus', 'skull', 'villager', 'bot', 'capy', 'tux', 'saturn', 'glep', 'cheese']
+export const PLAYABLE = ['glorp', 'dingding', 'moai', 'sus', 'skull', 'villager', 'bot', 'capy', 'tux', 'saturn', 'glep', 'cheese', 'squid', 'monty', 'frog']
 
 const INK = '#241c3a'
 const W = 3.5 // the outline every shape wears
@@ -342,7 +342,7 @@ export const ROSTER = [
     },
   },
   {
-    id: 'bot', name: 'Botar2.0', bg: '#ff9a3c', draw: (k) => {
+    id: 'bot', name: 'BotAr2.0', bg: '#ff9a3c', draw: (k) => {
       const metal = '#c9d3df'
       const glow = '#5dffb0'
       const screen = '#1f2b3a'
@@ -398,6 +398,7 @@ export const ROSTER = [
       const black = '#2b2a3f'
       const cream = '#f6f2ea'
       const yellow = '#ffc21a'
+      // The shine on his head is lit from the right, like the glints in his eyes.
       const body = P('M44.1 4.1 C31.0 5.6 22.8 13.8 20.8 27.4 C20.1 31.5 20.4 48.6 21.2 59.4 C21.7 66.3 21.8 68.8 21.4 70.4 C20.7 73.0 19.9 74.4 16.9 77.7 C15.2 79.6 12.3 82.9 9.8 85.9 C4.4 92.2 2.3 96.0 0.5 102.8 C-1.2 109.2 -3.0 113.6 -6.8 120.8 C-11.3 129.5 -11.5 129.9 -11.5 133.0 C-11.5 135.2 -11.3 136.3 -10.6 138.3 C-10.3 139.2 -10.3 139.2 -10.9 140.2 C-11.3 140.8 -11.9 141.8 -12.4 142.6 C-14.8 147.0 -17.0 148.1 -22.6 147.8 C-26.6 147.5 -29.1 148.6 -30.2 150.9 C-31.3 153.0 -31.3 154.3 -30.7 160.3 C-29.9 168.0 -30.2 170.8 -32.3 175.2 C-34.2 179.2 -34.5 180.8 -33.5 182.7 C-32.6 184.4 -31.8 184.9 -26.5 186.5 C-24.6 187.1 -21.9 187.9 -20.5 188.3 C-19.1 188.8 -15.3 189.7 -12.0 190.5 C-2.8 192.6 -0.1 193.4 4.2 195.1 C11.0 198.0 11.6 198.1 14.7 198.1 C17.4 198.1 18.4 198.0 20.4 197.0 C23.4 195.6 25.9 193.0 27.2 189.9 C27.9 188.3 27.6 188.4 30.6 187.9 C38.4 186.7 45.6 186.6 56.2 187.9 C61.4 188.4 64.2 189.0 70.5 190.5 C74.1 191.4 74.1 191.4 74.6 192.3 C77.2 196.7 85.4 199.4 91.1 197.7 C94.5 196.7 96.8 195.2 101.4 190.8 C107.2 185.2 109.5 183.6 119.0 179.0 C125.5 175.8 127.8 174.0 129.2 171.2 C130.7 168.2 129.9 166.5 125.9 163.8 C125.1 163.2 123.5 162.0 122.5 161.2 C117.2 156.8 115.8 154.7 115.5 150.3 C115.2 145.7 114.0 143.7 111.0 142.5 C111.0 142.5 111.2 141.7 111.5 140.8 C112.2 138.8 113.0 134.9 113.2 132.6 C114.2 123.9 109.8 106.8 103.8 96.1 C101.4 91.9 100.0 90.0 95.5 85.1 C92.5 81.9 88.0 75.9 86.2 72.7 C83.3 67.7 81.6 63.8 80.4 59.7 C79.2 55.5 79.0 52.9 78.8 43.0 C78.6 30.5 78.1 27.6 75.3 21.9 C70.7 12.3 62.6 6.1 52.2 4.4 C50.8 4.1 45.3 4.0 44.1 4.1 Z')
       const belly = P('M62.9 64.1 C62.6 64.8 62.2 65.0 60.0 65.8 C57.9 66.6 56.3 67.5 52.8 69.9 C48.7 72.7 45.7 73.7 41.5 73.9 C36.8 74.0 35.0 73.1 31.2 68.6 C30.0 67.3 28.7 65.8 28.3 65.4 C27.5 64.6 27.5 64.6 27.4 65.2 C27.3 65.6 27.3 66.6 27.3 67.5 C27.3 72.6 26.7 74.3 22.8 79.8 C18.1 86.6 16.7 90.1 16.7 95.3 C16.7 97.0 16.7 97.0 15.5 98.9 C8.2 110.5 4.2 123.1 4.3 134.9 L4.3 138.0 L6.4 140.0 C10.9 144.1 14.4 147.1 19.8 151.4 C25.1 155.5 26.8 157.3 27.7 159.9 C29.5 164.8 25.8 168.5 20.4 167.4 C19.8 167.3 19.4 167.2 19.4 167.2 C19.3 167.3 20.3 168.5 21.5 170.0 C22.7 171.5 24.0 173.2 24.4 173.7 C25.0 174.6 25.2 174.8 26.5 175.4 C34.9 179.6 45.0 180.5 53.6 177.7 C59.9 175.6 65.0 172.1 73.2 164.0 L76.5 160.7 L76.6 158.2 C76.8 155.8 76.7 152.9 76.5 146.1 C76.2 140.6 77.9 139.2 83.4 140.1 C84.1 140.3 84.8 140.3 84.8 140.3 C84.9 140.2 85.1 138.7 85.3 136.9 C87.5 117.6 84.5 104.5 75.7 94.5 C74.6 93.3 74.6 93.3 74.4 91.9 C73.4 86.0 71.9 81.9 68.0 74.0 C66.7 71.4 65.2 68.3 64.7 67.1 C64.3 66.0 63.7 64.7 63.6 64.4 C63.2 63.7 63.2 63.7 62.9 64.1 Z')
       // Its mouth line is a slit in the outline; the shading goes on the beak
@@ -405,7 +406,7 @@ export const ROSTER = [
       const beak = P('M39.6 46.6 C36.3 47.4 33.5 48.9 31.0 51.3 C30.2 52.0 29.1 53.0 28.5 53.4 C26.5 55.0 25.2 56.9 24.8 58.8 C24.4 60.7 24.5 61.2 25.1 61.8 C25.7 62.4 26.1 62.5 25.7 62.0 C25.5 61.8 25.6 61.8 26.0 61.8 C26.8 61.8 28.0 62.4 29.4 63.5 C32.4 65.7 35.2 66.5 39.5 66.1 C45.0 65.6 49.3 64.1 53.6 61.0 C56.0 59.3 56.4 59.3 54.2 61.0 C51.1 63.4 48.4 64.8 44.5 65.7 C36.9 67.5 32.3 67.2 29.5 64.6 C28.8 63.9 27.2 62.9 26.9 62.9 C26.8 62.9 27.3 63.5 28.0 64.2 C28.8 64.9 30.1 66.4 31.0 67.6 C34.5 72.3 36.8 73.7 41.1 73.6 C45.7 73.6 49.0 72.2 54.8 67.7 C56.7 66.3 58.7 65.2 60.2 64.7 C62.5 64.0 63.3 63.2 63.6 61.6 C63.7 61.0 63.9 59.9 64.1 59.1 C64.5 57.2 64.5 56.9 64.0 55.6 C63.6 54.3 62.9 53.6 61.6 53.2 C57.6 52.0 56.6 51.7 55.2 51.2 C54.3 50.8 52.5 50.0 51.1 49.2 C47.6 47.4 46.9 47.1 45.9 46.8 C44.6 46.4 41.0 46.3 39.6 46.6 Z')
       const beakSolid = P('M39.6 46.6 C36.3 47.4 33.5 48.9 31.0 51.3 C30.2 52.0 29.1 53.0 28.5 53.4 C26.5 55.0 25.2 56.9 24.8 58.8 C24.4 60.7 24.5 61.2 25.1 61.8 C25.9 62.7 27 63.4 28.0 64.2 C28.8 64.9 30.1 66.4 31.0 67.6 C34.5 72.3 36.8 73.7 41.1 73.6 C45.7 73.6 49.0 72.2 54.8 67.7 C56.7 66.3 58.7 65.2 60.2 64.7 C62.5 64.0 63.3 63.2 63.6 61.6 C63.7 61.0 63.9 59.9 64.1 59.1 C64.5 57.2 64.5 56.9 64.0 55.6 C63.6 54.3 62.9 53.6 61.6 53.2 C57.6 52.0 56.6 51.7 55.2 51.2 C54.3 50.8 52.5 50.0 51.1 49.2 C47.6 47.4 46.9 47.1 45.9 46.8 C44.6 46.4 41.0 46.3 39.6 46.6 Z')
       const eyes = [[P('M29.6 33.1 C26.3 33.7 24.6 36.7 24.6 41.6 C24.6 47.1 25.4 50.9 27.1 52.8 C28.0 53.9 27.9 53.9 32.2 50.7 C38.2 46.2 38.7 45.4 37.8 41.3 C36.8 36.3 33.0 32.5 29.6 33.1 Z'), P('M29.3 39.4 C28.0 40.1 27.3 41.5 27.2 43.8 C27.0 46.6 28.1 49.1 30.1 50.4 C31.1 51.0 31.1 51.0 32.2 50.1 C32.7 49.7 33.5 49.2 33.9 48.9 C36.2 47.5 34.7 40.9 31.7 39.5 C31.0 39.2 29.8 39.1 29.3 39.4 Z M31.7 41.0 C32.8 41.6 33.5 42.9 33.2 43.8 C32.9 44.5 32.7 44.4 32.2 43.6 C32.0 43.2 31.5 42.7 31.1 42.3 C30.0 41.3 30.4 40.4 31.7 41.0 Z')], [P('M53.0 31.9 C48.9 33.1 45.9 37.4 46.0 42.0 C46.1 43.6 46.1 43.6 47.1 45.6 C48.1 47.6 48.2 47.6 49.2 48.2 C52.2 49.9 58.7 52.6 60.7 52.9 C61.3 53.0 61.4 52.9 61.9 52.3 C64.8 48.9 65.3 41.6 62.9 37.0 C60.8 32.9 56.8 30.9 53.0 31.9 Z'), P('M54.2 38.7 C51.7 39.3 50.1 42.0 50.4 45.4 C50.5 46.8 50.9 48.3 51.6 49.1 C52.2 49.9 55.3 51.3 56.1 51.1 C62.1 50.2 62.2 40.3 56.3 38.8 C55.3 38.5 55.0 38.5 54.2 38.7 Z M57.1 40.8 C58.5 41.4 59.7 43.8 58.9 44.1 C58.1 44.4 55.0 41.3 55.4 40.6 C55.5 40.4 56.5 40.5 57.1 40.8 Z')]]
-      return k.clip(TOPDISC, k.part(body, black, { shade: DOWN, inside: k.shine(44, 10, 2.6) }) + k.part(belly, cream, { shade: DOWN }))
+      return k.clip(TOPDISC, k.part(body, black, { shade: DOWN, inside: k.shine(60, 12, 2.6) }) + k.part(belly, cream, { shade: DOWN }))
         + eyes.map(([eye, pupil]) => k.part(eye, WHITE, { shade: false, w: 2.4, inside: k.fill(pupil, INK) })).join('')
         + k.part(beakSolid, yellow, { shade: DOWN, w: 0 }) + paint(beak, `fill="none" ${ink()}`)
     },
@@ -549,6 +550,130 @@ export const ROSTER = [
         + eye(false) + flip(eye(true))
         // The glints, lit from the same side in both eyes, so not mirrored.
         + [38, 63.3].map((x) => k.fill(E(x - 2.4, 22.9, 1.1, 1.6), WHITE) + k.fill(C(x + 2.2, 24.8, 0.5), WHITE)).join('')
+    },
+  },
+  {
+    // Squiddy: the grumpy octopus neighbour. Traced from the cartoon: a huge
+    // dome of a head with spots on top, heavy-lidded eyes under a flat brow,
+    // the long nose hanging over his frown, the frown's flaps out to either
+    // side, and his thin neck.
+    id: 'squid', name: 'Squiddy', bg: '#f6a04d', draw: (k) => {
+      const skin = '#bad9cf'
+      const lidColour = '#91bdb3'
+      // His outline, but for his neck, whose sides get a lighter line.
+      const outline = 'M50 2.7 C66 2.7 86.6 13 86.6 30 C86.6 38.5 80.5 45.2 71.3 48.5 C69 49.4 67.6 49.9 67.4 51 C67.1 54.5 67 58.5 67.1 61.5 C67.1 64.2 67.4 65.8 68.9 66.4 C74 68.2 76.6 70.7 75.5 74.8 C74.5 78.3 72 79 69.5 78.2 C66.8 77.4 63.7 76.5 61.3 75.8 C59.4 75.3 57.2 75.8 55.6 76.8 M48.9 76.8 C47 76 43 75.2 39.6 74.8 C37.6 74.6 36.6 74.5 35.1 75 C33 75.7 29.8 76.5 27.2 76.9 C24.6 77.3 22.6 75.4 22.1 71.8 C21.6 68.6 24 66.2 29.6 63.6 C31.3 62.8 31.6 62.4 31.4 61.2 C31 57.5 30.8 55.5 30.4 53.5 C30 51 29.8 48.8 29.2 48 C28.4 47 27.2 46.6 25.6 45.7 C17.6 41.5 13.1 35 13.1 28 C13.1 13.5 32 2.7 50 2.7'
+      // A little wider where it leaves his head, narrowing gently downwards.
+      const neck = 'M55.6 76.8 C55.3 84 55.1 90 55 96 C54.95 100 54.9 104 54.9 108 M49.6 108 C49.6 104 49.55 100 49.5 96 C49.4 90 49.2 84 48.9 76.8'
+      const head = P('M50 2.7 C66 2.7 86.6 13 86.6 30 C86.6 38.5 80.5 45.2 71.3 48.5 C69 49.4 67.6 49.9 67.4 51 C67.1 54.5 67 58.5 67.1 61.5 C67.1 64.2 67.4 65.8 68.9 66.4 C74 68.2 76.6 70.7 75.5 74.8 C74.5 78.3 72 79 69.5 78.2 C66.8 77.4 63.7 76.5 61.3 75.8 C59.4 75.3 57.2 75.8 55.6 76.8 C55.3 84 55.1 90 55 96 C54.95 100 54.9 104 54.9 108 L49.6 108 C49.6 104 49.55 100 49.5 96 C49.4 90 49.2 84 48.9 76.8 C47 76 43 75.2 39.6 74.8 C37.6 74.6 36.6 74.5 35.1 75 C33 75.7 29.8 76.5 27.2 76.9 C24.6 77.3 22.6 75.4 22.1 71.8 C21.6 68.6 24 66.2 29.6 63.6 C31.3 62.8 31.6 62.4 31.4 61.2 C31 57.5 30.8 55.5 30.4 53.5 C30 51 29.8 48.8 29.2 48 C28.4 47 27.2 46.6 25.6 45.7 C17.6 41.5 13.1 35 13.1 28 C13.1 13.5 32 2.7 50 2.7 Z')
+      const spots = [[25.3, 13.6], [33.9, 8.5], [38.8, 10.5], [49.7, 6], [53.1, 10.8], [65.3, 13.8], [71.5, 11.6], [77.7, 17.5]]
+        // Each spot lies along the curve of the dome, the ones in the middle a little bigger.
+        .map(([x, y]) => {
+          const tilt = Math.atan(-((x - 49.85) * 27.3 ** 2) / ((y - 30) * 36.75 ** 2)) * 180 / Math.PI
+          const size = 1.2 - Math.min(1, Math.abs(x - 50) / 28) * 0.35
+          return k.fill(E(x, y, 1.5 * size, 0.8 * size, tilt.toFixed(1)), '#30634f')
+        }).join('')
+      const fine = 1.6
+      // A line a little narrower at both ends, for brows and creases.
+      const crease = (d, w = fine) => k.taper(d, w, { ends: 0.5, to: w * 0.3 })
+      // Each eye: the yellow eye; the pupil, a red dash hanging from the lid; and
+      // the heavy lid over the top, its rim bulging out at either side, with a
+      // short crease along it and a line where it meets the eye.
+      const eye = (white, pupil, lid, outline, rimBottom, rimCrease) => k.part(P(white), '#fffdc6', { shade: false, w: fine })
+        + k.part(pupil, '#6b2a26', { shade: false, w: 1 })
+        + k.fill(P(lid), lidColour) + k.line(outline, 1.8) + k.line(rimBottom, 1.8) + crease(rimCrease, 1.1)
+      const nose = P('M48.3 48 C51.5 48 54.4 54.5 56.3 61.5 C57.7 66.5 58.4 71.5 57.6 75 C56.6 79.4 53.2 81.8 48.6 81.8 C43.7 81.8 39.8 79 39.4 73.5 C39 68.5 40.6 62.5 42.3 57.5 C43.8 52.8 45.8 48 48.3 48 Z')
+      return k.clip(TOPDISC, k.part(head, skin, { shade: [2.5, -3], w: 0, inside: spots }) + k.line(outline) + k.line(neck, 2.2))
+        // Wrinkles on his brow over the right eye.
+        + crease('M53.2 24.2 C55 22.9 57 22.5 59 22.6 C61.3 22.8 63.5 24.4 64.7 27.1') + crease('M56.6 19.8 C58 19 59.6 18.8 61 18.9 C62.3 19 63.5 19.6 64.2 20.4')
+        // The frown, running out from under the nose to a little curved tick at each end,
+      // the right half the left one mirrored, a touch lower to sit in its flap.
+        + k.line('M38.2 69.1 C34.6 69.6 30.9 70.3 27.2 71 M28.1 69.5 C27.2 70.3 27.1 71.9 28.3 72.9', fine)
+        + k.line('M58.3 70.5 C63.3 71.2 67 71.9 70.7 72.6 M69.8 71.1 C70.7 71.9 70.8 73.5 69.6 74.5', fine)
+        + eye('M31.6 43.7 C31.6 50.8 35.2 56.2 39.6 56.2 C44 56.2 47.6 50.8 47.6 43.7 Z', R(40.1, 42.5, 2.2, 5.6, 0.8),
+          'M48.3 43.95 L30.4 43.7 C29.8 43.7 29.5 43 29.9 42.4 C30.3 41.9 30.9 41.7 31.6 41.4 C32 37.4 33.1 34.2 34.6 31.9 C37.5 32.6 42 32.6 45 31.9 C46.6 34.4 47.8 37.9 48.1 41.5 Z',
+          'M30.4 43.7 C29.8 43.7 29.5 43 29.9 42.4 C30.3 41.9 30.9 41.7 31.6 41.4 C32 37.4 32.9 34.6 34.4 32.5 M45.2 32.5 C46.7 34.8 47.8 37.9 48.1 41.5',
+          'M30.4 43.7 L48.3 43.95', 'M35.4 41.6 C38.6 41.33 41.8 41.33 45 41.6')
+        + eye('M49.3 44.1 C49.3 51.2 53 56.6 57.6 56.6 C62.2 56.6 65.9 51.2 66 44.1 Z', R(55.3, 42.9, 2.2, 5.6, 0.8),
+          'M48.3 43.95 L48.2 41.5 C48.6 35 52.5 30.7 57.4 30.7 C62.3 30.7 66 35.5 66.5 41.3 C67.6 41.6 68.6 42.3 68.4 43.1 C68.2 43.9 67.4 44.1 66.8 44.1 Z',
+          'M48.2 41.5 C48.6 35 52.5 30.7 57.4 30.7 C62.3 30.7 66 35.5 66.5 41.3 C67.6 41.6 68.6 42.3 68.4 43.1 C68.2 43.9 67.4 44.1 66.8 44.1',
+          'M48.3 43.95 L66.8 44.1', 'M55.8 42.1 C57.87 41.83 59.93 41.83 62 42.1')
+        // His brow, dipping across the top of the left lid.
+        + crease('M30.4 30.9 C34.5 32.6 44.5 32.9 49 31.1', 1.45)
+        + k.part(nose, skin, { shade: [2.5, -3], w: 2.7 })
+    },
+  },
+  {
+    // Monty: the mole from the Mario games, traced from a render with his head
+    // turned level, and drawn symmetrical. A round brown head swelling out into
+    // his body where his arms would be, a big white belly, two puffy white
+    // cheeks with long whiskers, a black button nose, a single buck tooth in
+    // front of the cheeks, and happily shut eyes.
+    id: 'monty', name: 'Monty', bg: '#76c96a', draw: (k) => {
+      const brown = '#b0651f'
+      const white = '#f3f6f8'
+      // Drawn a size down from the trace so the disc shows round him, at the
+      // weight every character wears.
+      const S = 0.724
+      const scaled = (art) => `<g transform="translate(50 37.15) scale(${S}) translate(-50 -45)">${art}</g>`
+      const mirror = (art) => `<g transform="translate(100 0) scale(-1 1)">${art}</g>`
+      // One fat shape from the top of his head down: below his whiskers his sides
+      // spread, more and more, until they go behind the disc.
+      const body = P('M50 4.8 C68.5 4.8 84.2 18.4 87.6 36 C88.4 39.5 89.6 42 90.24 45 C91.2 50 91.9 55.5 93 61.5 C94 67 95.4 71.5 97 76 C98.8 81 100.8 86.5 103 92 C105.2 98 107.6 105 110 113 L114 140 L-14 140 L-10 113 C-7.6 105 -5.2 98 -3 92 C-0.8 86.5 1.2 81 3 76 C4.6 71.5 6 67 7 61.5 C8.1 55.5 8.8 50 9.76 45 C10.4 42 11.6 39.5 12.4 36 C15.8 18.4 31.5 4.8 50 4.8 Z')
+      // His muzzle: two puffy whisker pads, round at their outer ends, joined
+      // under his nose and parting below it in a V, where the tooth shows through.
+      const muzzle = P('M50 30.4 C47.6 29.4 45 28.2 42.4 27.6 C39.4 26.4 35.4 25.6 31 25.8 C24.6 26.2 18.8 29.8 17.6 35.4 C16.8 39.2 17.2 43.8 19.6 46.6 C21.8 49 26.4 48.8 30.4 48 C34.8 47.1 39.6 45.4 42.8 43 C44.2 41.8 45 40 45.6 38 L50 33 L54.4 38 C55 40 55.8 41.8 57.2 43 C60.4 45.4 65.2 47.1 69.6 48 C73.6 48.8 78.2 49 80.4 46.6 C82.8 43.8 83.2 39.2 82.4 35.4 C81.2 29.8 75.4 26.2 69 25.8 C64.6 25.6 60.6 26.4 57.6 27.6 C55 28.2 52.4 29.4 50 30.4 Z')
+      const tooth = P('M44.8 33 L55.2 33 C55.1 41 54.6 47.8 53.9 51.2 C53.7 52.3 53 52.9 51.9 52.9 L48.1 52.9 C47 52.9 46.3 52.3 46.1 51.2 C45.4 47.8 44.9 41 44.8 33 Z')
+      const nose = P('M43.2 23.4 C46.4 22.4 53.6 22.4 56.8 23.4 C58.4 24.2 58.6 26.6 57.6 28 C55.6 30.8 52.4 33.6 50 34.1 C47.6 33.6 44.4 30.8 42.4 28 C41.4 26.6 41.6 24.2 43.2 23.4 Z')
+      // One side's whiskers and eye; the other side is their mirror image.
+      const half = k.taper('M23 34.9 C12.6 32.3 0.6 29.9 -13 28', 1.3 / S, { ends: 0.6, start: false }) + k.taper('M22.5 39 C12.6 38.1 0.6 37.6 -12.5 37.6', 1.3 / S, { ends: 0.6, start: false })
+        // Shut tight and tipped down towards the nose, a little menacing.
+        + `<g transform="translate(-1.3 -0.6) rotate(8 36 21)">${k.taper('M29.6 21.2 C31.6 18.8 35.4 18 38.6 19.3 C40.4 20.1 41.8 21.7 42.6 23.7', 2.3 / S, { ends: 0.45 })}</g>`
+      return k.clip(TOPDISC, scaled(k.part(body, brown, { w: W / S }) + k.part(E(50, 96.5, 45, 39), white, { shade: [0, -4], w: 1.7 / S })))
+        + scaled(k.part(tooth, WHITE, { shade: false, w: 1.3 / S })
+          + k.part(muzzle, white, { shade: [0, -2.5], w: 1.8 / S })
+          + mirror(half) + half
+          + k.part(nose, '#1f1d24', { shade: false, w: 1.8 / S, inside: k.fill(E(51.6, 25.8, 1.2, 0.7, -20), WHITE) }))
+    },
+  },
+  {
+    // Watashi: the deadpan pale frog. A wide flat head with two big eyes bulging
+    // out of its top corners, heavy-lidded, each with a long dark pupil and one
+    // glint; two small nostrils; one long straight line of a mouth; and a thin,
+    // fragile body with its arms hanging close at its sides.
+    id: 'frog', name: 'Watashi', bg: '#4f9bea', draw: (k) => {
+      const skin = '#ddd6da'
+      // One outline for all of him: up his body, which spreads out below his neck
+      // and then runs nearly straight down past his arms, in at the neck, out round the wide flat face, up and over each eye's
+      // bulge, and across the top.
+      const frog = P('M16 110 C16.1 102 16.3 96 16.6 90 C17 84 17.6 78 18.6 72 C19.6 66.5 22 62 24.6 58.4 C26.2 55.6 27.6 54 27.6 51.7 C27.6 48.5 24 46 22.4 44 C20.6 41.8 20 39.5 20.2 36 C20.5 32.2 19.4 29.8 18.03 27.7 C14.33 21.28 17.16 13.07 24.03 10.29 C30.9 7.51 38.59 11.41 40.42 18.59 C43 20.2 46.5 21.4 50 21.4 C53.5 21.4 57 20.2 59.58 18.59 C61.41 11.41 69.1 7.51 75.97 10.29 C82.84 13.07 85.67 21.28 81.97 27.7 C80.6 29.8 79.5 32.2 79.8 36 C80 39.5 79.4 41.8 77.6 44 C76 46 72.4 48.5 72.4 51.7 C72.4 54 73.8 55.6 75.4 58.4 C78 62 80.4 66.5 81.4 72 C82.4 78 83 84 83.4 90 C83.7 96 83.9 102 84 110 Z')
+      // His eyes: big and round, each reaching out to the edge of its bulge, with
+      // a big roundish pupil looking very slightly out to the side and one glint,
+      // lit from the same side in both.
+      const eye = (x, side) => k.part(C(x, 21.6, 10), '#f4f2f3', { shade: [1.4, -1.8], w: 1.8, inside: k.fill(E(x + side * 1.2, 21.8, 6.6, 5.6), INK) })
+        + k.fill(C(x + side * 1.2 - 3.6, 19.2, 1.9), WHITE)
+      // His head alone, closed under the jaw from where it starts curving in, for
+      // the shadow it casts on his body.
+      const headD = 'M22.4 44 C20.6 41.8 20 39.5 20.2 36 C20.5 32.2 19.4 29.8 18.03 27.7 C14.33 21.28 17.16 13.07 24.03 10.29 C30.9 7.51 38.59 11.41 40.42 18.59 C43 20.2 46.5 21.4 50 21.4 C53.5 21.4 57 20.2 59.58 18.59 C61.41 11.41 69.1 7.51 75.97 10.29 C82.84 13.07 85.67 21.28 81.97 27.7 C80.6 29.8 79.5 32.2 79.8 36 C80 39.5 79.4 41.8 77.6 44 C68 53 32 53 22.4 44 Z'
+      // Everything but his head, so the shadow falls only below it.
+      const belowHead = `<path d="M-60 -60 H160 V160 H-60 Z ${headD}" clip-rule="evenodd"/>`
+      // The shading on his body down its left side, rounding it; it runs up into
+      // the shadow his head casts.
+      const bodyShade = k.clip(belowHead, k.fill(P('M0 40 L43.21 40 L43.21 54.48 C37.86 54.05 32.6 57.4 30.6 61.8 C27.4 66 25.9 72 25.3 78 C24.3 87 23.5 96 23 110 L0 110 Z'), shadow(skin)))
+      // A little shadow under each eye, on his face.
+      const eyeShade = [26.4, 73.6].map((x) => k.fill(C(x, 23.8, 10.6), shadow(skin))).join('')
+      // He sits a little low in the disc.
+      const down = (art) => `<g transform="translate(0 3)">${art}</g>`
+      return k.clip(TOPDISC, down(k.part(frog, skin, { inside: k.clip(belowHead, `<g transform="translate(0 4)">${k.fill(P(headD), shadow(skin))}</g>`) + bodyShade + eyeShade + // his armpits, thinning out at their tops
+          ['M24.4 70.5 C23.6 76 22.9 82 22.4 88 C22.2 91 22 94 21.9 98', 'M75.6 70.5 C76.4 76 77.1 82 77.6 88 C77.8 91 78 94 78.1 98'].map((d) => k.taper(d, 2.2, { ends: 0.45, end: false })).join('') })))
+        + down(''
+        + eye(26.4, -1) + eye(73.6, 1)
+        // Two little almond-shaped nostrils, their lower ends leaning in.
+        + k.fill(E(46.6, 32, 1.6, 0.7, 35), INK) + k.fill(E(53.4, 32, 1.6, 0.7, -35), INK)
+        // The mouth, one long line, its ends just turned down, stopping short of
+        // the sides of his face.
+        + k.line('M25.4 40.6 C31.5 39.8 68.5 39.8 74.6 40.6', 2)
+        // A little curve of cheek at each end of it.
+        + k.line('M26.4 39 C25.2 39.7 25.1 41.5 26.3 42.4 M73.6 39 C74.8 39.7 74.9 41.5 73.7 42.4', 1.6))
     },
   },
 ]
