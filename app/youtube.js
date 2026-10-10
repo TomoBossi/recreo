@@ -195,6 +195,7 @@ export class YouTube {
       joined: this.#view?.joined ?? null,
       error: this.#view?.error ?? null,
       modules: player?.getOptions?.() ?? null,
+      muted: player?.isMuted?.() ?? null,
     }
   }
 
@@ -465,7 +466,7 @@ export class YouTube {
     body.className = 'yt-body'
     body.innerHTML = `
       <div class="yt-screen">
-        <div class="yt-frame"></div>
+        <div class="yt-view"><div class="yt-frame"></div></div>
         <div class="yt-empty">nothing playing — add a video below</div>
         <div class="yt-shield" title="play or pause"></div>
         <div class="yt-wait" hidden><span></span><button type="button" class="btn small without" hidden></button></div>
@@ -479,11 +480,25 @@ export class YouTube {
       </div>
       <form class="yt-add">
         <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link">
-        <button type="submit" class="btn small" name="queue">queue</button>
+        <button type="submit" class="btn small" name="queue">add to queue</button>
         <button type="submit" class="btn small sun" name="now">play now</button>
       </form>
       <ol class="yt-queue"></ol>`
     const $ = (sel) => body.querySelector(sel)
+
+    // YouTube draws its own title, "more videos" and logo along the top and
+    // bottom of its frame, and offers no way to turn them off. The frame is
+    // made taller than the video, so YouTube centres the video in it, and
+    // only the video's own box is shown: those edges fall outside.
+    const fit = new ResizeObserver(() => {
+      const screen = $('.yt-screen')
+      const w = screen.clientWidth
+      const h = screen.clientHeight
+      const vw = Math.min(w, h * 16 / 9)
+      const vh = vw * 9 / 16
+      Object.assign($('.yt-view').style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` })
+    })
+    fit.observe(body.querySelector('.yt-screen'))
 
     const view = {
       win: null, player: null, loaded: undefined, grace: 0, caught: false, lastTime: null, movedAt: 0,
@@ -525,7 +540,7 @@ export class YouTube {
     // Any click on the page lets the sound play: that is all "join" waits for.
     const activate = () => { if (!view.joined) this.#join(view) }
     addEventListener('pointerdown', activate, true)
-    view.cleanup = () => removeEventListener('pointerdown', activate, true)
+    view.cleanup = () => { removeEventListener('pointerdown', activate, true); fit.disconnect() }
     $('.without').addEventListener('click', () => { for (const peer of this.state.waiting) this.#ask({ type: 'without', peer }) })
     $('.yt-add').addEventListener('submit', (e) => {
       e.preventDefault()
@@ -579,7 +594,8 @@ export class YouTube {
     const player = view.player
     if (!player?.setVolume) return
     player.setVolume(Math.round(view.volume * 100))
-    if (view.joined && view.heard) player.unMute()
+    // YouTube's lowest volume is not silence: none at all is muted.
+    if (view.joined && view.heard && view.volume > 0) player.unMute()
     else player.mute()
   }
 
@@ -619,7 +635,7 @@ export class YouTube {
     play.title = s.playing ? 'pause' : 'play'
     play.setAttribute('aria-label', play.title)
     play.disabled = !s.now
-    $('.next').disabled = !s.queue.length && !s.now
+    $('.next').disabled = !s.queue.length
 
     const wait = $('.yt-wait')
     wait.hidden = !(s.playing && s.held)
