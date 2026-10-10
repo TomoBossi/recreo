@@ -1,4 +1,5 @@
 import { arrow } from './pointer.js'
+import { avatar } from './avatar.js'
 
 /**
  * Everyone's pointer, drawn over the games — and your own, drawn the same way.
@@ -27,13 +28,19 @@ import { arrow } from './pointer.js'
  * is followed, the first one down. Fingers are read from touch events: a
  * phone cancels a finger's pointer events the moment a drag turns into a
  * scroll, but its touch events keep coming. A cursor grows a little while it
- * moves and settles when it stops.
+ * moves and settles when it stops, and one left still dims where it rests
+ * until it moves again.
  *
  * Sent over an unreliable channel a few times a second: a late position is
  * worth nothing, and a lost one is replaced by the next.
+ *
+ * Cursors can be shown, shown with each player's character beside them, or
+ * hidden: hidden ones are neither drawn nor sent. Characters ride only by
+ * other people's cursors, and only while they move: one that dims or fades
+ * leaves its character behind first.
  */
 const SEND_MS = 50
-const IDLE_MS = 2500     // a pointer still this long fades away until it moves again
+const IDLE_MS = 2500     // a pointer still this long dims where it rests until it moves again
 const PARK_MS = 900      // a departed cursor waits at the edge this long, dimmed, then fades
 const JUMP_PX = 140      // further than this between updates is a jump, not a glide
 export const MOVING_MS = 220
@@ -50,7 +57,7 @@ export class Cursors {
     this.room = room
     this.desk = desk
     this.players = players
-    this.enabled = load()
+    this.mode = cursorMode()
     this.channel = room.dataChannel('recreo:cursors', { ordered: false, maxRetransmits: 0 })
     this.channel.on('message', (peerId, data) => this.#receive(peerId, data))
 
@@ -82,13 +89,17 @@ export class Cursors {
     new ResizeObserver(() => this.#redraw()).observe(desk)
   }
 
-  setEnabled(on) {
-    this.enabled = on
-    try { localStorage.setItem('recreo:cursors', JSON.stringify(on)) } catch { /* private mode */ }
-    if (!on) {
+  get enabled() { return this.mode !== 'hide' }
+
+  /** 'show', 'characters' or 'hide'. */
+  setMode(mode) {
+    this.mode = mode
+    try { localStorage.setItem('recreo:cursors', JSON.stringify(mode)) } catch { /* private mode */ }
+    if (!this.enabled) {
       this.#send({ t: null }, true)
       for (const id of [...this.#remote.keys()]) this.#forget(id)
     }
+    this.#redraw()
   }
 
   // ------------------------------------------------------------ sending
@@ -194,7 +205,7 @@ export class Cursors {
     })
     entry.el.classList.toggle('touch', entry.touch)
     entry.el.classList.remove('idle')
-    // A pointer that stops fades away: one timer per cursor, set on each
+    // A pointer that stops dims where it rests: one timer per cursor, set on each
     // move, instead of a sweep that wakes the page whether or not anyone
     // is pointing at anything.
     clearTimeout(entry.idleTimer)
@@ -227,6 +238,11 @@ export class Cursors {
     el.classList.remove('entering')
     void el.offsetWidth
     el.classList.add('entering')
+    // Done fading in, it must let go: an animation outranks a transition,
+    // and one left on would cut every later fade — going still, parking,
+    // leaving — to a blink.
+    const done = (e) => { if (e.animationName !== 'cursor-in') return; el.classList.remove('entering'); el.removeEventListener('animationend', done) }
+    el.addEventListener('animationend', done)
   }
 
   /** Left everything shared: stay where it crossed, dimmed, then fade away. */
@@ -245,9 +261,8 @@ export class Cursors {
     const peer = this.room.peers.get(peerId)
     const el = document.createElement('div')
     el.className = 'cursor'
-    el.innerHTML = `${arrow(this.players.colourOf(peer?.presence.player ?? peerId))}<span class="cursor-name"></span>`
-    el.querySelector('.cursor-name').textContent = peer?.nick || '…'
-    const entry = { el, peerId, table: null, a: null, x: 0, y: 0, fx: 0, fy: 0, at: 0, touch: false, shown: false, screen: null, movingTimer: null, parkTimer: null }
+    el.innerHTML = `${arrow(this.players.colourOf(peer?.presence.player ?? peerId))}<span class="cursor-character"></span>`
+    const entry = { el, peerId, character: undefined, table: null, a: null, x: 0, y: 0, fx: 0, fy: 0, at: 0, touch: false, shown: false, screen: null, movingTimer: null, parkTimer: null }
     this.#remote.set(peerId, entry)
     return entry
   }
@@ -287,16 +302,24 @@ export class Cursors {
       y = p.y
     }
     if (entry.el.parentElement !== host) host.append(entry.el)
-    // Colours and names can change while a cursor is up.
+    // Colours and characters can change while a cursor is up.
     const peer = this.room.peers.get(entry.peerId)
-    entry.el.querySelector('.arrow path').setAttribute('fill', this.players.colourOf(peer?.presence.player ?? entry.peerId))
-    entry.el.querySelector('.cursor-name').textContent = peer?.nick || '…'
+    const player = peer?.presence.player ?? entry.peerId
+    const colour = this.players.colourOf(player)
+    entry.el.querySelector('.arrow path').setAttribute('fill', colour)
+    entry.el.style.setProperty('--who', colour)
+    entry.el.classList.toggle('with-character', this.mode === 'characters')
+    const character = this.players.characterOf(player)
+    if (this.mode === 'characters' && entry.character !== character) {
+      entry.character = character
+      entry.el.querySelector('.cursor-character').innerHTML = avatar(character)
+    }
     const origin = host.getBoundingClientRect()
     entry.screen = { x, y }
     entry.el.style.setProperty('--x', `${x - origin.left}px`)
     entry.el.style.setProperty('--y', `${y - origin.top}px`)
-    // Near the right edge the name goes on the other side, to stay in view.
-    entry.el.classList.toggle('flip', x - origin.left > origin.width - 90)
+    // Near the right edge the character goes on the other side, to stay in view.
+    entry.el.classList.toggle('flip', x - origin.left > origin.width - 70)
     entry.shown = true
     return true
   }
@@ -339,6 +362,13 @@ function toSpace(space, e) {
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v))
 
-function load() {
-  try { return JSON.parse(localStorage.getItem('recreo:cursors') ?? 'true') !== false } catch { return true }
+/** How cursors are shown: 'show', 'characters' or 'hide' (once stored as true or false). */
+export function cursorMode() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('recreo:cursors') ?? '"show"')
+    if (saved === false) return 'hide'
+    return ['show', 'characters', 'hide'].includes(saved) ? saved : 'show'
+  } catch {
+    return 'show'
+  }
 }

@@ -198,6 +198,11 @@ export class Faces {
 
       const colour = this.players.colourOf(person.player)
       tile.el.style.setProperty('--who', colour)
+      const character = this.players.characterOf(person.player)
+      if (tile.character !== character) {
+        tile.character = character
+        tile.avatar.innerHTML = avatar(character)
+      }
       tile.el.classList.toggle('speaking', this.#speaking.has(person.id))
       tile.el.classList.toggle('reconnecting', !!person.reconnecting)
       tile.el.classList.toggle('has-video', person.video)
@@ -225,7 +230,7 @@ export class Faces {
     const el = document.createElement('div')
     el.className = 'face'
     el.innerHTML = `
-      <div class="avatar">${avatar()}</div>
+      <div class="avatar"></div>
       <video autoplay playsinline disablepictureinpicture></video>
       <span class="tag"><span class="dot"></span><span class="name"></span><svg class="muted-mark" viewBox="0 0 14 14" hidden aria-label="muted">
         <rect x="4.5" y="0.5" width="5" height="8" rx="2.5" fill="currentColor"/>
@@ -238,6 +243,8 @@ export class Faces {
     tile = {
       el,
       video: el.querySelector('video'),
+      avatar: el.querySelector('.avatar'),
+      character: undefined,
       name: el.querySelector('.name'),
       mute: el.querySelector('.muted-mark'),
       phone: el.querySelector('.phone-mark'),

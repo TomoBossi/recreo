@@ -10,15 +10,26 @@
  * chroma is trimmed if the clamped colour would fall outside sRGB.
  */
 
-var L_MIN = 0.62
-var L_MAX = 0.74
+var L_MIN = 0.58
+var L_MAX = 0.78
 var C_MIN = 0.09 // a little colour at least: greys read as nobody's
-var C_PAD = 0.17 // how vivid the custom pad's colours are, where sRGB allows
+var C_PAD = 0.21 // how vivid the custom pad's colours are, where sRGB allows
+var SHADES_SHOWN = 2.6 // how much the shades strip exaggerates the band
 
 const RAW = ['#ff5d8f', '#f2533f', '#ff8f2e', '#d9a21b', '#5cbc3c', '#17ab94', '#2fa4e6', '#4e7cf0', '#9a72f2', '#d65fd0']
 
-/** The colours on offer before anyone picks a custom one. */
-export const PRESETS = RAW.map((hex) => clampColour(hex))
+/** The colours on offer before anyone picks a custom one: a little more vivid than RAW, where sRGB allows. */
+export const PRESETS = RAW.map((hex) => clampColour(saturate(hex, 1.2)))
+
+/** A colour with its chroma scaled by `k`, trimmed back to what sRGB can show. */
+function saturate(hex, k) {
+  const [L, C, h] = toOklch(parse(hex))
+  for (let c = C * k; c > C; c *= 0.97) {
+    const out = fromOklch([L, c, h])
+    if (out.every((v) => v >= -0.0005 && v <= 1.0005)) return hexOf(out)
+  }
+  return hex
+}
 
 /** A colour someone chose, brought inside the readable band. */
 export function clampColour(hex) {
@@ -132,7 +143,14 @@ function hexOf(rgb) {
  */
 export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN, L_MAX] }) {
   const [lo, hi] = range
-  const shadeOf = range[0] === L_MIN && range[1] === L_MAX ? bandColour : vivid
+  const band = range[0] === L_MIN && range[1] === L_MAX
+  const shadeOf = band ? bandColour : vivid
+  // The shades strip overstates itself: drawn true to the band, its two ends
+  // can look nearly alike for some hues, though the colour they make differs
+  // plainly on a disc or a card. So the strip and its thumb are painted
+  // further from the middle than the colour really goes, which makes which
+  // way is lighter obvious at a glance. What you pick stays in the band.
+  const shown = (L) => (band ? vivid(hue, Math.min(0.96, Math.max(0.3, MID + (L - MID) * SHADES_SHOWN))) : shadeOf(hue, L))
   const el = document.createElement('div')
   el.className = 'colour-picker'
   el.innerHTML = `
@@ -170,15 +188,13 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
 
   const show = () => {
     for (const b of el.querySelectorAll('.swatch')) b.setAttribute('aria-pressed', String(b.dataset.colour === current))
-    paint(shadeStrip, (f) => shadeOf(hue, lightAt(f)))
-    const custom = !presets.includes(current)
-    for (const strip of [hueStrip, shadeStrip]) strip.classList.toggle('chosen', custom)
+    paint(shadeStrip, (f) => shown(lightAt(f)))
     const ht = hueStrip.querySelector('.thumb')
     ht.style.left = `${(hue / 360) * 100}%`
     ht.style.background = bandColour(hue, MID)
     const st = shadeStrip.querySelector('.thumb')
     st.style.left = `${((hi - light) / (hi - lo)) * 100}%`
-    st.style.background = shadeOf(hue, light)
+    st.style.background = shown(light)
   }
   const choose = () => { current = shadeOf(hue, light); show(); onPick(current) }
 

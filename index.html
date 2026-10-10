@@ -49,12 +49,16 @@
   <div class="card landing-card">
     <h1 class="brand big"><span class="bell-slot"></span><span class="wordmark big">recreo</span></h1>
 
-    <div class="preview">
+    <div class="preview self-colour">
       <video id="preview" autoplay muted playsinline disablepictureinpicture></video>
       <div id="preview-placeholder" class="avatar"></div>
       <div class="preview-controls">
         <button id="preview-mic" type="button" class="wbtn media" aria-pressed="true" title="microphone" aria-label="microphone"></button>
         <button id="preview-cam" type="button" class="wbtn media" aria-pressed="true" title="camera" aria-label="camera"></button>
+      </div>
+      <div class="preview-controls end">
+        <span id="preview-character" class="preview-character" hidden></span>
+        <button id="preview-reroll" type="button" class="wbtn media" title="another character" aria-label="another character"></button>
       </div>
     </div>
     <div id="preview-devices"></div>

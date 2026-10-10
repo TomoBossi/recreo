@@ -1,27 +1,35 @@
 import { store, theme, setTheme } from './store.js'
 import { sound } from '../games/kit/sound.js'
 import { colourButton } from '../games/kit/colours.js'
+import { avatar, randomCharacter, REFRESH } from './avatar.js'
 
 /**
- * The settings menu, as one panel used in two places: on the landing page
- * (name, theme, saved data) and in a room, where it also arranges the
- * windows and shows or hides cursors.
+ * The settings menu, as one panel used in two places: on the landing page,
+ * where it has only the theme and sounds (who you are is right there on the
+ * page), and in a room, where it also has your identity, the windows, the
+ * cursors and your saved data.
  *
  * It is rebuilt each time it opens, so it always shows what is true now.
  */
-export function settingsPanel({ room = null, wm = null, cursors = null, colour, onColour, onNick, onRoomsChanged } = {}) {
+export function settingsPanel({ room = null, wm = null, cursors = null, colour, onColour, character, onCharacter, onNick, onRoomsChanged, identity = true, saved: savedData = true } = {}) {
   const el = document.createElement('div')
   el.className = 'settings'
 
   const render = () => {
     const t = theme()
     el.innerHTML = `
+      ${identity ? `
       <section>
-        <h3>your name and colour</h3>
-        <form class="row name-form">
-          <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
-        </form>
-      </section>
+        <div class="identity">
+          ${character ? `
+          <span class="character-preview self-colour" style="--who: ${colour?.() ?? 'var(--sky)'}">${avatar(character())}
+            <button type="button" class="btn icon reroll" title="another character" aria-label="another character">${REFRESH}</button>
+          </span>` : ''}
+          <form class="row name-form">
+            <input class="input" name="nick" maxlength="24" autocomplete="nickname" aria-label="your name">
+          </form>
+        </div>
+      </section>` : ''}
 
       <section>
         <h3>theme</h3>
@@ -43,9 +51,9 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
 
       ${cursors ? `
       <section>
-        <h3>cursors</h3>
+        <h3>peer cursors</h3>
         <span class="segmented cursors">
-          ${['show', 'hide'].map((v) => `<button class="btn small" data-cursors="${v}" aria-pressed="${cursors.enabled === (v === 'show')}">${v}</button>`).join('')}
+          ${['show', 'characters', 'hide'].map((v) => `<button class="btn small" data-cursors="${v}" aria-pressed="${cursors.mode === v}">${v}</button>`).join('')}
         </span>
       </section>` : ''}
 
@@ -56,6 +64,7 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
         </span>
       </section>
 
+      ${savedData ? `
       <section>
         <h3>saved data</h3>
         <div class="row">
@@ -64,8 +73,9 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
           <button class="btn small berry clear">clear</button>
           <input type="file" accept="application/json,.json" hidden>
         </div>
-      </section>`
+      </section>` : ''}`
 
+    if (!identity) return
     el.querySelector('[name=nick]').value = savedNick()
     if (colour && onColour) el.querySelector('.name-form').prepend(colourButton({ value: colour(), onPick: onColour }))
   }
@@ -106,8 +116,12 @@ export function settingsPanel({ room = null, wm = null, cursors = null, colour, 
     if (!b) return
     if (b.dataset.theme) { setTheme(b.dataset.theme); render() }
     if (b.dataset.mode) { wm.setMode(b.dataset.mode); render() }
-    if (b.dataset.cursors) { cursors.setEnabled(b.dataset.cursors === 'show'); render() }
+    if (b.dataset.cursors) { cursors.setMode(b.dataset.cursors); render() }
     if (b.dataset.soundLevel) { sound.setLevel(b.dataset.soundLevel); render() }
+    if (b.classList.contains('reroll')) {
+      onCharacter?.(randomCharacter(character()))
+      el.querySelector('.character-preview .avatar-face').outerHTML = avatar(character())
+    }
     if (b.classList.contains('reset')) wm.resetFloating()
     if (b.classList.contains('export')) download(store.export())
     if (b.classList.contains('import')) el.querySelector('input[type=file]').click()

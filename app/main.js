@@ -1,4 +1,4 @@
-import { avatar } from './avatar.js'
+import { avatar, playable, randomCharacter, REFRESH } from './avatar.js'
 import { devicePickers, restoreDevices } from './devices.js'
 import { peersMenuButton } from './peersmenu.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
@@ -60,7 +60,25 @@ function setColour(next, { chosen = true } = {}) {
   pointer.recolour()
   colourChanged(colour)
   for (const b of document.querySelectorAll('.colour-button')) b.style.setProperty('--c', colour)
-  $('#preview-placeholder')?.style.setProperty('--who', colour)
+  // Your character's disc, and whatever frames it, take the colour at once.
+  for (const el of document.querySelectorAll('.self-colour')) el.style.setProperty('--who', colour)
+}
+
+/**
+ * Your character: the one you last rolled, or one rolled for you on your
+ * first visit. One that has left the roster since is rolled again.
+ */
+let character = playable(store.get('character', null))
+store.set('character', character)
+
+/** Change your character everywhere it shows; the room listens in once joined. */
+let characterChanged = () => {}
+function setCharacter(next) {
+  character = playable(next)
+  store.set('character', character)
+  $('#preview-placeholder').innerHTML = avatar(character)
+  $('#preview-character').innerHTML = avatar(character)
+  characterChanged(character)
 }
 
 /**
@@ -122,8 +140,11 @@ function popover(button, pop, fill) {
 const nickInput = $('#nick-input')
 const roomInput = $('#room-input')
 nickInput.value = store.get('nick', '')
-$('#preview-placeholder').innerHTML = avatar()
-$('#preview-placeholder').style.setProperty('--who', colour)
+$('#preview-placeholder').innerHTML = avatar(character)
+$('.preview').style.setProperty('--who', colour)
+$('#preview-character').innerHTML = avatar(character)
+$('#preview-reroll').innerHTML = REFRESH
+$('#preview-reroll').addEventListener('click', () => setCharacter(randomCharacter(character)))
 $('#name-row').prepend(colourButton({ value: colour, onPick: setColour }))
 roomInput.value = roomFromUrl() ?? generateRoomCode()
 $('#regenerate').addEventListener('click', () => { roomInput.value = generateRoomCode() })
@@ -204,12 +225,7 @@ roomList.addEventListener('pointerdown', (e) => {
 {
   const anchor = $('#landing-settings')
   popover(anchor.querySelector('button'), anchor.querySelector('.popover'), (pop) => {
-    pop.replaceChildren(settingsPanel({
-      colour: () => colour,
-      onColour: setColour,
-      onNick: (nick) => { nickInput.value = nick },
-      onRoomsChanged: showRecent,
-    }).el)
+    pop.replaceChildren(settingsPanel({ identity: false, saved: false }).el)
   })
 }
 
@@ -256,6 +272,9 @@ function syncToggles() {
   for (const b of document.querySelectorAll('[data-media=cam], #preview-cam')) b.setAttribute('aria-pressed', cam)
   $('#preview').hidden = cam !== 'true'
   $('#preview-placeholder').hidden = cam === 'true'
+  // With the camera on, your character shows small by the button that rolls
+  // another; with it off, it fills the preview.
+  $('#preview-character').hidden = cam !== 'true'
 }
 media.on('state', syncToggles)
 // Switching camera or microphone makes a new stream; the preview follows it.
@@ -324,12 +343,12 @@ async function enterRoom(code, nick) {
 /** The microphone and camera, drawn for the Peers title bar. */
 async function joinRoom(code, nick) {
   await resumeAudio()
-  const me = { player: playerId(), nick, colour }
+  const me = { player: playerId(), nick, colour, character }
   const room = await join({
     room: code,
     appId: 'recreo',
     nick,
-    presence: { player: me.player, colour, touch: TOUCH, since: Date.now(), ...mediaPresence() },
+    presence: { player: me.player, colour, character, touch: TOUCH, since: Date.now(), ...mediaPresence() },
     // A friend whose connection drops is waited for a full minute. Seats
     // outlast even that — they belong to the player, not the connection.
     readmitMs: 60000,
@@ -386,10 +405,7 @@ async function joinRoom(code, nick) {
   const cursors = new Cursors({ room, desk: $('#desk'), players })
   const live = new Live({ room, tables, deliver: (id, data, seat) => views.get(id)?.view.hear(data, seat) })
 
-  const refreshFaces = () => {
-    facesWin.setMeta(`${room.peers.size + 1} here`)
-    faces.render()
-  }
+  const refreshFaces = () => faces.render()
 
   // ----------------------------------------------------------- media
 
@@ -688,6 +704,8 @@ async function joinRoom(code, nick) {
       cursors,
       colour: () => colour,
       onColour: setColour,
+      character: () => character,
+      onCharacter: setCharacter,
       onNick: (next) => {
         me.nick = next
         room.setNick(next)
@@ -752,6 +770,12 @@ async function joinRoom(code, nick) {
     room.updatePresence({ colour: next })
     refreshFaces()
     renderGames()
+  }
+
+  characterChanged = (next) => {
+    me.character = next
+    room.updatePresence({ character: next })
+    refreshFaces()
   }
 
   chat.system(`welcome to ${code} — invite friends with the button up top`)

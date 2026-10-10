@@ -88,9 +88,9 @@ import { bandColour, oklch } from '../games/kit/colours.js'
 
 test('every colour on the custom pad is already inside the readable band', () => {
   for (let hue = 0; hue < 360; hue += 5) {
-    for (const L of [0, 0.62, 0.68, 0.74, 1]) {
+    for (const L of [0, 0.58, 0.68, 0.78, 1]) {
       const c = oklch(bandColour(hue, L))
-      assert.ok(c.L > 0.615 && c.L < 0.745, `lightness ${c.L} at hue ${hue}`)
+      assert.ok(c.L > 0.575 && c.L < 0.785, `lightness ${c.L} at hue ${hue}`)
       assert.ok(c.C > 0.08, `chroma ${c.C} at hue ${hue}: not a grey`)
     }
   }
@@ -130,4 +130,37 @@ test('every module of the room loads: no import points at a file that is not the
   for (const file of files) {
     try { await import(new URL(`../app/${file}`, import.meta.url)) } catch (err) { assert.ok(false, `app/${file}: ${err.message}`) }
   }
+})
+
+import { PLAYABLE, drawn } from '../app/roster.js'
+import { avatar, randomCharacter, playable } from '../app/avatar.js'
+
+test('every playable character has a drawing, and draws on a disc in the player\'s colour', () => {
+  assert.ok(PLAYABLE.length >= 2, 'a roster to roll between')
+  assert.equal(new Set(PLAYABLE).size, PLAYABLE.length, 'no character twice')
+  for (const id of PLAYABLE) {
+    assert.ok(drawn(id), `${id} is drawn`)
+    const svg = avatar(id)
+    assert.ok(svg.includes('class="avatar-face character"'), id)
+    assert.ok(svg.includes('fill="var(--who, var(--sky))"'), `${id} takes the player's colour`)
+  }
+})
+
+test('a character nobody here has drawn shows as the plain smiley', () => {
+  for (const id of [null, '', 'not-a-character']) {
+    const svg = avatar(id)
+    assert.ok(svg.includes('class="avatar-face"') && !svg.includes('character'), String(id))
+  }
+  assert.ok(PLAYABLE.includes(playable('not-a-character')), 'an unknown id is rolled again')
+  assert.equal(playable(PLAYABLE[0]), PLAYABLE[0])
+})
+
+test('rolling again always changes the character, and every other one turns up as often', () => {
+  const counts = Object.fromEntries(PLAYABLE.map((id) => [id, 0]))
+  const current = PLAYABLE[0]
+  const rolls = 6000
+  for (let i = 0; i < rolls; i++) counts[randomCharacter(current)]++
+  assert.equal(counts[current], 0, 'never the one you have')
+  const share = rolls / (PLAYABLE.length - 1)
+  for (const id of PLAYABLE.slice(1)) assert.ok(Math.abs(counts[id] - share) < share * 0.15, `${id}: ${counts[id]} of ${rolls}`)
 })

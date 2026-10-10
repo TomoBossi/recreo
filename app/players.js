@@ -8,6 +8,7 @@ import { clampColour, colourFor } from '../games/kit/colours.js'
 export class Players {
   #known = new Map() // player id -> last known nick
   #colours = new Map() // player id -> last known colour
+  #characters = new Map() // player id -> last known character
 
   constructor({ room, me }) {
     this.room = room
@@ -19,6 +20,7 @@ export class Players {
     const player = peer.presence?.player
     if (player && peer.nick) this.#known.set(player, peer.nick)
     if (player && peer.presence.colour) this.#colours.set(player, clampColour(peer.presence.colour))
+    if (player && peer.presence.character) this.#characters.set(player, String(peer.presence.character))
   }
 
   /** Remember a name met elsewhere — on a seat claim, say — for a player not here. */
@@ -50,6 +52,15 @@ export class Players {
       if (peer.presence?.player === player && peer.presence.colour) return clampColour(peer.presence.colour)
     }
     return this.#colours.get(player) ?? colourFor(player)
+  }
+
+  /** The character a player is, if we have heard. */
+  characterOf(player) {
+    if (player === this.me.player) return this.me.character
+    for (const peer of this.room.peers.values()) {
+      if (peer.presence?.player === player && peer.presence.character) return String(peer.presence.character)
+    }
+    return this.#characters.get(player) ?? null
   }
 
   /** 'here', 'reconnecting' or 'away'. */
