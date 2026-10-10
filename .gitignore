@@ -1,4 +1,4 @@
 .DS_Store
 node_modules/
-# Reference photos for tracing characters; not ours to publish.
-tools/roster/refs/
+# Development tools live beside the repository, in ../recreo-tools, linked here.
+/tools

@@ -5,7 +5,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { bestShot } from '../tools/play/golfbot.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const app = { root: path.resolve(here, '..'), driver: path.resolve(here, 'driver.mjs') }
@@ -562,46 +561,6 @@ export const scenarios = {
     await run.waitFor('tomo back', (e) => e.t > cutAt && e.label === 'ana' && (e.ev === 'peer:reconnected' || e.ev === 'peer:join') && e.peer === 'tomo', 60000)
     await converge(run, labels, 'after tomo came back', 20000)
     return { scores: scored, handedOverAfterCutMs: handedOverMs, shots }
-  },
-
-  /**
-   * Minigolf with a spectator: ana and tomo play a round of three holes
-   * drawn at random — bumpers, windmill, slopes and all — and all three
-   * peers must agree on the holes and on every ball's resting place after
-   * every shot: the point of integer physics.
-   */
-  async 'minigolf-game'(run) {
-    const labels = ['ana', 'tomo', 'lu']
-    players(run, labels)
-    await roomUp(run, labels)
-    const id = await js(run, 'ana', `(() => { const t = recreo.tables.open('minigolf'); recreo.tables.sit(t.id, 0); return t.id })()`)
-    await converge(run, labels, 'after opening')
-    await sit(run, labels, 'tomo', id, 1)
-    const T = JSON.stringify(id)
-    // Three holes at random, the same three for everyone.
-    await js(run, 'ana', `recreo.tables.setOption(${T}, 'holes', 'three')`)
-    await converge(run, labels, 'after choosing the course')
-    if (!await js(run, 'ana', `recreo.tables.play(${T}, { type: 'start', order: [0, 1] })`)) throw new Error('could not tee off')
-    await converge(run, labels, 'after teeing off')
-
-    let shots = 0
-    let picture = null
-    for (;;) {
-      const st = await js(run, 'ana', `recreo.tables.tables.get(${T}).state`)
-      if (st.phase === 'over') break
-      if (++shots > 60) throw new Error('the course never finished')
-      const who = st.turn === 0 ? 'ana' : 'tomo'
-      // A good shot, as a player would pick it; the windmill as it stands now.
-      const phase = Math.floor(Date.now() * 120 / 1000) % 1e8
-      const { shot } = bestShot(st.course[st.hole], st.balls[st.turn].pos, phase, { angles: 90, powers: 16 })
-      if (!await js(run, who, `recreo.tables.play(${T}, { type: 'shot', dx: ${shot[0]}, dy: ${shot[1]}, phase: ${phase} })`)) throw new Error(`${who} could not putt`)
-      await converge(run, labels, `after shot ${shots}`)
-      if (st.hole === 1 && !picture) { await sleep(1500); picture = await shoot(run, 'lu', 'golf-course') }
-    }
-    const [table] = await agree(run, labels, 'at the end')
-    await sleep(500)
-    const card = await shoot(run, 'tomo', 'golf-card')
-    return { shots, cards: JSON.parse(table.board).cards, shotsTaken: [picture, card] }
   },
 
   /**
