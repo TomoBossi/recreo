@@ -886,6 +886,8 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 /* A shared screen: the picture whole, letterboxed on black. */
 .screen-body { position: relative; height: 100%; background: #000; border-radius: 0 0 calc(var(--round) - var(--line)) calc(var(--round) - var(--line)); overflow: hidden; }
 .screen-frame { position: absolute; }
+/* As over a game's stage: a drag over a shared picture is a pointer, never a scroll. */
+.screen-body, .yt-screen { touch-action: none; }
 .screen-body video { width: 100%; height: 100%; display: block; object-fit: contain; }
 
 /* A volume slider over a video; small windows beside the master go without. */
