@@ -604,7 +604,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 
 /* --------------------------------------------------------------- settings */
 
-.settings { width: 330px; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 90px); overflow-y: auto; }
+.settings { width: max-content; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 90px); overflow-y: auto; }
 .settings h3 { margin: 0 0 7px; font-size: 13px; font-weight: 900; color: var(--text-soft); letter-spacing: 0.3px; }
 .settings .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .settings .row .input { flex: 1; min-width: 0; padding: 6px 10px; }
@@ -617,8 +617,9 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
    the colour and the name level with it. In a 72px drawing the ring is 5.4px
    in from the left and 10.3px down from the top. */
 .settings .identity .character-preview { margin: -10.3px 0 0 -5.4px; }
-.settings .identity .name-form { flex: 1; min-width: 0; flex-wrap: nowrap; }
-.settings .identity .name-form .input { height: 34px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; }
+.settings .identity .name-form { flex: none; flex-wrap: nowrap; }
+/* Room for a whole name, at its longest (NAME_MAX in app/limits.js); the panel fits around it. */
+.settings .identity .name-form .input { width: calc(15ch + 22px); height: 34px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; }
 .character-preview { position: relative; width: 72px; height: 72px; flex: none; }
 .character-preview .avatar-face { width: 100%; height: 100%; translate: none; }
 .character-preview .reroll { position: absolute; right: -8px; bottom: -6px; padding: 3px 5px; }
@@ -752,10 +753,12 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
   #app { height: auto; min-height: 100%; }
   #desk { margin: 0 8px 8px; flex: none; }
 
-  /* Popovers span the screen rather than hanging off their buttons. */
-  .popover { position: fixed; left: 8px; right: 8px; top: var(--pop-top, 96px); max-width: none; width: auto; max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
-  .settings { width: auto; }
-  .shelf { justify-content: center; }
+  /* Popovers are placed against the screen rather than their buttons, so
+     none can run off it: under the button, as wide as their contents, and
+     moved in only as far as the screen needs (app/main.js). */
+  .popover { position: fixed; left: auto; right: var(--pop-right, 8px); top: var(--pop-top, 96px); width: max-content; max-width: calc(100vw - 16px); max-height: calc(100dvh - var(--pop-top, 96px) - 8px); overflow-y: auto; }
+  /* Two games a row, the popover as wide as two: wrapping would fill the screen. */
+  .shelf { display: grid; grid-template-columns: repeat(2, max-content); }
 }
 
 /* Touch: bigger targets, and dragging never scrolls the page. */

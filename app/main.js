@@ -125,9 +125,18 @@ setPageIcon()
 function popover(button, pop, fill) {
   const toggle = (open = pop.hidden) => {
     if (open) fill?.(pop)
-    // On a phone a popover spans the screen; it starts just below its button.
-    if (open) pop.style.setProperty('--pop-top', `${Math.round(button.getBoundingClientRect().bottom + 10)}px`)
+    // On a phone a popover is placed against the screen: just below its
+    // button, its right edge under the button's, and moved in if it would
+    // run off the left.
+    const r = button.getBoundingClientRect()
+    if (open) {
+      pop.style.setProperty('--pop-top', `${Math.round(r.bottom + 10)}px`)
+      pop.style.setProperty('--pop-right', `${Math.max(8, Math.round(innerWidth - r.right))}px`)
+    }
     pop.hidden = !open
+    if (open && pop.getBoundingClientRect().left < 8) {
+      pop.style.setProperty('--pop-right', `${Math.max(8, Math.round(innerWidth - 8 - pop.getBoundingClientRect().width))}px`)
+    }
     button.setAttribute('aria-expanded', String(open))
   }
   button.addEventListener('click', (e) => { e.stopPropagation(); toggle() })
