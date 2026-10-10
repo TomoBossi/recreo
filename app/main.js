@@ -1,4 +1,4 @@
-import { avatar, playable, randomCharacter, REFRESH } from './avatar.js'
+import { avatar, playable, randomCharacter, remember, REFRESH } from './avatar.js'
 import { devicePickers, restoreDevices } from './devices.js'
 import { peersMenuButton } from './peersmenu.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
@@ -70,12 +70,14 @@ function setColour(next, { chosen = true } = {}) {
  */
 let character = playable(store.get('character', null))
 store.set('character', character)
+remember(character)
 
 /** Change your character everywhere it shows; the room listens in once joined. */
 let characterChanged = () => {}
 function setCharacter(next) {
   character = playable(next)
   store.set('character', character)
+  remember(character)
   $('#preview-placeholder').innerHTML = avatar(character)
   $('#preview-character').innerHTML = avatar(character)
   characterChanged(character)

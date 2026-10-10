@@ -7,17 +7,51 @@
  * a new colour shows at once without drawing anything again.
  */
 import { PLAYABLE, character, drawn } from './roster.js'
+import { store } from './store.js'
 
 const pick = (list) => list[crypto.getRandomValues(new Uint32Array(1))[0] % list.length]
+const chance = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32
 
 /**
- * A character at random, every playable one as likely as the next. Given
- * the one you have now, it picks among the others, so asking again always
- * changes something.
+ * How many of your past characters are remembered, and how quickly one wins
+ * back its chances: one you had `n` characters ago is rolled with weight
+ * 1 − RECOVERY^n, against 1 for a character you have not had lately.
  */
-export function randomCharacter(current = null) {
+const MEMORY = 8
+const RECOVERY = 0.5
+
+/** The characters you have had, the one you have now first. */
+const recent = () => {
+  const list = store.get('recent-characters', [])
+  return Array.isArray(list) ? list : []
+}
+
+/** Note that you now have `id`, so the next rolls go easier on it. */
+export function remember(id) {
+  store.set('recent-characters', [id, ...recent().filter((c) => c !== id)].slice(0, MEMORY))
+}
+
+/**
+ * A character at random. Given the one you have now, it picks among the
+ * others, so asking again always changes something. The ones you had lately
+ * are less likely than the rest, the more so the more recent, but never
+ * ruled out: there is no order to learn.
+ */
+export function randomCharacter(current = null, history = recent()) {
   const others = PLAYABLE.filter((id) => id !== current)
-  return pick(others.length ? others : PLAYABLE)
+  if (!others.length) return pick(PLAYABLE)
+  const weights = others.map((id) => {
+    const n = history.indexOf(id)
+    return n < 0 ? 1 : 1 - RECOVERY ** n
+  })
+  const total = weights.reduce((a, b) => a + b, 0)
+  if (!total) return pick(others)
+  let roll = chance() * total
+  for (const [i, w] of weights.entries()) {
+    roll -= w
+    if (roll < 0) return others[i]
+  }
+  return others.at(-1)
 }
 
 /** A character you can be: the one asked for if it is playable, else one at random. */
