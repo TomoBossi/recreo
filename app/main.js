@@ -1,5 +1,5 @@
 import { avatar, playable, randomCharacter, remember, REFRESH } from './avatar.js'
-import { devicePickers, restoreDevices } from './devices.js'
+import { devicePickers, holds as mediaHolds, restoreDevices, watchLoss } from './devices.js'
 import { peersMenuButton } from './peersmenu.js'
 import { join, generateRoomCode, normalizeRoom, roomFromUrl, inviteUrl } from 'plaza'
 import { LocalMedia, resumeAudio, videoProfileFor } from 'mirador'
@@ -266,8 +266,9 @@ async function permission(kind) {
   try { return (await navigator.permissions.query({ name: DEVICE[kind] })).state } catch { return 'prompt' }
 }
 
-/** Whether the page has a microphone or camera at all, on or off. */
-const holds = (kind) => !!media.stream?.getTracks().some((t) => t.kind === kind)
+/** Whether the page has a microphone or camera it can use, on or off. */
+const holds = (kind) => mediaHolds(media, kind)
+watchLoss(media)
 
 /**
  * Ask the browser for a microphone and camera, each then set as you last

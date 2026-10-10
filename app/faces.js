@@ -1,3 +1,4 @@
+import { holds } from './devices.js'
 import { avatar } from './avatar.js'
 import { gridLayout, spotlightLayout, SpeakerTracker, resumeAudio } from 'mirador'
 import { store } from './store.js'
@@ -145,8 +146,8 @@ export class Faces {
         player: this.me.player,
         nick: this.me.nick || 'you',
         stream: this.media.stream,
-        video: this.media.state().videoEnabled && !!this.media.stream?.getVideoTracks().length,
-        muted: !(this.media.state().audioEnabled && !!this.media.stream?.getAudioTracks().length),
+        video: this.media.state().videoEnabled && holds(this.media, 'video'),
+        muted: !(this.media.state().audioEnabled && holds(this.media, 'audio')),
         self: true,
       },
       ...[...this.room.peers.values()].map((p) => ({
