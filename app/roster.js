@@ -18,7 +18,7 @@
  * names a drawing in ROSTER below: to add a character to the game, draw it
  * there and put its id here.
  */
-export const PLAYABLE = ['glorp', 'dingding', 'moai', 'sus', 'skull', 'villager', 'bot', 'capy', 'tux', 'saturn', 'glep']
+export const PLAYABLE = ['glorp', 'dingding', 'moai', 'sus', 'skull', 'villager', 'bot', 'capy', 'tux', 'saturn', 'glep', 'cheese']
 
 const INK = '#241c3a'
 const W = 3.5 // the outline every shape wears
@@ -400,11 +400,14 @@ export const ROSTER = [
       const yellow = '#ffc21a'
       const body = P('M44.1 4.1 C31.0 5.6 22.8 13.8 20.8 27.4 C20.1 31.5 20.4 48.6 21.2 59.4 C21.7 66.3 21.8 68.8 21.4 70.4 C20.7 73.0 19.9 74.4 16.9 77.7 C15.2 79.6 12.3 82.9 9.8 85.9 C4.4 92.2 2.3 96.0 0.5 102.8 C-1.2 109.2 -3.0 113.6 -6.8 120.8 C-11.3 129.5 -11.5 129.9 -11.5 133.0 C-11.5 135.2 -11.3 136.3 -10.6 138.3 C-10.3 139.2 -10.3 139.2 -10.9 140.2 C-11.3 140.8 -11.9 141.8 -12.4 142.6 C-14.8 147.0 -17.0 148.1 -22.6 147.8 C-26.6 147.5 -29.1 148.6 -30.2 150.9 C-31.3 153.0 -31.3 154.3 -30.7 160.3 C-29.9 168.0 -30.2 170.8 -32.3 175.2 C-34.2 179.2 -34.5 180.8 -33.5 182.7 C-32.6 184.4 -31.8 184.9 -26.5 186.5 C-24.6 187.1 -21.9 187.9 -20.5 188.3 C-19.1 188.8 -15.3 189.7 -12.0 190.5 C-2.8 192.6 -0.1 193.4 4.2 195.1 C11.0 198.0 11.6 198.1 14.7 198.1 C17.4 198.1 18.4 198.0 20.4 197.0 C23.4 195.6 25.9 193.0 27.2 189.9 C27.9 188.3 27.6 188.4 30.6 187.9 C38.4 186.7 45.6 186.6 56.2 187.9 C61.4 188.4 64.2 189.0 70.5 190.5 C74.1 191.4 74.1 191.4 74.6 192.3 C77.2 196.7 85.4 199.4 91.1 197.7 C94.5 196.7 96.8 195.2 101.4 190.8 C107.2 185.2 109.5 183.6 119.0 179.0 C125.5 175.8 127.8 174.0 129.2 171.2 C130.7 168.2 129.9 166.5 125.9 163.8 C125.1 163.2 123.5 162.0 122.5 161.2 C117.2 156.8 115.8 154.7 115.5 150.3 C115.2 145.7 114.0 143.7 111.0 142.5 C111.0 142.5 111.2 141.7 111.5 140.8 C112.2 138.8 113.0 134.9 113.2 132.6 C114.2 123.9 109.8 106.8 103.8 96.1 C101.4 91.9 100.0 90.0 95.5 85.1 C92.5 81.9 88.0 75.9 86.2 72.7 C83.3 67.7 81.6 63.8 80.4 59.7 C79.2 55.5 79.0 52.9 78.8 43.0 C78.6 30.5 78.1 27.6 75.3 21.9 C70.7 12.3 62.6 6.1 52.2 4.4 C50.8 4.1 45.3 4.0 44.1 4.1 Z')
       const belly = P('M62.9 64.1 C62.6 64.8 62.2 65.0 60.0 65.8 C57.9 66.6 56.3 67.5 52.8 69.9 C48.7 72.7 45.7 73.7 41.5 73.9 C36.8 74.0 35.0 73.1 31.2 68.6 C30.0 67.3 28.7 65.8 28.3 65.4 C27.5 64.6 27.5 64.6 27.4 65.2 C27.3 65.6 27.3 66.6 27.3 67.5 C27.3 72.6 26.7 74.3 22.8 79.8 C18.1 86.6 16.7 90.1 16.7 95.3 C16.7 97.0 16.7 97.0 15.5 98.9 C8.2 110.5 4.2 123.1 4.3 134.9 L4.3 138.0 L6.4 140.0 C10.9 144.1 14.4 147.1 19.8 151.4 C25.1 155.5 26.8 157.3 27.7 159.9 C29.5 164.8 25.8 168.5 20.4 167.4 C19.8 167.3 19.4 167.2 19.4 167.2 C19.3 167.3 20.3 168.5 21.5 170.0 C22.7 171.5 24.0 173.2 24.4 173.7 C25.0 174.6 25.2 174.8 26.5 175.4 C34.9 179.6 45.0 180.5 53.6 177.7 C59.9 175.6 65.0 172.1 73.2 164.0 L76.5 160.7 L76.6 158.2 C76.8 155.8 76.7 152.9 76.5 146.1 C76.2 140.6 77.9 139.2 83.4 140.1 C84.1 140.3 84.8 140.3 84.8 140.3 C84.9 140.2 85.1 138.7 85.3 136.9 C87.5 117.6 84.5 104.5 75.7 94.5 C74.6 93.3 74.6 93.3 74.4 91.9 C73.4 86.0 71.9 81.9 68.0 74.0 C66.7 71.4 65.2 68.3 64.7 67.1 C64.3 66.0 63.7 64.7 63.6 64.4 C63.2 63.7 63.2 63.7 62.9 64.1 Z')
+      // Its mouth line is a slit in the outline; the shading goes on the beak
+      // without it, so no shadow shows through the slit.
       const beak = P('M39.6 46.6 C36.3 47.4 33.5 48.9 31.0 51.3 C30.2 52.0 29.1 53.0 28.5 53.4 C26.5 55.0 25.2 56.9 24.8 58.8 C24.4 60.7 24.5 61.2 25.1 61.8 C25.7 62.4 26.1 62.5 25.7 62.0 C25.5 61.8 25.6 61.8 26.0 61.8 C26.8 61.8 28.0 62.4 29.4 63.5 C32.4 65.7 35.2 66.5 39.5 66.1 C45.0 65.6 49.3 64.1 53.6 61.0 C56.0 59.3 56.4 59.3 54.2 61.0 C51.1 63.4 48.4 64.8 44.5 65.7 C36.9 67.5 32.3 67.2 29.5 64.6 C28.8 63.9 27.2 62.9 26.9 62.9 C26.8 62.9 27.3 63.5 28.0 64.2 C28.8 64.9 30.1 66.4 31.0 67.6 C34.5 72.3 36.8 73.7 41.1 73.6 C45.7 73.6 49.0 72.2 54.8 67.7 C56.7 66.3 58.7 65.2 60.2 64.7 C62.5 64.0 63.3 63.2 63.6 61.6 C63.7 61.0 63.9 59.9 64.1 59.1 C64.5 57.2 64.5 56.9 64.0 55.6 C63.6 54.3 62.9 53.6 61.6 53.2 C57.6 52.0 56.6 51.7 55.2 51.2 C54.3 50.8 52.5 50.0 51.1 49.2 C47.6 47.4 46.9 47.1 45.9 46.8 C44.6 46.4 41.0 46.3 39.6 46.6 Z')
+      const beakSolid = P('M39.6 46.6 C36.3 47.4 33.5 48.9 31.0 51.3 C30.2 52.0 29.1 53.0 28.5 53.4 C26.5 55.0 25.2 56.9 24.8 58.8 C24.4 60.7 24.5 61.2 25.1 61.8 C25.9 62.7 27 63.4 28.0 64.2 C28.8 64.9 30.1 66.4 31.0 67.6 C34.5 72.3 36.8 73.7 41.1 73.6 C45.7 73.6 49.0 72.2 54.8 67.7 C56.7 66.3 58.7 65.2 60.2 64.7 C62.5 64.0 63.3 63.2 63.6 61.6 C63.7 61.0 63.9 59.9 64.1 59.1 C64.5 57.2 64.5 56.9 64.0 55.6 C63.6 54.3 62.9 53.6 61.6 53.2 C57.6 52.0 56.6 51.7 55.2 51.2 C54.3 50.8 52.5 50.0 51.1 49.2 C47.6 47.4 46.9 47.1 45.9 46.8 C44.6 46.4 41.0 46.3 39.6 46.6 Z')
       const eyes = [[P('M29.6 33.1 C26.3 33.7 24.6 36.7 24.6 41.6 C24.6 47.1 25.4 50.9 27.1 52.8 C28.0 53.9 27.9 53.9 32.2 50.7 C38.2 46.2 38.7 45.4 37.8 41.3 C36.8 36.3 33.0 32.5 29.6 33.1 Z'), P('M29.3 39.4 C28.0 40.1 27.3 41.5 27.2 43.8 C27.0 46.6 28.1 49.1 30.1 50.4 C31.1 51.0 31.1 51.0 32.2 50.1 C32.7 49.7 33.5 49.2 33.9 48.9 C36.2 47.5 34.7 40.9 31.7 39.5 C31.0 39.2 29.8 39.1 29.3 39.4 Z M31.7 41.0 C32.8 41.6 33.5 42.9 33.2 43.8 C32.9 44.5 32.7 44.4 32.2 43.6 C32.0 43.2 31.5 42.7 31.1 42.3 C30.0 41.3 30.4 40.4 31.7 41.0 Z')], [P('M53.0 31.9 C48.9 33.1 45.9 37.4 46.0 42.0 C46.1 43.6 46.1 43.6 47.1 45.6 C48.1 47.6 48.2 47.6 49.2 48.2 C52.2 49.9 58.7 52.6 60.7 52.9 C61.3 53.0 61.4 52.9 61.9 52.3 C64.8 48.9 65.3 41.6 62.9 37.0 C60.8 32.9 56.8 30.9 53.0 31.9 Z'), P('M54.2 38.7 C51.7 39.3 50.1 42.0 50.4 45.4 C50.5 46.8 50.9 48.3 51.6 49.1 C52.2 49.9 55.3 51.3 56.1 51.1 C62.1 50.2 62.2 40.3 56.3 38.8 C55.3 38.5 55.0 38.5 54.2 38.7 Z M57.1 40.8 C58.5 41.4 59.7 43.8 58.9 44.1 C58.1 44.4 55.0 41.3 55.4 40.6 C55.5 40.4 56.5 40.5 57.1 40.8 Z')]]
       return k.clip(TOPDISC, k.part(body, black, { shade: DOWN, inside: k.shine(44, 10, 2.6) }) + k.part(belly, cream, { shade: DOWN }))
         + eyes.map(([eye, pupil]) => k.part(eye, WHITE, { shade: false, w: 2.4, inside: k.fill(pupil, INK) })).join('')
-        + k.part(beak, yellow, { shade: DOWN })
+        + k.part(beakSolid, yellow, { shade: DOWN, w: 0 }) + paint(beak, `fill="none" ${ink()}`)
     },
   },
   {
@@ -492,6 +495,60 @@ export const ROSTER = [
           + k.line(rim, fine) + k.line(onHead, brimLine) + k.line(crown + ' C26.69 66.17 27.26 65.98 27.86 65.82', W / S) + k.taper(backLine, W / S, { ends: [0.01, 0.5], start: false, to: brimLine })
           + k.taper(frontLine, W / S, { ends: [0.01, 0.3], start: false, to: brimLine })
           + k.part(eye, WHITE, { shade: false, w: 2.4 / S }) + k.fill(pupil, INK))
+    },
+  },
+  {
+    // Cheesing: the grinning emoji, all eyes and buck teeth, on a body. Traced
+    // from the emoji: half-dome eyes with a big blue iris under a lid line,
+    // brows high up, blush under the eyes, and a huge open mouth with the two
+    // big front teeth, a little tongue and two little bottom teeth.
+    id: 'cheese', name: 'Cheesing', bg: '#ff7aa8', draw: (k) => {
+      const yellow = '#ffcf3d'
+      const mouthLine = 1.9
+      const head = C(50.35, 45.35, 37.2)
+      // One eye, drawn on the left and mirrored about the middle of the face.
+      const flip = (art) => `<g transform="translate(100.7 0) scale(-1 1)">${art}</g>`
+      // Its lower edge is a slice of a big circle, and the lower lid line carries
+      // that circle on a little past the outer corner.
+      const eyeTop = 'M29.8 26.69 C29.6 20.5 33 17.2 37.2 17.2 C41.5 17.2 44.6 20.5 44.4 26.8'
+      const eyeShape = P(eyeTop + ' C39.58 25.87 34.63 25.83 29.8 26.69 Z')
+      const eye = (mirrored) => {
+        // Both look a touch to his left, so the mirrored eye's iris and pupil
+        // sit a little further over.
+        const cx = 37.8
+        const inside = k.fill(C(cx + (mirrored ? -0.6 : 0), 24.3, 4.6), '#3d7fd6')
+          + k.fill(C(cx + (mirrored ? -0.4 : 0.2), 24.3, 1.9), INK)
+        // One fine line round the top and along the lower lid, running on a
+        // little past the outer corner.
+        return k.part(eyeShape, '#d6ebfa', { shade: false, w: 0, inside })
+          + k.line(eyeTop + ' C38.91 25.74 33.25 25.84 27.8 27.1', 1.4)
+      }
+      // Each brow follows its eye's dome round its outer side, a little way above it.
+      const brow = k.taper('M27.15 23.17 C28.71 16.31 34.92 12.5 40.6 14.93', 2.4, { ends: 0.3, colour: '#8a4a22' })
+      const blush = k.fill(E(33.1, 30.5, 5, 1.75), '#f5913c', 'opacity="0.85"')
+      // A round bump of cheek over each corner of the mouth, tucking the corner
+      // under it. Its inner edge is a crease where it lies on the face and its
+      // outline where it lies over the mouth, down to the bottom of the circle,
+      // which sits right on the mouth's line.
+      const cheek = k.fill(C(23.99, 41.37, 5.4), mix(yellow, WHITE, 0.2)) + k.taper('M26.69 36.69 C28.81 37.91 29.84 40.41 29.21 42.77 C28.58 45.13 26.43 46.77 23.99 46.77', mouthLine, { ends: 0.45, end: false })
+      const mouth = P('M24 44.6 C25 41 29.5 39 34 38 C39 36.9 44.5 36.5 50.3 36.5 C56.1 36.5 61.6 36.9 66.6 38 C71.1 39 75.6 41 76.6 44.6 C77.4 56.5 66.1 71 50.3 70.8 C34.5 71 23.2 56.5 24 44.6 Z')
+      const upper = P('M39 34 C38 40 37.3 43 37.5 46 C37.8 50.5 40 54 44.5 54.9 C47 55.3 53.6 55.3 56.1 54.9 C60.6 54 62.8 50.5 63.1 46 C63.3 43 62.6 40 61.6 34 Z')
+      const lower = R(43.35, 63.9, 13.9, 10, 2.2)
+      const tongue = P('M45.6 57.6 C45.4 56.8 46.6 56.7 47.6 57.3 C48.8 58 51.8 58 53 57.3 C54 56.7 55.2 56.8 55 57.6 C54.8 60.2 53.1 61.5 50.3 61.5 C47.5 61.5 45.8 60.2 45.6 57.6 Z')
+      const gap = '#c9cbd4'
+      return k.bust(yellow, { head, armTop: 88 })
+        + k.part(head, yellow, { shade: DOWN })
+        + blush + flip(blush) + brow + flip(brow)
+        + k.part(mouth, '#7a2a1f', { shade: false, w: mouthLine, inside:
+            k.fill(tongue, '#e0434b')
+            // Each pair of teeth: a fine outline, the gap between the two down
+            // its middle, kept inside them.
+            + k.part(upper, WHITE, { shade: false, w: 1.2, inside: k.fill(R(30, 30, 40, 9.3), '#dcdee5') + k.line('M50.3 30 L50.3 60', 0.9, gap) })
+            + k.part(lower, WHITE, { shade: false, w: 1.2, inside: k.line('M50.3 60 L50.3 76', 0.9, gap) }) })
+        + cheek + flip(cheek)
+        + eye(false) + flip(eye(true))
+        // The glints, lit from the same side in both eyes, so not mirrored.
+        + [38, 63.3].map((x) => k.fill(E(x - 2.4, 22.9, 1.1, 1.6), WHITE) + k.fill(C(x + 2.2, 24.8, 0.5), WHITE)).join('')
     },
   },
 ]

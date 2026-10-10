@@ -362,13 +362,16 @@ function toSpace(space, e) {
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v))
 
-/** How cursors are shown: 'show', 'characters' or 'hide' (once stored as true or false). */
+/**
+ * How cursors are shown: 'show', 'characters' or 'hide' (once stored as true
+ * or false). Until a player picks, cursors come with their characters.
+ */
 export function cursorMode() {
   try {
-    const saved = JSON.parse(localStorage.getItem('recreo:cursors') ?? '"show"')
+    const saved = JSON.parse(localStorage.getItem('recreo:cursors') ?? '"characters"')
     if (saved === false) return 'hide'
-    return ['show', 'characters', 'hide'].includes(saved) ? saved : 'show'
+    return ['show', 'characters', 'hide'].includes(saved) ? saved : 'characters'
   } catch {
-    return 'show'
+    return 'characters'
   }
 }
