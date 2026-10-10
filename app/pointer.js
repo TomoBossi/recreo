@@ -22,7 +22,7 @@ const RESIZE = `<svg viewBox="0 0 28 28" width="26" height="26" aria-hidden="tru
 /** What shape the pointer should take over an element. */
 function shapeAt(target) {
   if (!(target instanceof Element)) return 'arrow'
-  if (target.closest('input:not([type=checkbox]):not([type=color]):not([type=file]), textarea, [contenteditable]')) return 'text'
+  if (target.closest('input:not([type=checkbox]):not([type=color]):not([type=file]):not([type=range]), textarea, [contenteditable]')) return 'text'
   if (target.closest('.gutter')) return 'resize-col'
   if (target.closest('.hgutter')) return 'resize-row'
   const c = target.closest('.win')?.style.cursor

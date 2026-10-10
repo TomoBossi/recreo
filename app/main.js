@@ -11,6 +11,8 @@ import { Tables } from './tables.js'
 import { TableView } from './tableview.js'
 import { Players } from './players.js'
 import { shelf } from './shelf.js'
+import { Screenshare, screenshareCard } from './screenshare.js'
+import { YouTube, youtubeCard } from './youtube.js'
 import { Live } from './live.js'
 import { clickSounds } from './clicks.js'
 import { notify, notices } from './notify.js'
@@ -489,6 +491,8 @@ async function joinRoom(code, nick) {
   chatBody.className = 'chat-body'
   wm.add({ id: 'chat', title: 'Chat', tone: 'leaf', body: chatBody, order: 100, weight: 1 })
   const chat = new Chat(chatBody, { room, players })
+  const screens = new Screenshare({ room, media, wm, chat, toast })
+  const youtube = new YouTube({ room, wm, chat, players, toast })
   chat.selfPlayer = me.player
 
   const tables = new Tables({ room, me, games, present: (player) => players.stateOf(player) === 'here' })
@@ -775,17 +779,21 @@ async function joinRoom(code, nick) {
 
   // ----------------------------------------------------------- top bar
 
-  const toggleShelf = popover($('#new-table'), $('#shelf-pop'))
-  $('#shelf-pop').append(shelf({
+  // Built each time it opens: an activity's card says whether it can start now.
+  const toggleShelf = popover($('#new-table'), $('#shelf-pop'), (pop) => pop.replaceChildren(shelf({
     games: Object.fromEntries(Object.entries(games).filter(([id]) => !shelved.has(id))),
     upcoming,
+    activities: [
+      { ...screenshareCard, status: () => screens.status(), pick: () => { toggleShelf(false); void screens.pick() } },
+      { ...youtubeCard, status: () => youtube.status(), pick: () => { toggleShelf(false); youtube.pick() } },
+    ],
     onPick: (gameId) => {
       toggleShelf(false)
       const table = tables.open(gameId)
       if (!table) { toast(`${TABLES} games at once is the most — end one to start another`); return }
       tables.sit(table.id, 0)
     },
-  }))
+  })))
 
   const settingsAnchor = $('#settings').parentElement
   popover($('#settings'), settingsAnchor.querySelector('.popover'), (pop) => {
@@ -873,7 +881,7 @@ async function joinRoom(code, nick) {
   refreshFaces()
 
   // A handle for the console, and for the test harness.
-  window.recreo = { room, tables, wm, players, me, media, cursors, notices }
+  window.recreo = { room, tables, wm, players, me, media, cursors, notices, youtube, screens }
 }
 
 function mediaPresence() {

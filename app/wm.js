@@ -198,6 +198,27 @@ export class WindowManager {
     if (changed || expand) this.layout()
   }
 
+  /**
+   * Bring a window forward the way this layout does: floating, to the front;
+   * wide and tiled, open and made the master; in the column, open and
+   * scrolled to.
+   */
+  reveal(win) {
+    if (this.mode === 'floating' && !this.narrow) {
+      win.el.style.zIndex = String(++this.z)
+      return
+    }
+    if (this.#wide) {
+      if (win.kind === 'table') this.focus(win, { expand: true })
+      else this.#crown(win)
+      this.#open(win)
+      this.layout()
+      return
+    }
+    if (win.collapsed) win.collapse(false)
+    requestAnimationFrame(() => win.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+
   /** Tiled on a screen wide enough for two columns: where the master is chosen. */
   get #wide() { return this.mode !== 'floating' && !this.narrow }
 
