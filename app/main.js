@@ -241,26 +241,105 @@ const CAM = `<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="0.5" y="3.5" w
 /**
  * Your microphone and camera start as you last left them — off stays off —
  * which matters most arriving straight from a link, with no preview first.
+ * One the page does not have yet is asked for when you turn it on.
  */
 function toggleMedia(kind) {
+  if (!holds(kind)) return void turnOn(kind)
   if (kind === 'audio') media.toggleAudio()
-  else media.toggleVideo()
+  else void cameraOn(!media.videoEnabled)
   store.set(`media:${kind}`, kind === 'audio' ? media.audioEnabled : media.videoEnabled)
 }
 
+/** Turning the camera back on asks the browser for it again, which can fail like the first time. */
+async function cameraOn(on) {
+  let failure = null
+  const off = media.once('error', (err) => { failure = err })
+  await media.setVideoEnabled(on)
+  off()
+  if (on && !media.videoEnabled) await explain('video', failure)
+}
+
+const DEVICE = { audio: 'microphone', video: 'camera' }
+
+/** Whether this page may use the microphone or camera: 'granted', 'prompt' or 'denied'. A browser that cannot say answers 'prompt'. */
+async function permission(kind) {
+  try { return (await navigator.permissions.query({ name: DEVICE[kind] })).state } catch { return 'prompt' }
+}
+
+/** Whether the page has a microphone or camera at all, on or off. */
+const holds = (kind) => !!media.stream?.getTracks().some((t) => t.kind === kind)
+
+/**
+ * Ask the browser for a microphone and camera, each then set as you last
+ * left it. Asking again replaces the stream; in the room the new one is
+ * sent in place of the old.
+ */
+async function acquire(kinds) {
+  await media.start({ audio: kinds.includes('audio'), video: kinds.includes('video') })
+  media.setAudioEnabled(store.get('media:audio', true) !== false)
+  await media.setVideoEnabled(store.get('media:video', true) !== false)
+  $('#preview').srcObject = media.stream
+}
+
+/** One request at a time: a second tap waits for the first, then finds it done. */
+let asking = Promise.resolve()
+
+/**
+ * Turn on a microphone or camera the page does not have yet. A blocked one
+ * is never asked for again behind your back: the browser refuses at once,
+ * and the notice says where to allow it. `auto` is the page itself asking,
+ * after you allowed it in the site settings: nothing changes what you last
+ * chose, and nothing is said.
+ */
+function turnOn(kind, { auto = false } = {}) {
+  asking = asking.then(async () => {
+    if (holds(kind)) return
+    if (auto && store.get(`media:${kind}`, true) === false) return
+    if (!auto) store.set(`media:${kind}`, true)
+    try {
+      await acquire(['audio', 'video'].filter((k) => k === kind || holds(k)))
+    } catch (err) {
+      if (!auto) await explain(kind, err)
+    }
+    syncToggles()
+    cameraReady()
+  })
+  return asking
+}
+
+/** Why a microphone or camera could not be had, in a notice. Saying no to the browser's question needs no answer. */
+async function explain(kind, err = null) {
+  const name = DEVICE[kind]
+  const state = await permission(kind)
+  if (state === 'denied') toast(`your ${name} is blocked for this site — allow it in the site settings, by the address bar`)
+  else if (err?.name === 'NotFoundError') toast(`no ${name} found on this device`)
+  else if (err?.name === 'NotReadableError') toast(`your ${name} is in use by another app`)
+  else if (err?.name === 'NotAllowedError' && state === 'granted') toast(`your device is not letting the browser use your ${name} — allow it in its privacy settings`)
+  else if (err && err.name !== 'NotAllowedError') toast(`could not start your ${name}`)
+}
+
 /** See yourself before going in, and sort out permissions while nobody waits. */
-async function startPreview() {
-  try {
-    await restoreDevices(media)
-    await media.start({ audio: true, video: true })
-    if (store.get('media:audio', true) === false) media.setAudioEnabled(false)
-    if (store.get('media:video', true) === false) await media.setVideoEnabled(false)
-    $('#preview').srcObject = media.stream
-  } catch {
-    // No camera, or no permission: the room works without one.
-  }
-  syncToggles()
-  cameraReady()
+function startPreview() {
+  asking = asking.then(async () => {
+    try {
+      await restoreDevices(media)
+      // A blocked one is left alone, so the other still starts.
+      const kinds = []
+      for (const kind of ['audio', 'video']) if (await permission(kind) !== 'denied') kinds.push(kind)
+      if (kinds.length) await acquire(kinds)
+    } catch {
+      // No camera, or no permission: the room works without one.
+    }
+    syncToggles()
+    cameraReady()
+  })
+}
+
+// Allowed in the site settings while the page is open: it starts without a reload.
+for (const kind of ['audio', 'video']) {
+  navigator.permissions?.query({ name: DEVICE[kind] }).then((status) => {
+    status.addEventListener('change', () => { if (status.state === 'granted') void turnOn(kind, { auto: true }) })
+  }).catch(() => {})
 }
 
 /** Set once in the room: what to do when the camera turns up late. */
@@ -268,8 +347,8 @@ let cameraReady = () => {}
 
 function syncToggles() {
   const s = media.state()
-  const mic = String(s.audioEnabled && s.hasStream)
-  const cam = String(s.videoEnabled && s.hasStream)
+  const mic = String(s.audioEnabled && holds('audio'))
+  const cam = String(s.videoEnabled && holds('video'))
   for (const b of document.querySelectorAll('[data-media=mic], #preview-mic')) b.setAttribute('aria-pressed', mic)
   for (const b of document.querySelectorAll('[data-media=cam], #preview-cam')) b.setAttribute('aria-pressed', cam)
   $('#preview').hidden = cam !== 'true'
@@ -288,7 +367,7 @@ $('#preview-cam').innerHTML = CAM
 $('#preview-mic').addEventListener('click', () => toggleMedia('audio'))
 $('#preview-cam').addEventListener('click', () => toggleMedia('video'))
 
-void startPreview()
+startPreview()
 
 /** Whether a room is being joined: one at a time, however many presses. */
 let entering = false
@@ -789,7 +868,7 @@ async function joinRoom(code, nick) {
 
 function mediaPresence() {
   const s = media.state()
-  return { audio: s.audioEnabled && s.hasStream, video: s.videoEnabled && s.hasStream }
+  return { audio: s.audioEnabled && holds('audio'), video: s.videoEnabled && holds('video') }
 }
 
 /** The room's notices, at the bottom of the screen (app/notify.js). */

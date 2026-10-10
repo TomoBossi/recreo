@@ -146,7 +146,7 @@ export class Faces {
         nick: this.me.nick || 'you',
         stream: this.media.stream,
         video: this.media.state().videoEnabled && !!this.media.stream?.getVideoTracks().length,
-        muted: !this.media.state().audioEnabled,
+        muted: !(this.media.state().audioEnabled && !!this.media.stream?.getAudioTracks().length),
         self: true,
       },
       ...[...this.room.peers.values()].map((p) => ({
