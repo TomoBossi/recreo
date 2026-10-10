@@ -37,6 +37,71 @@
   }
 }
 </script>
+<!--
+  Every module the room imports at start, so the browser fetches them all at
+  once instead of finding them one import at a time.
+-->
+<!-- modules:start -->
+<link rel="modulepreload" href="app/main.js">
+<link rel="modulepreload" href="app/avatar.js">
+<link rel="modulepreload" href="app/roster.js">
+<link rel="modulepreload" href="app/devices.js">
+<link rel="modulepreload" href="app/select.js">
+<link rel="modulepreload" href="app/store.js">
+<link rel="modulepreload" href="app/peersmenu.js">
+<link rel="modulepreload" href="vendor/plaza/src/plaza.js">
+<link rel="modulepreload" href="vendor/plaza/src/core/room.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/mesh.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/rendezvous.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/nostr.js">
+<link rel="modulepreload" href="vendor/plaza/vendor/secp256k1.mjs">
+<link rel="modulepreload" href="vendor/plaza/src/signal/tracker.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/secret.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/link.js">
+<link rel="modulepreload" href="vendor/plaza/src/signal/candidates.js">
+<link rel="modulepreload" href="vendor/plaza/src/core/emitter.js">
+<link rel="modulepreload" href="vendor/plaza/src/core/diagnostics.js">
+<link rel="modulepreload" href="vendor/plaza/src/core/invite.js">
+<link rel="modulepreload" href="vendor/plaza/vendor/qrcode-generator.mjs">
+<link rel="modulepreload" href="vendor/mirador/src/mirador.js">
+<link rel="modulepreload" href="vendor/mirador/src/core/media.js">
+<link rel="modulepreload" href="vendor/mirador/src/core/emitter.js">
+<link rel="modulepreload" href="vendor/mirador/src/core/levels.js">
+<link rel="modulepreload" href="vendor/mirador/src/core/layout.js">
+<link rel="modulepreload" href="app/wm.js">
+<link rel="modulepreload" href="games/kit/sound.js">
+<link rel="modulepreload" href="app/faces.js">
+<link rel="modulepreload" href="app/chat.js">
+<link rel="modulepreload" href="app/tables.js">
+<link rel="modulepreload" href="app/limits.js">
+<link rel="modulepreload" href="app/tableview.js">
+<link rel="modulepreload" href="app/notify.js">
+<link rel="modulepreload" href="app/players.js">
+<link rel="modulepreload" href="games/kit/colours.js">
+<link rel="modulepreload" href="app/shelf.js">
+<link rel="modulepreload" href="app/live.js">
+<link rel="modulepreload" href="app/clicks.js">
+<link rel="modulepreload" href="app/cursors.js">
+<link rel="modulepreload" href="app/pointer.js">
+<link rel="modulepreload" href="app/settings.js">
+<link rel="modulepreload" href="app/bell.js">
+<link rel="modulepreload" href="app/identity.js">
+<link rel="modulepreload" href="games/index.js">
+<link rel="modulepreload" href="games/connect4/index.js">
+<link rel="modulepreload" href="games/kit/define.js">
+<link rel="modulepreload" href="games/kit/svg.js">
+<link rel="modulepreload" href="games/chess/index.js">
+<link rel="modulepreload" href="games/chess/rules.js">
+<link rel="modulepreload" href="games/pictionary/index.js">
+<link rel="modulepreload" href="games/kit/random.js">
+<link rel="modulepreload" href="games/kit/lobby.js">
+<link rel="modulepreload" href="games/pictionary/words/en.js">
+<link rel="modulepreload" href="games/pictionary/words/es.js">
+<link rel="modulepreload" href="games/minigolf/index.js">
+<link rel="modulepreload" href="games/minigolf/holes.js">
+<link rel="modulepreload" href="games/minigolf/physics.js">
+<link rel="modulepreload" href="games/tictactoe/index.js">
+<!-- modules:end -->
 </head>
 <body>
 

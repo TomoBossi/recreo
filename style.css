@@ -804,6 +804,11 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 }
 .settings .colour-button { width: 34px; height: 34px; }
 .colour-pop { left: 0; right: auto; top: calc(100% + 8px); padding: 10px; }
+/* On a phone it still hangs off its swatch, though other popovers span the
+   screen: it is small, and it opens inside the settings, which scroll. */
+@media (max-width: 760px) {
+  .colour-pop { position: absolute; width: max-content; max-height: none; overflow: visible; }
+}
 .colour-picker { display: flex; flex-direction: column; gap: 10px; width: 196px; }
 .colour-picker .swatches { display: grid; grid-template-columns: repeat(5, 28px); gap: 7px; justify-content: space-between; }
 .colour-picker .strip { position: relative; height: 26px; border: var(--line) solid var(--ink); border-radius: var(--round-small); cursor: pointer; touch-action: none; }
