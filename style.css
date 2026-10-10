@@ -334,6 +334,8 @@ button, input, select { font: inherit; color: inherit; }
 .win.collapsed .wbtn.collapse::after { top: 3px; bottom: 3px; left: 7px; width: 2.5px; }
 .wbtn.close::before, .wbtn.close::after { left: 7px; top: 2px; bottom: 2px; width: 2.5px; }
 .wbtn.close::before { transform: rotate(45deg); }
+.wbtn.expand, .wbtn.retire { display: grid; place-items: center; }
+.wbtn.expand svg, .wbtn.retire svg { width: 65%; height: 65%; }
 .wbtn.close::after { transform: rotate(-45deg); }
 
 /* The microphone and camera toggles in the Peers title bar. */

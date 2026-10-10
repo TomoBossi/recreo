@@ -14,11 +14,21 @@ import { sound } from '../games/kit/sound.js'
  * On a narrow screen there is no room for two columns, so the windows become
  * one scrolling column and floating is not offered.
  *
- * At most two games are open at once — the one being played, and one more
- * shrunk small beside it — and the rest wait collapsed to their title bars,
- * so a room with five games stays as tidy as one with two. Bringing a game
- * forward, or opening one up, collapses whichever was looked at longest ago.
- * Floating, windows go where they are put, and nothing is collapsed for them.
+ * A collapsed window opens from its + or a double click on its title; a
+ * double click never collapses one.
+ *
+ * Tiled on a wide screen, the master is chosen rather than collapsed: it has
+ * no collapse button. A window beside it that is open can be expanded (↖),
+ * trading places with the master; the chat never is. With a game in the
+ * room, the master can step back to the stack (↘): a game gives its place
+ * to the peers, the peers theirs to the game used last. Of the games beside
+ * the master, one at most is open — at most two games open, so a room with
+ * five stays as tidy as one with two — and the rest wait collapsed. Windows
+ * beside the master answer only their buttons and a double click: pressing
+ * one changes nothing.
+ *
+ * In the narrow column every game can be open: it scrolls. Floating, windows
+ * go where they are put, and nothing is collapsed for them.
  */
 
 const GAP = 14
@@ -28,7 +38,12 @@ const NARROW = 760
 const MIN_W = 220
 const MIN_H = 120
 const CORNER = 16     // how close to a corner a pointer must be to resize
-const OPEN_GAMES = 2  // games open at once when tiled; the rest wait collapsed
+
+const arrow = (d) => `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+/** Up and to the left, towards the master's place: expand. */
+const EXPAND = arrow('M11 11 3.5 3.5 M3 8.5V3h5.5')
+/** Down and to the right, back to the stack: step back. */
+const RETIRE = arrow('M3 3 10.5 10.5 M11 5.5V11H5.5')
 
 export class WindowManager {
   /** @param {HTMLElement} desk */
@@ -55,6 +70,13 @@ export class WindowManager {
 
   get narrow() { return this.desk.clientWidth < NARROW }
 
+  /** Whether the last layout was wide and tiled, to notice arriving there. */
+  #wasWide = false
+  /** Whether the master was chosen — expanded, stepped back for, or a game played — rather than fallen to. */
+  #chosen = false
+  /** Games brought forward at least once. The rest are ranked as they are shown. */
+  #used = new WeakSet()
+
   /**
    * Add a window.
    *
@@ -72,6 +94,8 @@ export class WindowManager {
         <span class="title"></span>
         <span class="meta"></span>
         <span class="tools"></span>
+        <button class="wbtn expand" title="make this the main window" aria-label="make this the main window" hidden>${EXPAND}</button>
+        <button class="wbtn retire" title="back to the side" aria-label="back to the side" hidden>${RETIRE}</button>
         <button class="wbtn collapse" title="collapse" aria-label="collapse"></button>
         ${closable ? `<button class="wbtn close" title="${closeLabel}" aria-label="${closeLabel}"></button>` : ''}
       </div>
@@ -90,7 +114,7 @@ export class WindowManager {
         store.set(`wm:collapsed:${id}`, on)
         // A game opened up from its title bar joins the one being played,
         // and the game looked at longest ago steps back.
-        if (!on && kind === 'table') this.#bring(win, this.master && this.master !== win ? 1 : 0)
+        if (!on && kind === 'table') this.#bring(win, this.master && this.master !== win ? 1 : 0, win)
         this.layout()
       },
       close: () => this.remove(win),
@@ -101,6 +125,8 @@ export class WindowManager {
     win.setMeta(meta)
 
     el.querySelector('.wbtn.collapse').addEventListener('click', (e) => { e.stopPropagation(); win.collapse() })
+    el.querySelector('.wbtn.expand').addEventListener('click', (e) => { e.stopPropagation(); this.#crown(win) })
+    el.querySelector('.wbtn.retire').addEventListener('click', (e) => { e.stopPropagation(); this.#retire(win) })
     // A small game is brought forward before it asks whether to end: its
     // own question has no room to show while it is small.
     el.querySelector('.wbtn.close')?.addEventListener('click', (e) => {
@@ -112,23 +138,27 @@ export class WindowManager {
     // focus would rearrange the desk under the press and swallow the click.
     el.addEventListener('pointerdown', (e) => {
       if (e.target.closest('.wbtn, .tools button')) return
-      // A waiting game opens, as its button does, small beside the one
-      // played; a small game comes forward. Either way the click is spent
-      // on that: it never reaches the game that just grew under it.
-      if (kind === 'table' && win.collapsed && this.#tiled) { win.collapse(false); sound.play('on'); this.#swallowClick(); return }
-      const small = el.classList.contains('side')
+      // Wide and tiled, a window beside the master answers only its buttons
+      // and a double click on its title: pressing it changes nothing.
+      if (this.#wide) { if (win === this.master) this.focus(win); return }
+      // In the column a collapsed game waits for its + or a double click;
+      // floating, any window pressed comes to the front.
+      if (this.narrow && win.collapsed) return
       this.focus(win)
-      if (small) { sound.play('select'); this.#swallowClick() }
     })
-    // A panel collapses on a double click of its title; a game's clicks
-    // already open it and bring it forward.
-    el.querySelector('.win-title').addEventListener('dblclick', (e) => { if (kind !== 'table' && !e.target.closest('button')) win.collapse() })
+    // A double click on a collapsed window's title opens it, as its + does;
+    // on an open one it does nothing.
+    el.querySelector('.win-title').addEventListener('dblclick', (e) => {
+      if (e.target.closest('button') || !win.collapsed) return
+      win.collapse(false)
+      sound.play('on')
+    })
     this.#dragWindow(win)
     this.#resizeWindow(win)
 
     this.windows.push(win)
     // A game arriving last in line: open if there is room, else waiting.
-    if (kind === 'table') { this.recent.push(win); this.#settle({ refill: false }) }
+    if (kind === 'table') { this.#rank(win); this.#settle({ refill: false }) }
     this.desk.append(el)
     this.layout()
     return win
@@ -138,7 +168,7 @@ export class WindowManager {
     this.windows = this.windows.filter((w) => w !== win)
     this.recent = this.recent.filter((w) => w !== win)
     win.el.remove()
-    if (this.master === win) this.master = null
+    if (this.master === win) { this.master = null; this.#chosen = false }
     // A game gone leaves room: of those waiting, the one seen last comes back.
     this.#settle({ refill: true })
     this.layout()
@@ -159,51 +189,120 @@ export class WindowManager {
       store.set(`wm:collapsed:${win.id}`, false)
     }
     const changed = this.master !== win || this.recent[0] !== win
+    // Wide and tiled, the master it replaces stays open beside it.
+    const previous = this.master
+    if (this.#wide && previous && previous !== win) this.#open(previous)
     this.master = win
-    this.#bring(win, 0)
+    this.#chosen = true
+    this.#bring(win, 0, previous?.kind === 'table' ? previous : null)
     if (changed || expand) this.layout()
+  }
+
+  /** Tiled on a screen wide enough for two columns: where the master is chosen. */
+  get #wide() { return this.mode !== 'floating' && !this.narrow }
+
+  #open(win) {
+    if (!win.collapsed) return
+    win.collapsed = false
+    store.set(`wm:collapsed:${win.id}`, false)
+  }
+
+  /**
+   * Make an open window beside the master the master. They trade places,
+   * and the master goes beside it open, as the window it replaces was.
+   */
+  #crown(win) {
+    if (!this.#wide || win === this.master || win.id === 'chat') return
+    if (win.kind === 'table') return this.focus(win)
+    const previous = this.master
+    if (previous) this.#open(previous)
+    this.#open(win)
+    this.master = win
+    this.#chosen = true
+    this.#settle({ refill: false, keep: previous?.kind === 'table' ? previous : null })
+    this.layout()
+  }
+
+  /**
+   * The master steps back beside the new one, open: a game in favour of the
+   * peers, the peers in favour of the game used last (or, with none used
+   * yet, the first in the stack).
+   */
+  #retire(win) {
+    if (!this.#wide || win !== this.master) return
+    const tables = this.windows.filter((w) => w.kind === 'table')
+    if (!tables.length) return
+    const next = win.kind === 'table' ? this.get('faces')
+      : this.recent.find((w) => w !== win) ?? this.#sorted(tables)[0]
+    if (!next || next === win) return
+    this.#open(win)
+    this.#open(next)
+    this.master = next
+    this.#chosen = true
+    if (next.kind === 'table') this.#bring(next, 0)
+    this.#settle({ refill: false, keep: win.kind === 'table' ? win : null })
+    this.layout()
   }
 
   /** Tiled, where games are arranged for you (a phone's column included). */
   get #tiled() { return this.mode !== 'floating' || this.narrow }
 
-  /** Eat the click that follows this press, wherever it lands. */
-  #swallowClick() {
-    const eat = (e) => { e.stopPropagation(); e.preventDefault() }
-    addEventListener('click', eat, { capture: true, once: true })
-    // A press that never becomes a click (a drag, say) must not eat a later one.
-    setTimeout(() => removeEventListener('click', eat, { capture: true }), 600)
-  }
-
-  /** Put a game at a place in the line of those seen last, and keep the line tidy. */
-  #bring(win, at) {
-    this.recent = this.recent.filter((w) => w !== win)
-    this.recent.splice(at, 0, win)
-    this.#settle({ refill: false })
+  /**
+   * A game joining the line of those seen last: after every game used, among
+   * those never used in the order they are shown. Someone just arrived has
+   * used none, so theirs is the order on screen.
+   */
+  #rank(win) {
+    const used = this.recent.filter((w) => this.#used.has(w))
+    const unused = this.#sorted([...this.recent.filter((w) => !this.#used.has(w)), win])
+    this.recent = [...used, ...unused]
   }
 
   /**
-   * At most two games open, the ones seen last; any others collapse. With
-   * `refill`, a free place is taken by the game waiting that was seen last.
-   * Floating, nothing is decided for the windows.
+   * The master: the one chosen; until there is a choice, a game whenever
+   * there is one — the game is the stage, the one seen last, or the first
+   * shown — and otherwise the peers. Never the chat.
    */
-  #settle({ refill }) {
-    if (this.mode === 'floating' && !this.narrow) return
-    let open = 0
-    for (const win of this.recent) {
-      if (!win.collapsed) open++
-      if (win.collapsed || open <= OPEN_GAMES) continue
+  #pickMaster() {
+    const tables = this.windows.filter((w) => w.kind === 'table')
+    const current = this.master && this.windows.includes(this.master) && this.master.id !== 'chat' ? this.master : null
+    if (current && (this.#chosen || current.kind === 'table' || !tables.length)) return current
+    return this.recent.find((w) => !w.collapsed) ?? this.recent[0]
+      ?? this.get('faces') ?? this.#sorted(this.windows)[0] ?? null
+  }
+
+  /** Put a game at a place in the line of those seen last, and keep the line tidy. */
+  #bring(win, at, keep = null) {
+    this.#used.add(win)
+    this.recent = this.recent.filter((w) => w !== win)
+    this.recent.splice(at, 0, win)
+    this.#settle({ refill: false, keep })
+  }
+
+  /**
+   * Keep the games open within what the layout allows: wide and tiled, see
+   * #settleWide; in the column and floating, every game may be open.
+   */
+  #settle({ refill, keep = null }) {
+    if (this.#wide) this.#settleWide({ refill, keep })
+  }
+
+  /**
+   * Wide and tiled: of the games beside the master, one at most is open —
+   * `keep` if it is one of them, else the one seen last. With `refill`, a
+   * game waiting comes back when none beside the master is open.
+   */
+  #settleWide({ refill, keep }) {
+    const master = this.#pickMaster()
+    const beside = this.recent.filter((w) => w !== master)
+    const open = beside.filter((w) => !w.collapsed)
+    const stays = open.includes(keep) ? keep : open[0]
+    for (const win of open) {
+      if (win === stays) continue
       win.collapsed = true
       store.set(`wm:collapsed:${win.id}`, true)
     }
-    if (!refill) return
-    for (const win of this.recent) {
-      if (open >= OPEN_GAMES) break
-      if (!win.collapsed) continue
-      win.collapsed = false
-      store.set(`wm:collapsed:${win.id}`, false)
-      open++
-    }
+    if (refill && !stays && beside.length && master?.kind === 'table') this.#open(beside[0])
   }
 
   setMode(mode) {
@@ -252,8 +351,10 @@ export class WindowManager {
     // A phone's column scrolls, so it sets the desk's height rather than
     // fitting inside one — and has no height to wait for.
     if (this.narrow) {
+      this.#wasWide = false
       this.desk.classList.remove('floating')
       for (const w of this.windows) w.el.classList.remove('side')
+      this.#buttons()
       return this.#scroll(this.#sorted(this.windows), W)
     }
     if (this.desk.style.height) this.desk.style.height = ''
@@ -262,17 +363,22 @@ export class WindowManager {
     const floating = this.mode === 'floating'
     this.desk.classList.toggle('floating', floating)
     if (floating) {
+      this.#wasWide = false
       for (const w of this.windows) w.el.classList.remove('side')
+      this.#buttons()
       return this.#layoutFloating(W, H)
     }
 
-    // A game is the master whenever there is one: the game is the stage.
     const tables = this.windows.filter((w) => w.kind === 'table')
-    const kept = this.master && this.windows.includes(this.master)
-      && (this.master.kind === 'table' || tables.length === 0)
-    let master = kept ? this.master : this.recent.find((w) => !w.collapsed) ?? this.recent[0] ?? tables[0]
-    if (!master) master = this.#sorted(this.windows)[0]
+    const master = this.#pickMaster()
     this.master = master
+    // The master is never a title bar here.
+    this.#open(master)
+    // Widened from the column, where every game could be open: back within
+    // the master and one beside it, the one seen last.
+    if (!this.#wasWide) this.#settleWide({ refill: false, keep: null })
+    this.#wasWide = true
+    this.#buttons(tables.length > 0)
     // Games in the stack beside the master are shown small: just the game.
     for (const t of tables) t.el.classList.toggle('side', t !== master)
     const rest = this.#sorted(this.windows.filter((w) => w !== master))
@@ -295,6 +401,21 @@ export class WindowManager {
   }
 
   #sorted(list) { return [...list].sort((a, b) => a.order - b.order) }
+
+  /**
+   * Which buttons a window's title bar shows. Wide and tiled: the master
+   * none of collapse, but step back when there is a game to step back for;
+   * an open window beside it, expand — the chat aside. Elsewhere, collapse.
+   */
+  #buttons(games = false) {
+    const wide = this.#wide
+    for (const w of this.windows) {
+      const master = wide && w === this.master
+      w.el.querySelector('.wbtn.collapse').hidden = master
+      w.el.querySelector('.wbtn.retire').hidden = !(master && games)
+      w.el.querySelector('.wbtn.expand').hidden = !(wide && !master && !w.collapsed && w.id !== 'chat')
+    }
+  }
 
   /**
    * Stack windows in a column: collapsed ones take a title bar, the rest share
