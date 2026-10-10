@@ -1,2 +1,4 @@
 .DS_Store
 node_modules/
+# Reference photos for tracing characters; not ours to publish.
+tools/roster/refs/
