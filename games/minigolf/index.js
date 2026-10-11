@@ -712,14 +712,16 @@ function view(el, ctx) {
       const cells = state.cards.map((c, i) => {
         const n = c?.[seat]
         const par = holeOf(state, i).par
-        return `<td class="${n == null ? '' : n < par ? 'under' : n > par ? 'over' : ''}">${n ?? '–'}</td>`
+        return `<td data-cursor-anchor="card:${seat}:${i}" class="${n == null ? '' : n < par ? 'under' : n > par ? 'over' : ''}">${n ?? '–'}</td>`
       }).join('')
       const out = state.out.includes(seat)
-      return `<tr class="${out ? 'out' : ''}"><th><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(seat))}</th>${cells}<td class="sum"><b>${out ? 'out' : total(state, seat)}</b></td></tr>`
+      return `<tr class="${out ? 'out' : ''}"><th data-cursor-anchor="card:${seat}:name"><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(seat))}</th>${cells}<td class="sum" data-cursor-anchor="card:${seat}:sum"><b>${out ? 'out' : total(state, seat)}</b></td></tr>`
     }).join('')
-    return `<div class="golf-card-wrap"><table class="golf-card">
-      <tr><th></th>${state.course.map((_, i) => `<th>${i + 1}</th>`).join('')}<th class="sum">total</th></tr>
-      <tr class="par"><th>par</th>${state.course.map((i) => `<td>${HOLES[i].par}</td>`).join('')}<td class="sum">${parOf(state)}</td></tr>${rows}</table></div>`
+    // Every cell is a place of its own, and the card scrolls sideways on a
+    // narrow screen: a pointer on a cell scrolled out of sight is not shown.
+    return `<div class="golf-card-wrap" data-cursor-clip><table class="golf-card">
+      <tr><th></th>${state.course.map((_, i) => `<th data-cursor-anchor="card:hole:${i}">${i + 1}</th>`).join('')}<th class="sum" data-cursor-anchor="card:hole:sum">total</th></tr>
+      <tr class="par"><th data-cursor-anchor="card:par:name">par</th>${state.course.map((h, i) => `<td data-cursor-anchor="card:par:${i}">${HOLES[h].par}</td>`).join('')}<td class="sum" data-cursor-anchor="card:par:sum">${parOf(state)}</td></tr>${rows}</table></div>`
   }
 }
 

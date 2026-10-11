@@ -13,7 +13,9 @@ import { avatar } from './avatar.js'
  *   - On a shared control of a table — a seat, an option, the rematch
  *     button — that control, and where inside it.
  *     Each sits somewhere else on each screen, but means the same thing.
- *     Anything can opt in by naming itself with data-cursor-anchor.
+ *     Anything can opt in by naming itself with data-cursor-anchor. Anchors
+ *     nest: a control another screen does not have falls back to the
+ *     nearest anchor round it there.
  *   - On an activity — a shared screen, the YouTube player — the same:
  *     anchors, the picture among them. A window shares pointers by naming
  *     itself, the same name on every screen, with data-cursor-window, and
@@ -132,18 +134,22 @@ export class Cursors {
       if (!p || p.x < box.x - pad || p.y < box.y - pad || p.x > box.x + box.width + pad || p.y > box.y + box.height + pad) return null
       return { t: table, x: Math.round(p.x), y: Math.round(p.y) }
     }
-    const anchor = target.closest('[data-cursor-anchor]')
-    if (anchor && win.contains(anchor)) {
-      const box = anchor.getBoundingClientRect()
-      if (!box.width || !box.height) return null
-      return {
-        t: table,
-        a: anchor.dataset.cursorAnchor,
-        fx: Math.round(clamp01((e.clientX - box.left) / box.width) * 1000),
-        fy: Math.round(clamp01((e.clientY - box.top) / box.height) * 1000),
-      }
+    // The control under the pointer, and every anchor round it, innermost
+    // first: a control some screens do not have — your own leave button, the
+    // word choices only the drawer gets — lands on what holds it there.
+    const chain = []
+    for (let n = target.closest('[data-cursor-anchor]'); n && win.contains(n); n = n.parentElement?.closest('[data-cursor-anchor]')) {
+      const box = n.getBoundingClientRect()
+      if (!box.width || !box.height) continue
+      chain.push([
+        n.dataset.cursorAnchor,
+        Math.round(clamp01((e.clientX - box.left) / box.width) * 1000),
+        Math.round(clamp01((e.clientY - box.top) / box.height) * 1000),
+      ])
     }
-    return null
+    if (!chain.length) return null
+    const [[a, fx, fy], ...outer] = chain
+    return { t: table, a, fx, fy, ...(outer.length ? { outer } : {}) }
   }
 
   #move(e) {
@@ -235,6 +241,7 @@ export class Cursors {
       x: Number(msg.x), y: Number(msg.y), fx: Number(msg.fx), fy: Number(msg.fy),
       at: Date.now(),
       touch: !!msg.touch,
+      outer: Array.isArray(msg.outer) ? msg.outer : null,
     })
     entry.el.classList.toggle('touch', entry.touch)
     entry.el.classList.remove('idle')
@@ -326,11 +333,19 @@ export class Cursors {
     let x
     let y
     if (entry.a != null) {
-      const anchor = [...win.querySelectorAll('[data-cursor-anchor]')].find((n) => n.dataset.cursorAnchor === entry.a)
-      const box = anchor?.getBoundingClientRect()
-      if (!box?.width) { entry.el.remove(); entry.shown = false; return false }
-      x = box.left + (entry.fx / 1000) * box.width
-      y = box.top + (entry.fy / 1000) * box.height
+      // The control itself, or failing that the nearest anchor round it here.
+      const anchors = [...win.querySelectorAll('[data-cursor-anchor]')]
+      let anchor = null
+      let box = null
+      for (const [a, fx, fy] of [[entry.a, entry.fx, entry.fy], ...(entry.outer ?? [])]) {
+        anchor = anchors.find((n) => n.dataset.cursorAnchor === a)
+        box = anchor?.getBoundingClientRect()
+        if (!box?.width) continue
+        x = box.left + (Number(fx) / 1000) * box.width
+        y = box.top + (Number(fy) / 1000) * box.height
+        break
+      }
+      if (x == null) { entry.el.remove(); entry.shown = false; return false }
       // In something that scrolls (data-cursor-clip), each scrolled their own
       // way: a pointer on a part scrolled out of sight here is not shown.
       const clip = anchor.closest('[data-cursor-clip]')?.getBoundingClientRect()

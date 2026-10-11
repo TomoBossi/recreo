@@ -301,21 +301,21 @@ function view(el, ctx) {
   el.innerHTML = `
     <div class="draw">
       <div class="draw-main">
-        <div class="draw-paper">
+        <div class="draw-paper" data-cursor-anchor="paper">
           <span class="draw-word" data-cursor-anchor="word"></span>
-          <span class="draw-clock"></span>
+          <span class="draw-clock" data-cursor-anchor="clock"></span>
           <svg class="draw-canvas" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
             <rect width="1000" height="700" fill="${PAPER}"/>
             <g class="strokes"></g><g class="live"></g>
             <circle class="brush" r="4" fill="none" stroke="${INK}" stroke-width="2" visibility="hidden"/>
           </svg>
           <div class="draw-tools"></div>
-          <div class="draw-overlay game-panel"></div>
+          <div class="draw-overlay game-panel" data-cursor-anchor="overlay"></div>
         </div>
         <div class="draw-side">
-          <div class="draw-scores scrolls" data-cursor-anchor="scores"></div>
-          <div class="draw-log scrolls" data-cursor-anchor="log"></div>
-          <form class="draw-guess"><input class="input" maxlength="60" placeholder="your guess" aria-label="guess"><button class="btn small sun">guess</button></form>
+          <div class="draw-scores scrolls" data-cursor-anchor="scores" data-cursor-clip></div>
+          <div class="draw-log scrolls" data-cursor-anchor="log" data-cursor-clip></div>
+          <form class="draw-guess" data-cursor-anchor="guess-box"><input class="input" maxlength="60" placeholder="your guess" aria-label="guess" data-cursor-anchor="guess"><button class="btn small sun" data-cursor-anchor="guess:send">guess</button></form>
         </div>
       </div>
     </div>`
@@ -536,31 +536,34 @@ function view(el, ctx) {
     if (s.phase === 'reveal') {
       // The word, big, and what everyone made of it this round.
       const got = Object.entries(s.guessed).sort((a, b) => a[1] - b[1])
-      const lines = got.map(([seat, order]) => `<li><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(Number(seat)))}<b>+${GUESS_POINTS[order] ?? 2}</b></li>`)
-      if (got.length && s.drawer != null) lines.push(`<li><span class="dot" style="background:${ctx.colours[s.drawer]}"></span>${escape(name(s.drawer))} <i>drew it</i><b>+${got.length * DRAWER_POINTS}</b></li>`)
-      over = `<div class="reveal"><p>the word was</p><strong>${escape(s.word ?? '…')}</strong>${lines.length ? `<ul>${lines.join('')}</ul>` : '<p class="nobody">nobody got it</p>'}</div>`
+      const lines = got.map(([seat, order]) => `<li data-cursor-anchor="reveal:${seat}"><span class="dot" style="background:${ctx.colours[seat]}"></span>${escape(name(Number(seat)))}<b>+${GUESS_POINTS[order] ?? 2}</b></li>`)
+      if (got.length && s.drawer != null) lines.push(`<li data-cursor-anchor="reveal:${s.drawer}"><span class="dot" style="background:${ctx.colours[s.drawer]}"></span>${escape(name(s.drawer))} <i>drew it</i><b>+${got.length * DRAWER_POINTS}</b></li>`)
+      over = `<div class="reveal"><p>the word was</p><strong data-cursor-anchor="reveal:word">${escape(s.word ?? '…')}</strong>${lines.length ? `<ul>${lines.join('')}</ul>` : '<p class="nobody">nobody got it</p>'}</div>`
     } else if (s.phase === 'choosing') {
       over = info.mySeat === s.drawer
-        ? `<p>pick a word to draw</p><div class="choices">${s.choices.map((w, i) => `<button class="btn grape" data-pick="${i}">${escape(w)}${s.levels ? `<small>${s.levels[i]}</small>` : ''}</button>`).join('')}</div>`
-        : `<p>${name(s.drawer)} is choosing a word…</p>`
+        ? `<p data-cursor-anchor="overlay:prompt">pick a word to draw</p><div class="choices">${s.choices.map((w, i) => `<button class="btn grape" data-pick="${i}" data-cursor-anchor="pick:${i}">${escape(w)}${s.levels ? `<small>${s.levels[i]}</small>` : ''}</button>`).join('')}</div>`
+        : `<p data-cursor-anchor="overlay:prompt">${name(s.drawer)} is choosing a word…</p>`
     }
     overlay.innerHTML = over
     overlay.hidden = !over
 
     $('.draw-scores').innerHTML = s.order.map((seat) => `
-      <div class="score ${seat === s.drawer ? 'drawer' : ''} ${s.guessed[seat] != null ? 'got' : ''} ${s.out.includes(seat) ? 'out' : ''}">
+      <div data-cursor-anchor="score:${seat}" class="score ${seat === s.drawer ? 'drawer' : ''} ${s.guessed[seat] != null ? 'got' : ''} ${s.out.includes(seat) ? 'out' : ''}">
         <span class="dot" style="background:${ctx.colours[seat]}"></span>
         <span class="who">${escape(name(seat))}</span>${s.out.includes(seat) ? '<i>out</i>' : ''}<b>${s.scores[seat] ?? 0}</b>
       </div>`).join('')
 
     const log = $('.draw-log')
-    log.innerHTML = s.log.slice(-40).map((line) => {
+    // Lines are named by their place in the whole log, the same for everyone.
+    const first = Math.max(0, s.log.length - 40)
+    log.innerHTML = s.log.slice(-40).map((line, i) => {
+      const at = `data-cursor-anchor="log:${first + i}"`
       const text = escape(line.text.replace(/seat:(\d)/g, (_, n) => name(Number(n))))
-      if (line.kind === 'system') return `<div class="line system">${text}</div>`
+      if (line.kind === 'system') return `<div class="line system" ${at}>${text}</div>`
       const who = `<b style="color:${ctx.colours[line.seat]}">${escape(name(line.seat))}</b>`
-      if (line.kind === 'correct') return `<div class="line correct">${who} guessed it! ${text}</div>`
-      if (line.kind === 'close') return `<div class="line close">${who} ${text} <i>— so close!</i></div>`
-      return `<div class="line">${who} ${text}</div>`
+      if (line.kind === 'correct') return `<div class="line correct" ${at}>${who} guessed it! ${text}</div>`
+      if (line.kind === 'close') return `<div class="line close" ${at}>${who} ${text} <i>— so close!</i></div>`
+      return `<div class="line" ${at}>${who} ${text}</div>`
     }).join('')
     log.scrollTop = log.scrollHeight
 

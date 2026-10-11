@@ -132,7 +132,7 @@ export class TableView {
       const chip = document.createElement('span')
       chip.className = 'seat'
       chip.dataset.cursorAnchor = `seat-${seat}`
-      chip.innerHTML = `<span class="piece"></span><span class="who"></span>`
+      chip.innerHTML = `<span class="piece"></span><span class="who" data-cursor-anchor="seat-${seat}:name"></span>`
       chip.querySelector('.piece').style.background = this.colours()[seat]
       if (!claim?.player && playing) {
         // Mid-game the game plays on with whoever started it.
@@ -157,6 +157,7 @@ export class TableView {
           const giveUp = playing && !out.has(seat)
           const b = document.createElement('button')
           b.className = 'btn small'
+          b.dataset.cursorAnchor = `seat-${seat}:leave`
           b.textContent = giveUp ? 'forfeit' : 'leave'
           b.addEventListener('click', () => {
             if (giveUp) { this.ask.hidden = true; this.forfeitAsk.hidden = false } else tables.stand(table.id)
@@ -217,6 +218,7 @@ export class TableView {
       group.dataset.cursorAnchor = `option-${option.id}`
       const label = document.createElement('span')
       label.className = 'label'
+      label.dataset.cursorAnchor = `option-${option.id}:label`
       label.textContent = option.label
       group.append(label)
       if (editable && option.choices.length > 3) {
@@ -228,6 +230,7 @@ export class TableView {
           open: this.openOption === option.id,
           onToggle: (open) => { this.openOption = open ? option.id : this.openOption === option.id ? null : this.openOption },
           onPick: (value) => { this.openOption = null; tables.setOption(table.id, option.id, value) },
+          anchor: `option-${option.id}`,
         }))
       } else if (editable) {
         const seg = document.createElement('span')
@@ -236,6 +239,9 @@ export class TableView {
           const b = document.createElement('button')
           b.className = 'btn small'
           b.textContent = choice.label
+          // Each choice is its own place; for those who cannot change it, the
+          // chosen one is where its name is shown.
+          b.dataset.cursorAnchor = `option-${option.id}:${choice.value}`
           b.setAttribute('aria-pressed', String(chosen[option.id] === choice.value))
           b.addEventListener('click', () => tables.setOption(table.id, option.id, choice.value))
           seg.append(b)
@@ -243,6 +249,7 @@ export class TableView {
         group.append(seg)
       } else {
         const value = document.createElement('b')
+        value.dataset.cursorAnchor = `option-${option.id}:${chosen[option.id]}`
         value.textContent = option.choices.find((c) => c.value === chosen[option.id])?.label ?? ''
         group.append(value)
       }

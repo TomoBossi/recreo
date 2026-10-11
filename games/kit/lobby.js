@@ -26,10 +26,12 @@ export function startPanel(el, { onStart, startLabel = 'start!', againLabel = 'p
     update({ open, seated, min = 2, mine, again = false, extra = '' }) {
       box.hidden = !open
       if (!open) return
+      // The start button and the words in its place for those who cannot
+      // press it are one spot: a pointer on one shows on the other.
       const prompt = seated < min ? `need at least ${min} players`
-        : mine ? `<button class="btn sun big" data-start>${escape(again ? againLabel : startLabel)}</button>`
+        : mine ? `<button class="btn sun big" data-start data-cursor-anchor="lobby:prompt">${escape(again ? againLabel : startLabel)}</button>`
         : 'waiting for a player to start'
-      box.innerHTML = `${extra}${prompt.startsWith('<') ? prompt : `<p>${escape(prompt)}</p>`}`
+      box.innerHTML = `${extra}${prompt.startsWith('<') ? prompt : `<p data-cursor-anchor="lobby:prompt">${escape(prompt)}</p>`}`
     },
   }
 }

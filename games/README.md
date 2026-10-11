@@ -242,7 +242,14 @@ big their window. The letterboxing round a board is not shared: leaving the
 board is leaving. Controls outside the board that everyone has — a start
 button, a scoreboard — opt in with `data-cursor-anchor="name"`, and a
 pointer over one lands on the same control, at the same spot in it, for
-everyone. (The seats, options and status line already do.)
+everyone. Name each control, not a panel of them: panels lay out differently
+on each screen. Anchors nest, and a pointer over a control some screens do
+not have — the drawer's word choices, your own leave button — lands on the
+nearest anchor round it there; giving two that stand in for each other one
+name (a start button, and the "waiting" line others see in its place) makes
+them one spot. In a list that scrolls, mark the list `data-cursor-clip`: a
+pointer on a row scrolled out of sight is not shown. (The seats, options,
+lobby and status line already do all this.)
 
 **Turning.** A game turns its board for a player with `b.turn()`; chess
 turns it for whoever plays black. `fit: true` lets a board wider than it is

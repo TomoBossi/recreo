@@ -5,6 +5,8 @@
  *
  *   const el = select({ value: '10m', choices: [{ value, label }], onPick, label: 'clock' })
  *
+ * Pass `anchor` for one others' pointers can be over (see app/cursors.js).
+ *
  * Arrow keys move through the list, Enter picks, Escape closes; clicking
  * anywhere else closes it too.
  *
@@ -15,7 +17,7 @@
  * under it scrolls. (Fixed works as long as nothing round a dropdown is
  * transformed: a transform would become its frame instead of the screen.)
  */
-export function select({ value, choices, onPick, label, open = false, onToggle }) {
+export function select({ value, choices, onPick, label, open = false, onToggle, anchor }) {
   const wrap = document.createElement('span')
   wrap.className = 'select'
   const button = document.createElement('button')
@@ -26,6 +28,9 @@ export function select({ value, choices, onPick, label, open = false, onToggle }
   const current = choices.find((c) => c.value === value) ?? choices[0]
   button.innerHTML = '<span class="value"></span><svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1 L5 5 L9 1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   button.querySelector('.value').textContent = current.label
+  // Shared pointers: each choice is a place named `${anchor}:${value}`; the
+  // button is the chosen one's, which is where the others see its name.
+  if (anchor) button.dataset.cursorAnchor = `${anchor}:${current.value}`
 
   const list = document.createElement('ul')
   list.className = 'select-list'
@@ -36,6 +41,7 @@ export function select({ value, choices, onPick, label, open = false, onToggle }
     li.role = 'option'
     li.textContent = choice.label
     li.dataset.i = i
+    if (anchor) li.dataset.cursorAnchor = `${anchor}:${choice.value}`
     li.setAttribute('aria-selected', String(choice === current))
     list.append(li)
   }
