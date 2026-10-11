@@ -619,7 +619,9 @@ async function joinRoom(code, nick) {
     greeted.delete(peer.id)
     const dropped = peer.net?.state === 'failed'
     if (!dropped && peer.presence.player) goodbyes.set(peer.presence.player, Date.now())
-    chat.system(`${peer.nick || 'someone'} ${dropped ? 'dropped' : 'left'}`)
+    // An earlier page of someone already back, after a reload, is no news.
+    const back = [...room.peers.values()].some((p) => p.presence.player && p.presence.player === peer.presence.player)
+    if (!back) chat.system(`${peer.nick || 'someone'} ${dropped ? 'dropped' : 'left'}`)
     refreshFaces()
     renderGames()
   })
