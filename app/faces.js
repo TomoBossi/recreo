@@ -214,6 +214,8 @@ export class Faces {
         tile.video.muted = !!person.self
         if (person.stream) this.#play(tile, person.self)
       }
+      // Each one's voice as loud as you have set it for them.
+      if (!person.self) tile.video.volume = this.volumeOf(person.player)
       tile.name.textContent = person.nick + (person.self ? ' (you)' : '')
       tile.mute.hidden = !person.muted
       tile.phone.hidden = !person.touch
@@ -223,6 +225,17 @@ export class Faces {
     for (const [id, tile] of this.#tiles) {
       if (!seen.has(id)) { tile.el.remove(); this.#tiles.delete(id) }
     }
+  }
+
+  /** How loud a player is heard here, 0 to 1: set in the Peers menu, kept in this browser. */
+  volumeOf(player) {
+    const v = Number(store.get(`volume:${player}`, 1))
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1
+  }
+
+  setVolume(player, v) {
+    store.set(`volume:${player}`, v)
+    this.render()
   }
 
   #tile(id) {

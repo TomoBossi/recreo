@@ -1,8 +1,11 @@
 import { devicePickers } from './devices.js'
+import { fill } from './controls.js'
 
 /**
  * The Peers window's menu, beside its microphone and camera buttons: how
- * the faces are laid out, and which camera and microphone to use.
+ * the faces are laid out, how loud each of the others is, and which camera
+ * and microphone to use. A volume belongs to the player, so it holds when
+ * they reconnect, and is kept in this browser.
  *
  * It opens in a layer of its own, so a small window never clips it.
  */
@@ -17,7 +20,7 @@ const DOTS = `<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"
 export function peersMenuButton({ media, faces }) {
   const button = document.createElement('button')
   button.className = 'wbtn media menu'
-  button.title = 'layout and devices'
+  button.title = 'layout, volume and devices'
   button.setAttribute('aria-label', button.title)
   button.setAttribute('aria-haspopup', 'dialog')
   button.setAttribute('aria-expanded', 'false')
@@ -33,13 +36,44 @@ export function peersMenuButton({ media, faces }) {
         ${LAYOUTS.map((l) => `<button class="btn small" data-layout="${l.value}">${l.label}</button>`).join('')}
       </span>
     </section>
+    <section class="volumes"><h3>volume</h3><div class="volume-rows"></div></section>
     <section class="devices"></section></div>`
   // One set of pickers for the life of the room; they keep themselves current.
   const pickers = devicePickers(media)
   pop.querySelector('.devices').append(pickers.el)
   document.body.append(pop)
 
+  // A slider for each of the others, rebuilt as people come and go.
+  const volumes = () => {
+    const f = faces()
+    const rows = pop.querySelector('.volume-rows')
+    const others = f ? [...f.room.peers.values()].map((p) => ({ player: p.presence.player ?? p.id, nick: p.nick || '…' })) : []
+    pop.querySelector('.volumes').hidden = !others.length
+    const key = JSON.stringify(others)
+    if (rows.dataset.key === key) return
+    rows.dataset.key = key
+    rows.replaceChildren(...others.map(({ player, nick }) => {
+      const row = document.createElement('label')
+      row.className = 'volume-row'
+      row.innerHTML = `<span class="who"></span><span class="slider-box"><input type="range" class="slider" min="0" max="1" step="0.05"></span>`
+      row.querySelector('.who').textContent = nick
+      const input = row.querySelector('input')
+      input.setAttribute('aria-label', `${nick}'s volume`)
+      input.value = String(f.volumeOf(player))
+      fill(input)
+      input.addEventListener('input', () => { fill(input); f.setVolume(player, Number(input.value)) })
+      return row
+    }))
+  }
+
+  // The window comes after its menu: listen to the room once it is there.
+  let listening = false
   const show = () => {
+    if (!listening && faces()) {
+      listening = true
+      for (const event of ['peer:join', 'peer:leave', 'peer:update']) faces().room.on(event, () => { if (!pop.hidden) volumes() })
+    }
+    volumes()
     const mode = faces()?.mode ?? 'auto'
     for (const b of pop.querySelectorAll('[data-layout]')) b.setAttribute('aria-pressed', String(b.dataset.layout === mode))
     pop.querySelector('.devices').hidden = pickers.el.hidden

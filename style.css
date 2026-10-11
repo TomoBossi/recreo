@@ -536,6 +536,10 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 /* The Peers window's menu: hangs below its button, above every window. */
 .popover.peers-menu { position: fixed; z-index: 10000; }
 .peers-menu .settings { width: 300px; }
+.volume-rows { display: flex; flex-direction: column; gap: 6px; }
+.volume-row { display: flex; align-items: center; gap: 10px; }
+.volume-row .who { width: 86px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-size: 13px; color: var(--text-soft); }
+.volume-row .slider-box { flex: 1; min-width: 0; }
 
 /* Camera and microphone pickers (app/devices.js). */
 .device-pickers { display: flex; flex-direction: column; gap: 8px; }
