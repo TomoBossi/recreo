@@ -36,7 +36,10 @@ import { avatar } from './avatar.js'
  * until it moves again.
  *
  * Sent over an unreliable channel a few times a second: a late position is
- * worth nothing, and a lost one is replaced by the next.
+ * worth nothing, and a lost one is replaced by the next. A pointer that
+ * stops has no next, so the last word — where it rests, or that it left —
+ * is said again, soon and then every second, marked as a repeat; a repeat
+ * that tells nothing new changes nothing.
  *
  * Cursors can be shown, shown with each player's character beside them, or
  * hidden: hidden ones are neither drawn nor sent. Characters ride only by
@@ -54,6 +57,9 @@ export class Cursors {
   #lastSent = 0
   #pending = null
   #timer = null
+  #said = null      // the last thing said, for saying again while the pointer rests
+  #repeat = null
+  #repeats = 0
   #touchId = null
   #last = { t: null } // what we last said, to know when we leave
 
@@ -187,7 +193,23 @@ export class Cursors {
     if (!this.#pending) return
     this.#lastSent = Date.now()
     this.channel.broadcast(JSON.stringify(this.#pending))
+    this.#said = this.#pending
     this.#pending = null
+    this.#repeats = 0
+    this.#again(300)
+  }
+
+  /** Say the last thing again once the pointer rests: it may have been lost. */
+  #again(after) {
+    clearTimeout(this.#repeat)
+    this.#repeat = setTimeout(() => {
+      const said = this.#said
+      // Leaving is said a few times; a resting place for as long as it rests.
+      if (!said || !this.enabled || (said.out && this.#repeats >= 3)) return
+      this.channel.broadcast(JSON.stringify({ ...said, r: 1 }))
+      this.#repeats++
+      this.#again(1000)
+    }, after)
   }
 
   // ---------------------------------------------------------- receiving
@@ -198,6 +220,13 @@ export class Cursors {
     try { msg = JSON.parse(typeof data === 'string' ? data : new TextDecoder().decode(data)) } catch { return }
     const entry = this.#remote.get(peerId) ?? this.#create(peerId)
     if (!msg?.t) return this.#park(entry)
+    // A repeat of what we have is no news: the cursor neither wakes nor
+    // stirs. One we never heard the first time is taken as said — except
+    // that one gone already is not brought back to leave again.
+    if (msg.r && msg.out && !entry.shown) return
+    if (msg.r && entry.shown && entry.table === String(msg.t) && (entry.a ?? null) === (msg.a ?? null)
+      && entry.x === Number(msg.x) && entry.y === Number(msg.y) && entry.fx === Number(msg.fx) && entry.fy === Number(msg.fy)
+      && !!msg.out === entry.el.classList.contains('parked')) return
     const before = entry.shown ? entry.screen : null
     const moved = entry.table !== String(msg.t) || (entry.a ?? null) !== (msg.a ?? null)
     Object.assign(entry, {

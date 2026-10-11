@@ -942,6 +942,9 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-shield { position: absolute; inset: 0; cursor: pointer; }
 .yt-screen.idle .yt-shield { display: none; }
 .yt-view .yt-shield { z-index: 1; }
+/* Anything over the picture is above what plays and pauses it: a press on
+   "join playback" or the waiting line's button is never a press on the video. */
+.yt-screen .join, .yt-wait, .yt-screen .ask { z-index: 3; }
 .yt-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; font-weight: 800; color: #b6acd6; pointer-events: none; }
 .yt-empty[hidden] { display: none; }
 .yt-wait {
