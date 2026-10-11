@@ -722,7 +722,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
    on its side, where the full bar would take height the game needs. */
 @media (max-width: 760px), (max-height: 520px) {
   /* A phone's header: one row — the name, the room, four compact actions.
-     "invite" is its link (the share sheet), and "+ new game" its plus. */
+     "invite" is its link (the share sheet), and "+ open" its plus. */
   #topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; align-items: center; gap: 8px; padding: 10px 12px; }
   #topbar .spacer { display: none; }
   #invite .label { display: none; }
@@ -1029,13 +1029,14 @@ input.slider::-moz-range-thumb {
 }
 input.slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
 input.slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
-/* Disabled: its own colours at half strength, rather than the box at half
-   opacity — a phone's compositor can drop a group's opacity for a frame
-   while a pointer moves over it, and the slider flickers. */
+/* Disabled: its own colours faded halfway into the panel behind, solid,
+   rather than the box at half opacity — a phone's compositor can drop a
+   group's opacity for a frame while a pointer moves over it, and the slider
+   flickers — and the track never shows through the thumb. */
 .slider-box.off::before {
-  border-color: color-mix(in srgb, var(--ink) 50%, transparent);
-  background: color-mix(in srgb, var(--field) 50%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 50%, var(--panel));
+  background: color-mix(in srgb, var(--field) 50%, var(--panel));
 }
-input.slider:disabled::-webkit-slider-thumb { border-color: color-mix(in srgb, var(--ink) 50%, transparent); background: color-mix(in srgb, #fffaf0 50%, transparent); }
-input.slider:disabled::-moz-range-thumb { border-color: color-mix(in srgb, var(--ink) 50%, transparent); background: color-mix(in srgb, #fffaf0 50%, transparent); }
+input.slider:disabled::-webkit-slider-thumb { border-color: color-mix(in srgb, var(--ink) 50%, var(--panel)); background: color-mix(in srgb, #fffaf0 50%, var(--panel)); }
+input.slider:disabled::-moz-range-thumb { border-color: color-mix(in srgb, var(--ink) 50%, var(--panel)); background: color-mix(in srgb, #fffaf0 50%, var(--panel)); }
 input.slider:disabled { cursor: default; }

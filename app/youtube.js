@@ -582,7 +582,7 @@ export class YouTube {
     else this.channel.send({ t: 'report', report }, this.#runner)
     // Whoever plays it first tells everyone what it is called.
     if (!s.now.title) {
-      const title = view.player.getVideoData?.().title
+      const title = view.player.getVideoData?.()?.title
       if (title) this.#ask({ type: 'title', id: s.now.id, title })
     }
   }
@@ -836,6 +836,11 @@ export class YouTube {
     view.win.setMeta(s.now?.title ?? (s.now ? s.now.id : ''))
     $('.yt-empty').hidden = !!s.now
     $('.yt-screen').classList.toggle('idle', !s.now)
+    // With no picture, the whole black screen is the place pointers share,
+    // whatever its shape here: black maps onto black on every screen.
+    const [where, other] = s.now ? [$('.yt-view'), $('.yt-screen')] : [$('.yt-screen'), $('.yt-view')]
+    where.dataset.cursorAnchor = 'video'
+    delete other.dataset.cursorAnchor
     $('.join').hidden = view.joined || !s.now
     const play = $('.play')
     play.innerHTML = s.playing ? PAUSE : PLAY
