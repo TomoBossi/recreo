@@ -600,7 +600,10 @@ export class YouTube {
         const win = body.closest('.win')
         const title = win?.querySelector('.win-title')?.offsetHeight ?? 34
         const frame = win ? win.offsetHeight - win.clientHeight : 6
-        const below = [...body.children].filter((el) => !el.classList.contains('yt-screen')).reduce((h, el) => h + (el.hidden ? 0 : el.offsetHeight), 0)
+        // Only what stacks under the picture: other things live in the
+        // window too — the pointers' layer spans it whole, and counting it
+        // grew the window by its own height at every layout.
+        const below = ['.yt-controls', '.yt-add', '.yt-side'].map((sel) => body.querySelector(`:scope > ${sel}`)).reduce((h, el) => h + (!el || el.hidden ? 0 : el.offsetHeight), 0)
         return Math.round(title + frame + (w - frame) * 9 / 16 + below)
       },
     })
