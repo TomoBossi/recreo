@@ -615,9 +615,11 @@ export class YouTube {
     // press on a button over it that ends on the picture — the button gone
     // from under the pointer meanwhile — is not a click on the picture.
     const shield = $('.yt-shield')
+    // Where the last press began, kept until the next one: a phone delivers
+    // a tap's click a moment after the finger lifts, in a task of its own.
     let pressed = false
-    shield.addEventListener('pointerdown', () => { pressed = true })
-    addEventListener('pointerup', () => setTimeout(() => { pressed = false }, 0), true)
+    const press = (e) => { pressed = shield.contains(e.target) }
+    addEventListener('pointerdown', press, true)
     // Nor does the second click of a double click on "join playback", which
     // lands on the picture once the button has gone.
     shield.addEventListener('click', () => { if (pressed && Date.now() - (view.joinPressed ?? 0) > 500) toggle() })
@@ -648,7 +650,7 @@ export class YouTube {
     // pointer until its click is done.
     const activate = (e) => { if (!view.joined && !e.target.closest?.('.yt-screen .join')) this.#join(view) }
     addEventListener('pointerdown', activate, true)
-    view.cleanup = () => { removeEventListener('pointerdown', activate, true); fit.disconnect(); tall.disconnect() }
+    view.cleanup = () => { removeEventListener('pointerdown', activate, true); removeEventListener('pointerdown', press, true); fit.disconnect(); tall.disconnect() }
     $('.without').addEventListener('click', () => { for (const peer of this.state.waiting) this.#ask({ type: 'without', peer }) })
     $('.yt-add').addEventListener('submit', (e) => {
       e.preventDefault()
