@@ -582,8 +582,16 @@ export class YouTube {
       closeLabel: 'close YouTube',
       onClose: () => this.#askClose(view, $),
       tools: [sound],
-      // The picture, the controls, adding, and, shown, a row for each in the queue.
-      phoneHeight: (w) => Math.round(w * 9 / 16) + 140 + (this.#view?.showQueue ? 30 * Math.min(8, 1 + this.state.queue.length) : 0),
+      // In a phone's column: the title bar, the picture at its own shape, and
+      // whatever is under it as tall as it really is, measured, not guessed —
+      // a guess off by a little stretched the picture by as much.
+      phoneHeight: (w) => {
+        const win = body.closest('.win')
+        const title = win?.querySelector('.win-title')?.offsetHeight ?? 34
+        const frame = win ? win.offsetHeight - win.clientHeight : 6
+        const below = [...body.children].filter((el) => !el.classList.contains('yt-screen')).reduce((h, el) => h + (el.hidden ? 0 : el.offsetHeight), 0)
+        return Math.round(title + frame + (w - frame) * 9 / 16 + below)
+      },
     })
     view.win.el.dataset.cursorWindow = 'youtube'
 

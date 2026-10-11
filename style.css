@@ -914,6 +914,8 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
    window beside the master shows only the video. */
 .yt-body { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .yt-screen { position: relative; flex: 1; min-height: 120px; background: #000; overflow: hidden; }
+/* In a phone's column the picture keeps its shape; the window fits round it. */
+@media (max-width: 760px) { .yt-screen { flex: none; aspect-ratio: 16 / 9; min-height: 0; } }
 /* The video's own 16:9 box; YouTube's frame overhangs it top and bottom (app/youtube.js). */
 .yt-view { position: absolute; overflow: hidden; }
 .yt-view iframe { position: absolute; left: 0; top: -64px; width: 100%; height: calc(100% + 128px); border: 0; }
@@ -936,6 +938,8 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 }
 .yt-screen .ask p { margin: 0; }
 .yt-screen .ask .row { display: flex; gap: 8px; }
+/* Everything under the picture keeps its size; only the picture gives way. */
+.yt-controls, .yt-add, .yt-queue { flex: none; }
 .yt-controls { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: var(--line) solid var(--ink); }
 .yt-controls .seek-box { flex: 1; min-width: 60px; --tone: var(--berry); }
 .yt-controls .time { font-weight: 800; font-size: 12px; color: var(--text-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
