@@ -578,7 +578,8 @@ export class YouTube {
       closeLabel: 'close YouTube',
       onClose: () => this.#askClose(view, $),
       tools: [sound],
-      phoneHeight: (w) => Math.round(w * 9 / 16) + 250,
+      // The picture, the controls, adding, and a row for each in the queue.
+      phoneHeight: (w) => Math.round(w * 9 / 16) + 170 + 30 * Math.min(8, 1 + this.state.queue.length),
     })
     view.win.el.dataset.cursorWindow = 'youtube'
 
@@ -713,17 +714,26 @@ export class YouTube {
       $('.time').textContent = `${clock(at)} / ${clock(duration)}`
     }
 
+    // The queue, always in view: what plays now first, then what waits.
     const list = $('.yt-queue')
-    const key = JSON.stringify(s.queue)
+    const key = JSON.stringify([s.now, s.playing, s.queue])
     if (list.dataset.key !== key) {
+      const grew = (Number(list.dataset.count) || 0) !== s.queue.length
       list.dataset.key = key
-      list.innerHTML = s.queue.map((q, i) => `<li data-key="${q.key}" data-cursor-anchor="q:${q.key}">
+      list.dataset.count = String(s.queue.length)
+      const now = s.now
+        ? `<li class="now" data-cursor-anchor="now"><span class="state">${s.playing ? 'playing' : 'paused'}</span><span class="title">${escapeHtml(s.now.title ?? s.now.id)}</span></li>`
+        : ''
+      const empty = s.queue.length ? '' : `<li class="hint">${s.now ? 'nothing queued after this' : 'nothing queued'} — add a link above</li>`
+      list.innerHTML = now + empty + s.queue.map((q, i) => `<li data-key="${q.key}" data-cursor-anchor="q:${q.key}">
         <span class="title">${escapeHtml(q.title ?? q.id)}</span>
         <button type="button" class="wbtn media" data-do="now" title="play now" aria-label="play now">${PLAY}</button>
         <button type="button" class="wbtn up" data-do="up" title="earlier" aria-label="earlier" ${i === 0 ? 'disabled' : ''}>↑</button>
         <button type="button" class="wbtn down" data-do="down" title="later" aria-label="later" ${i === s.queue.length - 1 ? 'disabled' : ''}>↓</button>
         <button type="button" class="wbtn close" data-do="remove" title="remove" aria-label="remove"></button>
       </li>`).join('')
+      // In a phone's column the window is as tall as what it holds.
+      if (grew) this.wm.layout()
     }
   }
 
