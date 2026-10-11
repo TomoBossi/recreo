@@ -522,14 +522,15 @@ export class YouTube {
   #openView() {
     const body = document.createElement('div')
     body.className = 'yt-body'
-    // Pointers are shared over the picture and the shared controls, each an
-    // anchor, the same for everyone; the volume is each one's own.
+    // Pointers are shared over the picture and the shared controls, each
+    // control an anchor of its own — never a group of them, which is laid
+    // out differently on every screen — and the volume is each one's own.
     body.dataset.cursorHost = ''
     body.innerHTML = `
       <div class="yt-screen">
         <div class="yt-view" data-cursor-anchor="video"><div class="yt-frame"></div><div class="yt-shield" title="play or pause"></div></div>
         <div class="yt-empty">nothing playing — add a video below</div>
-        <div class="yt-wait" data-cursor-anchor="wait" hidden><span></span><button type="button" class="btn small without" hidden></button></div>
+        <div class="yt-wait" hidden><span data-cursor-anchor="wait"></span><button type="button" class="btn small without" data-cursor-anchor="without" hidden></button></div>
         <button type="button" class="btn sun join" hidden>join playback</button>
       </div>
       <div class="yt-controls">
@@ -539,10 +540,10 @@ export class YouTube {
         <span class="time">0:00 / 0:00</span>
         <button type="button" class="wbtn media queue-toggle" title="the queue" aria-label="the queue" aria-pressed="false">${LIST}</button>
       </div>
-      <form class="yt-add" data-cursor-anchor="add">
-        <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link">
-        <button type="submit" class="btn small" name="queue">add to queue</button>
-        <button type="submit" class="btn small sun" name="now">play now</button>
+      <form class="yt-add">
+        <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link" data-cursor-anchor="link">
+        <button type="submit" class="btn small" name="queue" data-cursor-anchor="queue">add to queue</button>
+        <button type="submit" class="btn small sun" name="now" data-cursor-anchor="now">play now</button>
       </form>
       <aside class="yt-side" hidden>
         <h3>queue</h3>
