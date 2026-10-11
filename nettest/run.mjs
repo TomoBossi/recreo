@@ -5,7 +5,10 @@
  *   node nettest/run.mjs              the quick set, several at once
  *   node nettest/run.mjs --all        everything, the slow set included
  *   node nettest/run.mjs name...      just these
- *   JOBS=2 node nettest/run.mjs       how many run at once (default 4)
+ *   JOBS=2 node nettest/run.mjs       how many run at once (default 4; 1 with YouTube)
+ *
+ * The YouTube scenarios (yt-*) are in neither set unless named or --all:
+ * each is several browsers playing video for minutes.
  *
  * Each scenario has its own containers, network and room, so they run in
  * parallel. The slow set waits out real reconnection timers — a network
@@ -18,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { scenarios } from './scenarios.mjs'
+import { heavy } from './youtube.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const { build, Run } = await import(path.resolve(here, '../../plaza/nettest/lib.mjs'))
@@ -28,8 +32,10 @@ const SLOW = new Set(['c4-drop', 'phone-c4'])
 const args = process.argv.slice(2)
 const all = args.includes('--all')
 const named = args.filter((a) => !a.startsWith('--'))
-const names = named.length ? named : Object.keys(scenarios).filter((n) => all || !SLOW.has(n))
-const jobs = Math.max(1, Number(process.env.JOBS) || 4)
+const names = named.length ? named : Object.keys(scenarios).filter((n) => all || (!SLOW.has(n) && !heavy.has(n)))
+// Several browsers playing video at once are a machine's whole CPU: run
+// alongside anything else, they measure the machine, not the network.
+const jobs = Math.max(1, Number(process.env.JOBS) || (names.some((n) => heavy.has(n)) ? 1 : 4))
 
 if (!process.env.NOBUILD) build()
 fs.mkdirSync(path.join(here, 'results'), { recursive: true })

@@ -42,11 +42,16 @@ const TICK_MS = 250
 const REPORT_MS = 500
 const HOLD_AFTER = 1500    // stuck this long holds everyone
 const ESCAPE_AFTER = 15000 // held this long offers to go on without them
-const LEVEL = 0.12         // seconds off that count as in step
-const NUDGE = 0.3          // seconds off before a player changes speed to catch up
+const LEVEL = 0.05         // seconds off that count as in step
+const NUDGE = 0.2          // seconds off before a player changes speed to catch up
 const LEAP = 3             // seconds off before a player seeks instead
 const GRACE = 2500         // after loading or seeking, a player is not judged stuck
 const QUIET = 3000         // no report for this long: not counted
+const AHEAD = 4            // seconds a held-for player would like ready before everyone goes on
+const AHEAD_WAIT = 3000    // how long it waits for them, at most: a paused player may load nothing
+const ASK_AGAIN = 1000     // an unanswered ask is sent again this often
+const ASK_GIVE_UP = 20000  // and dropped after this long unanswered
+const ASKS_KEPT = 30       // asks the state remembers as done, so no runner does one twice
 
 const PLAY = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg>`
 const PAUSE = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/></svg>`
@@ -107,6 +112,8 @@ export class YouTube {
   #view = null         // the window and its player, while open
   #revealNext = false  // we opened it: show it once it is there
   #seq = 0
+  #pending = new Map() // ask ref -> { ask, since, sent }: sent, not yet answered
+  #done = new Set()    // ask refs this runner has dealt with, done or not
 
   constructor({ room, wm, chat, players, toast }) {
     this.room = room
@@ -126,7 +133,11 @@ export class YouTube {
     })
     room.on('peer:leave', (peer) => { this.#reports.delete(peer.id); this.#elect() })
     room.on('peer:interrupted', () => this.#elect())
-    room.on('peer:reconnected', () => this.#elect())
+    // Back from a drop, a peer may have missed how things changed meanwhile.
+    room.on('peer:reconnected', (peer) => {
+      this.#elect()
+      if (this.#runs && this.state.v > 0) this.channel.send({ t: 'state', state: this.state }, peer.id)
+    })
     this.#elect()
     setInterval(() => this.#tick(), TICK_MS)
     setInterval(() => this.#report(), REPORT_MS)
@@ -204,6 +215,7 @@ export class YouTube {
       runner: this.#runner,
       offset: this.#offset,
       time: player?.getCurrentTime?.() ?? null,
+      position: player?.getCurrentTime ? this.#position(this.#view, player.getCurrentTime(), player.getPlayerState(), Date.now()) : null,
       player: player?.getPlayerState?.() ?? null,
       expected: this.#expected(),
       joined: this.#view?.joined ?? null,
@@ -237,15 +249,34 @@ export class YouTube {
       this.#adopt(next)
     } else if (msg?.t === 'ask' && this.#runs) {
       this.#apply(msg.ask, from)
+    } else if (msg?.t === 'ack') {
+      this.#pending.delete(msg.ref)
     } else if (msg?.t === 'report' && this.#runs) {
       this.#reports.set(from, { report: msg.report, at: Date.now() })
     }
   }
 
-  /** Ask the runner for something; the runner asks itself. */
+  /**
+   * Ask the runner for something; the runner asks itself. An ask is sent
+   * again until the runner answers — a connection being repaired drops what
+   * is sent over it — and the runner does each one once, whoever runs it.
+   */
   #ask(ask) {
-    if (this.#runs) this.#apply(ask, this.room.selfId)
-    else this.channel.send({ t: 'ask', ask }, this.#runner)
+    ask = { ...ask, ref: `${this.room.selfId.slice(0, 6)}-${Date.now().toString(36)}-${++this.#seq}` }
+    if (this.#runs) { this.#apply(ask, this.room.selfId); return }
+    const now = Date.now()
+    this.#pending.set(ask.ref, { ask, since: now, sent: now })
+    this.channel.send({ t: 'ask', ask }, this.#runner)
+  }
+
+  #askAgain() {
+    const now = Date.now()
+    for (const [ref, p] of this.#pending) {
+      if (this.state.asks?.includes(ref) || now - p.since > ASK_GIVE_UP) { this.#pending.delete(ref); continue }
+      // Running it now ourselves: do it.
+      if (this.#runs) { this.#pending.delete(ref); this.#apply(p.ask, this.room.selfId); continue }
+      if (now - p.sent > ASK_AGAIN) { p.sent = now; this.channel.send({ t: 'ask', ask: p.ask }, this.#runner) }
+    }
   }
 
   #adopt(next) {
@@ -261,6 +292,13 @@ export class YouTube {
   // ------------------------------------------------------------ running it
 
   #apply(ask, from) {
+    if (from !== this.room.selfId && ask.ref) this.channel.send({ t: 'ack', ref: ask.ref }, from)
+    // Heard again — its answer was lost — or already done by a runner before.
+    if (ask.ref && (this.#done.has(ask.ref) || this.state.asks?.includes(ask.ref))) return
+    if (ask.ref) {
+      this.#done.add(ask.ref)
+      if (this.#done.size > 200) this.#done.delete(this.#done.values().next().value)
+    }
     const s = structuredClone(this.state)
     const at = Date.now()
     const here = this.#expected(at)
@@ -323,6 +361,7 @@ export class YouTube {
     }
     s.by = from
     s.did = ask.type
+    if (ask.ref) s.asks = [...(s.asks ?? []), ask.ref].slice(-ASKS_KEPT)
     this.#publish(s)
   }
 
@@ -365,6 +404,7 @@ export class YouTube {
   // ------------------------------------------------------------ this player
 
   #tick() {
+    this.#askAgain()
     if (this.#runs) this.#judge()
     this.#sync()
   }
@@ -396,6 +436,11 @@ export class YouTube {
     }
     if (!s.now) return
 
+    // Every play, pause, seek, hold and carrying on starts the clock afresh:
+    // a player is stuck only once it has not moved since it was told to,
+    // never for having stood still while everyone was paused.
+    if (view.toldOf !== s.at) { view.toldOf = s.at; view.toldAt = now }
+
     const t = player.getCurrentTime?.() ?? 0
     const state = player.getPlayerState()
     // Moving is playing on: a step forward, not a jump — a seek or a reload
@@ -403,11 +448,7 @@ export class YouTube {
     const moving = view.lastTime != null && t - view.lastTime > 0.05 && t - view.lastTime < 1.5
     view.lastTime = t
     if (moving) view.movedAt = now
-    // The player tells the page where it is only now and then — less often
-    // on a phone — so between tellings it is where it was plus the time
-    // since, at its speed: an old answer would always look behind.
-    if (t !== view.raw) { view.raw = t; view.rawAt = now }
-    const at = state === 1 ? t + Math.min(1, (now - view.rawAt) / 1000) * (view.rate ?? 1) : t
+    const at = this.#position(view, t, state, now)
     // What a seek costs this player, learnt from the last one.
     if (view.seekAt && moving) { view.seekCost = Math.min(3, (view.seekCost + (now - view.seekAt) / 1000) / 2); view.seekAt = 0 }
     const want = this.#expected(now)
@@ -417,7 +458,14 @@ export class YouTube {
     // back, YouTube's player does not always try again by itself. Nudge it,
     // then load it afresh where it should be.
     const shouldMove = s.playing && (!s.held || (mine && !view.caught))
-    const stuckFor = shouldMove && now > view.grace ? now - Math.max(view.movedAt ?? 0, view.grace - GRACE) : 0
+    // How long it has failed to move when it should have, summed across
+    // every play, pause and hold meanwhile: a player that has given up stays
+    // given up however often the others change what they are doing.
+    const dt = Math.min(1000, now - (view.tickAt ?? now))
+    view.tickAt = now
+    if (moving) view.stuckMs = 0
+    else if (shouldMove && now > view.grace) view.stuckMs = (view.stuckMs ?? 0) + dt
+    const stuckFor = view.stuckMs ?? 0
     if (moving) view.reloads = 0
     if (stuckFor > 20000 && now - (view.reloaded ?? 0) > 20000) {
       view.reloaded = now
@@ -438,7 +486,7 @@ export class YouTube {
       // only runs while it plays), then come back to where everyone stopped.
       this.#speed(view, 1)
       if (!view.caught) {
-        if (moving && state === 1) { view.caught = true; player.pauseVideo(); player.seekTo(s.pos, true) }
+        if (moving && state === 1) { view.caught = true; view.caughtAt = now; player.pauseVideo(); player.seekTo(s.pos, true) }
         else if (state !== 1 && state !== 3) player.playVideo()
       }
       return
@@ -456,6 +504,25 @@ export class YouTube {
       // it was cued, which was the right place.
       if (state !== 5 && Math.abs(t - want) > 0.15 && now > view.grace) { player.seekTo(want, true); view.grace = now + 800 }
     }
+  }
+
+  /** Whether a player has enough of the video ready past where everyone stopped. */
+  #inHand(view) {
+    const player = view.player
+    const fraction = player?.getVideoLoadedFraction?.()
+    const duration = player?.getDuration?.() || 0
+    if (fraction == null || !duration) return true
+    return fraction * duration - this.state.pos >= Math.min(AHEAD, duration - this.state.pos - 0.5)
+  }
+
+  /**
+   * Where the video is now. The player tells the page only now and then —
+   * less often on a phone — so between tellings it is where it was plus the
+   * time since, at its speed: an old answer would always look behind.
+   */
+  #position(view, t, state, now) {
+    if (t !== view.raw) { view.raw = t; view.rawAt = now }
+    return state === 1 ? t + Math.min(1, (now - view.rawAt) / 1000) * (view.rate ?? 1) : t
   }
 
   /**
@@ -497,14 +564,17 @@ export class YouTube {
     const view = this.#view
     if (!s.open || !s.now || !view?.player?.getPlayerState || view.loaded !== s.now.key) return
     const now = Date.now()
+    if (view.toldOf !== s.at) { view.toldOf = s.at; view.toldAt = now }
     const shouldMove = s.playing && !s.held
-    const stuck = shouldMove && now > view.grace ? now - Math.max(view.movedAt ?? 0, view.grace - GRACE) : 0
+    const stuck = shouldMove && now > view.grace ? now - Math.max(view.movedAt ?? 0, view.grace - GRACE, view.toldAt ?? 0) : 0
     const mine = s.held && s.waiting.includes(this.room.selfId)
     const report = {
       key: s.now.key,
       at: s.at,
       stuck: Math.max(0, stuck),
-      ready: s.held ? (mine ? view.caught : true) : true,
+      // Ready once back where everyone stopped with a few seconds in hand:
+      // going on with none would only stall it again a moment later.
+      ready: s.held ? (mine ? view.caught && (this.#inHand(view) || now - view.caughtAt > AHEAD_WAIT) : true) : true,
       // Muted for want of a click: in step, but nobody waits on it.
       muted: !view.joined,
     }
@@ -789,6 +859,7 @@ export class YouTube {
     const seek = $('.seek')
     seek.max = String(Math.max(1, duration))
     seek.disabled = !s.now
+    seek.closest('.slider-box').classList.toggle('off', seek.disabled)
     if (!view.seeking) {
       const at = Math.min(this.#expected(), duration || Infinity)
       seek.value = String(at)

@@ -1029,5 +1029,13 @@ input.slider::-moz-range-thumb {
 }
 input.slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
 input.slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 60%, transparent); }
-.slider-box:has(input:disabled) { opacity: 0.5; }
+/* Disabled: its own colours at half strength, rather than the box at half
+   opacity — a phone's compositor can drop a group's opacity for a frame
+   while a pointer moves over it, and the slider flickers. */
+.slider-box.off::before {
+  border-color: color-mix(in srgb, var(--ink) 50%, transparent);
+  background: color-mix(in srgb, var(--field) 50%, transparent);
+}
+input.slider:disabled::-webkit-slider-thumb { border-color: color-mix(in srgb, var(--ink) 50%, transparent); background: color-mix(in srgb, #fffaf0 50%, transparent); }
+input.slider:disabled::-moz-range-thumb { border-color: color-mix(in srgb, var(--ink) 50%, transparent); background: color-mix(in srgb, #fffaf0 50%, transparent); }
 input.slider:disabled { cursor: default; }

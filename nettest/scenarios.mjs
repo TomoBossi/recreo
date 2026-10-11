@@ -4,6 +4,7 @@
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { youtube } from './youtube.mjs'
 
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -613,3 +614,5 @@ export const scenarios = {
     return { shots }
   },
 }
+
+Object.assign(scenarios, youtube)

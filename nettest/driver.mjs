@@ -79,6 +79,22 @@ async function hook(page, label) {
             .map((e) => `${new Date(e.at).toISOString().slice(14, 23)} ${e.peer} ${e.what} ${e.detail ?? ''}`)
         }
         if (code === 'tables') return [...tables.tables.values()].map(summary)
+        // The YouTube player, four times a second, kept in the page until asked for.
+        if (code === 'yt-watch') {
+          if (!window.ntYt) {
+            window.ntYt = []
+            setInterval(() => {
+              const s = window.recreo.youtube?.snapshot()
+              if (!s) return
+              window.ntYt.push({
+                w: Date.now(), t: s.time, p: s.position, st: s.player, rate: s.rate, held: !!s.state.held, playing: !!s.state.playing,
+                id: s.state.now?.id ?? null, exp: s.expected, reloads: s.recovery?.reloaded ?? 0, runner: s.runner,
+              })
+            }, 250)
+          }
+          return true
+        }
+        if (code === 'yt-samples') return (window.ntYt ?? []).splice(0)
         // eslint-disable-next-line no-new-func
         return await new Function('recreo', `return (async () => (${code}))()`)(window.recreo)
       },
