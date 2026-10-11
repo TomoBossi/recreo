@@ -50,6 +50,7 @@ const QUIET = 3000         // no report for this long: not counted
 
 const PLAY = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg>`
 const PAUSE = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/></svg>`
+const LIST = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
 const NEXT = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 2.5v9l6.5-4.5zM10 2.5h2v9h-2z" fill="currentColor"/></svg>`
 
 /** A YouTube link or a bare video id, as the id; null if it is neither. */
@@ -529,6 +530,7 @@ export class YouTube {
         <button type="button" class="wbtn media next" title="next in the queue" aria-label="next in the queue" data-cursor-anchor="next">${NEXT}</button>
         <span class="slider-box seek-box" data-cursor-anchor="seek"><input type="range" class="seek slider" min="0" max="1" step="0.1" value="0" aria-label="position"></span>
         <span class="time">0:00 / 0:00</span>
+        <button type="button" class="wbtn media queue-toggle" title="the queue" aria-label="the queue" aria-pressed="false">${LIST}<span class="count"></span></button>
       </div>
       <form class="yt-add" data-cursor-anchor="add">
         <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link">
@@ -556,6 +558,8 @@ export class YouTube {
       win: null, player: null, loaded: undefined, grace: 0, caught: false, lastTime: null, movedAt: 0,
       joined: navigator.userActivation?.hasBeenActive ?? true,
       rate: 1, seekCost: 0, raw: null, rawAt: 0,
+      // The queue's list shows when asked for, each one's own choice.
+      showQueue: store.get('yt:queue', false),
       heard: true,
       volume: store.get('yt:volume', 0.8),
       seeking: false,
@@ -578,8 +582,8 @@ export class YouTube {
       closeLabel: 'close YouTube',
       onClose: () => this.#askClose(view, $),
       tools: [sound],
-      // The picture, the controls, adding, and a row for each in the queue.
-      phoneHeight: (w) => Math.round(w * 9 / 16) + 170 + 30 * Math.min(8, 1 + this.state.queue.length),
+      // The picture, the controls, adding, and, shown, a row for each in the queue.
+      phoneHeight: (w) => Math.round(w * 9 / 16) + 140 + (this.#view?.showQueue ? 30 * Math.min(8, 1 + this.state.queue.length) : 0),
     })
     view.win.el.dataset.cursorWindow = 'youtube'
 
@@ -592,6 +596,12 @@ export class YouTube {
     seek.addEventListener('input', () => { view.seeking = true; fill(seek); $('.time').textContent = `${clock(seek.value)} / ${clock(seek.max)}` })
     seek.addEventListener('change', () => { view.seeking = false; this.#ask({ type: 'seek', pos: Number(seek.value) }) })
     $('.join').addEventListener('click', () => this.#join(view))
+    $('.queue-toggle').addEventListener('click', () => {
+      view.showQueue = !view.showQueue
+      store.set('yt:queue', view.showQueue)
+      view.render()
+      this.wm.layout()
+    })
     // Any click on the page lets the sound play: that is all "join" waits for.
     const activate = () => { if (!view.joined) this.#join(view) }
     addEventListener('pointerdown', activate, true)
@@ -714,8 +724,12 @@ export class YouTube {
       $('.time').textContent = `${clock(at)} / ${clock(duration)}`
     }
 
-    // The queue, always in view: what plays now first, then what waits.
+    const toggle = $('.queue-toggle')
+    toggle.setAttribute('aria-pressed', String(view.showQueue))
+    toggle.querySelector('.count').textContent = s.queue.length ? String(s.queue.length) : ''
+    // The queue, when shown: what plays now first, then what waits.
     const list = $('.yt-queue')
+    list.hidden = !view.showQueue
     const key = JSON.stringify([s.now, s.playing, s.queue])
     if (list.dataset.key !== key) {
       const grew = (Number(list.dataset.count) || 0) !== s.queue.length
@@ -733,7 +747,7 @@ export class YouTube {
         <button type="button" class="wbtn close" data-do="remove" title="remove" aria-label="remove"></button>
       </li>`).join('')
       // In a phone's column the window is as tall as what it holds.
-      if (grew) this.wm.layout()
+      if (grew && view.showQueue) this.wm.layout()
     }
   }
 
