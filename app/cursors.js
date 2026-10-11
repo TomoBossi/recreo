@@ -302,6 +302,10 @@ export class Cursors {
       if (!box?.width) { entry.el.remove(); entry.shown = false; return false }
       x = box.left + (entry.fx / 1000) * box.width
       y = box.top + (entry.fy / 1000) * box.height
+      // In something that scrolls (data-cursor-clip), each scrolled their own
+      // way: a pointer on a part scrolled out of sight here is not shown.
+      const clip = anchor.closest('[data-cursor-clip]')?.getBoundingClientRect()
+      if (clip && (x < clip.left || x > clip.right || y < clip.top || y > clip.bottom)) { entry.el.remove(); entry.shown = false; return false }
     } else {
       const root = win.querySelector('.stage svg')
       const space = root?.querySelector('[data-cursor-space]') ?? root

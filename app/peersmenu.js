@@ -3,8 +3,8 @@ import { fill } from './controls.js'
 
 /**
  * The Peers window's menu, beside its microphone and camera buttons: how
- * the faces are laid out, how loud each of the others is, and which camera
- * and microphone to use. A volume belongs to the player, so it holds when
+ * the faces are laid out, which camera and microphone to use, and how loud
+ * each of the others is. A volume belongs to the player, so it holds when
  * they reconnect, and is kept in this browser.
  *
  * It opens in a layer of its own, so a small window never clips it.
@@ -36,8 +36,8 @@ export function peersMenuButton({ media, faces }) {
         ${LAYOUTS.map((l) => `<button class="btn small" data-layout="${l.value}">${l.label}</button>`).join('')}
       </span>
     </section>
-    <section class="volumes"><h3>volume</h3><div class="volume-rows"></div></section>
-    <section class="devices"></section></div>`
+    <section class="devices"></section>
+    <section class="volumes"><h3>volume</h3><div class="volume-rows"></div></section></div>`
   // One set of pickers for the life of the room; they keep themselves current.
   const pickers = devicePickers(media)
   pop.querySelector('.devices').append(pickers.el)

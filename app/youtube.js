@@ -211,6 +211,7 @@ export class YouTube {
       modules: player?.getOptions?.() ?? null,
       muted: player?.isMuted?.() ?? null,
       rate: this.#view?.rate ?? null,
+      recovery: this.#view ? { reloads: this.#view.reloads ?? 0, reloaded: this.#view.reloaded ?? 0, nudged: this.#view.nudged ?? 0, grace: this.#view.grace, movedAt: this.#view.movedAt, now: Date.now() } : null,
       patience: this.#view?.patience ?? null,
     }
   }
@@ -397,7 +398,9 @@ export class YouTube {
 
     const t = player.getCurrentTime?.() ?? 0
     const state = player.getPlayerState()
-    const moving = view.lastTime != null && t - view.lastTime > 0.05
+    // Moving is playing on: a step forward, not a jump — a seek or a reload
+    // that lands somewhere else is no sign the video plays.
+    const moving = view.lastTime != null && t - view.lastTime > 0.05 && t - view.lastTime < 1.5
     view.lastTime = t
     if (moving) view.movedAt = now
     // The player tells the page where it is only now and then — less often
@@ -415,9 +418,13 @@ export class YouTube {
     // then load it afresh where it should be.
     const shouldMove = s.playing && (!s.held || (mine && !view.caught))
     const stuckFor = shouldMove && now > view.grace ? now - Math.max(view.movedAt ?? 0, view.grace - GRACE) : 0
+    if (moving) view.reloads = 0
     if (stuckFor > 20000 && now - (view.reloaded ?? 0) > 20000) {
       view.reloaded = now
       view.grace = now + GRACE
+      view.reloads = (view.reloads ?? 0) + 1
+      // Reloading twice did not help: the player itself has given up.
+      if (view.reloads > 2) { view.reloads = 0; view.player = null; this.#makePlayer(view); return }
       player.loadVideoById({ videoId: s.now.id, startSeconds: s.held ? s.pos : want })
       return
     }
@@ -530,14 +537,17 @@ export class YouTube {
         <button type="button" class="wbtn media next" title="next in the queue" aria-label="next in the queue" data-cursor-anchor="next">${NEXT}</button>
         <span class="slider-box seek-box" data-cursor-anchor="seek"><input type="range" class="seek slider" min="0" max="1" step="0.1" value="0" aria-label="position"></span>
         <span class="time">0:00 / 0:00</span>
-        <button type="button" class="wbtn media queue-toggle" title="the queue" aria-label="the queue" aria-pressed="false">${LIST}<span class="count"></span></button>
+        <button type="button" class="wbtn media queue-toggle" title="the queue" aria-label="the queue" aria-pressed="false">${LIST}</button>
       </div>
       <form class="yt-add" data-cursor-anchor="add">
         <input class="input" name="link" placeholder="YouTube link" autocomplete="off" spellcheck="false" aria-label="YouTube link">
         <button type="submit" class="btn small" name="queue">add to queue</button>
         <button type="submit" class="btn small sun" name="now">play now</button>
       </form>
-      <ol class="yt-queue"></ol>`
+      <aside class="yt-side" hidden>
+        <h3>queue</h3>
+        <ol class="yt-queue" data-cursor-clip></ol>
+      </aside>`
     const $ = (sel) => body.querySelector(sel)
 
     // YouTube draws its own title, "more videos" and logo along the top and
@@ -597,23 +607,44 @@ export class YouTube {
 
     // Every control asks the runner; nothing changes here until it answers.
     const toggle = () => this.#ask({ type: this.state.playing ? 'pause' : 'play' })
-    $('.yt-shield').addEventListener('click', toggle)
+    // The picture plays and pauses only on a click that also began on it: a
+    // press on a button over it that ends on the picture — the button gone
+    // from under the pointer meanwhile — is not a click on the picture.
+    const shield = $('.yt-shield')
+    let pressed = false
+    shield.addEventListener('pointerdown', () => { pressed = true })
+    addEventListener('pointerup', () => setTimeout(() => { pressed = false }, 0), true)
+    // Nor does the second click of a double click on "join playback", which
+    // lands on the picture once the button has gone.
+    shield.addEventListener('click', () => { if (pressed && Date.now() - (view.joinPressed ?? 0) > 500) toggle() })
     $('.play').addEventListener('click', toggle)
     $('.next').addEventListener('click', () => this.#ask({ type: 'skip' }))
     const seek = $('.seek')
     seek.addEventListener('input', () => { view.seeking = true; fill(seek); $('.time').textContent = `${clock(seek.value)} / ${clock(seek.max)}` })
     seek.addEventListener('change', () => { view.seeking = false; this.#ask({ type: 'seek', pos: Number(seek.value) }) })
-    $('.join').addEventListener('click', () => this.#join(view))
+    $('.join').addEventListener('click', (e) => { e.stopPropagation(); view.joinPressed = Date.now(); this.#join(view) })
     $('.queue-toggle').addEventListener('click', () => {
       view.showQueue = !view.showQueue
       store.set('yt:queue', view.showQueue)
       view.render()
+      // In a phone's column the window grows with it.
       this.wm.layout()
+      // Opened, it shows what plays now.
+      if (view.showQueue) {
+        const list = $('.yt-queue')
+        const now = list.querySelector('.now')
+        if (now) list.scrollTop = now.offsetTop - list.offsetTop
+      }
     })
+    // Floating, the queue is at most a share of the window's own height.
+    const tall = new ResizeObserver(() => body.style.setProperty('--queue-max', `${Math.max(90, Math.round(body.clientHeight * 0.4))}px`))
+    tall.observe(body)
     // Any click on the page lets the sound play: that is all "join" waits for.
-    const activate = () => { if (!view.joined) this.#join(view) }
+    // The join button's own press is left to it, so it stays under the
+    // pointer until its click is done.
+    const activate = (e) => { if (!view.joined && !e.target.closest?.('.yt-screen .join')) this.#join(view) }
     addEventListener('pointerdown', activate, true)
-    view.cleanup = () => { removeEventListener('pointerdown', activate, true); fit.disconnect() }
+    view.cleanup = () => { removeEventListener('pointerdown', activate, true); fit.disconnect(); tall.disconnect() }
     $('.without').addEventListener('click', () => { for (const peer of this.state.waiting) this.#ask({ type: 'without', peer }) })
     $('.yt-add').addEventListener('submit', (e) => {
       e.preventDefault()
@@ -634,9 +665,26 @@ export class YouTube {
       if (b.dataset.do === 'remove') this.#ask({ type: 'remove', key })
     })
 
+    this.#makePlayer(view)
+
+    if (this.#revealNext) { this.#revealNext = false; requestAnimationFrame(() => this.#view && this.wm.reveal(this.#view.win)) }
+  }
+
+  /**
+   * YouTube's player, made afresh: the first time, and again for a player
+   * that stayed stuck through reloading its video, which is a player that
+   * has given up for good.
+   */
+  #makePlayer(view) {
     loadApi().then((YT) => {
       if (this.#view !== view) return
-      view.player = new YT.Player($('.yt-frame'), {
+      try { view.player?.destroy?.() } catch { /* already gone */ }
+      const host = view.win.el.querySelector('.yt-view')
+      for (const old of host.querySelectorAll('iframe, .yt-frame')) old.remove()
+      const frame = document.createElement('div')
+      frame.className = 'yt-frame'
+      host.prepend(frame)
+      view.player = new YT.Player(frame, {
         width: '100%',
         height: '100%',
         playerVars: { controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, cc_load_policy: 0, origin: location.origin },
@@ -653,8 +701,6 @@ export class YouTube {
         },
       })
     }).catch((err) => this.toast(err.message))
-
-    if (this.#revealNext) { this.#revealNext = false; requestAnimationFrame(() => this.#view && this.wm.reveal(this.#view.win)) }
   }
 
   #join(view) {
@@ -732,30 +778,35 @@ export class YouTube {
       $('.time').textContent = `${clock(at)} / ${clock(duration)}`
     }
 
-    const toggle = $('.queue-toggle')
-    toggle.setAttribute('aria-pressed', String(view.showQueue))
-    toggle.querySelector('.count').textContent = s.queue.length ? String(s.queue.length) : ''
-    // The queue, when shown: what plays now first, then what waits.
+    $('.queue-toggle').setAttribute('aria-pressed', String(view.showQueue))
+    $('.yt-side').hidden = !view.showQueue
+    view.win.el.querySelector('.yt-body').classList.toggle('queue-open', view.showQueue)
+    // The queue: what plays now first, then what waits, each with its
+    // picture. Every part of a row is its own anchor, so a pointer on a
+    // button lands on that button however wide the row is elsewhere.
     const list = $('.yt-queue')
-    list.hidden = !view.showQueue
     const key = JSON.stringify([s.now, s.playing, s.queue])
     if (list.dataset.key !== key) {
-      const grew = (Number(list.dataset.count) || 0) !== s.queue.length
       list.dataset.key = key
-      list.dataset.count = String(s.queue.length)
-      const now = s.now
-        ? `<li class="now" data-cursor-anchor="now"><span class="state">${s.playing ? 'playing' : 'paused'}</span><span class="title">${escapeHtml(s.now.title ?? s.now.id)}</span></li>`
-        : ''
-      const empty = s.queue.length ? '' : `<li class="hint">${s.now ? 'nothing queued after this' : 'nothing queued'} — add a link above</li>`
-      list.innerHTML = now + empty + s.queue.map((q, i) => `<li data-key="${q.key}" data-cursor-anchor="q:${q.key}">
-        <span class="title">${escapeHtml(q.title ?? q.id)}</span>
-        <button type="button" class="wbtn media" data-do="now" title="play now" aria-label="play now">${PLAY}</button>
-        <button type="button" class="wbtn up" data-do="up" title="earlier" aria-label="earlier" ${i === 0 ? 'disabled' : ''}>↑</button>
-        <button type="button" class="wbtn down" data-do="down" title="later" aria-label="later" ${i === s.queue.length - 1 ? 'disabled' : ''}>↓</button>
-        <button type="button" class="wbtn close" data-do="remove" title="remove" aria-label="remove"></button>
+      const thumb = (id, anchor) => `<img class="thumb" src="https://i.ytimg.com/vi/${encodeURIComponent(id)}/mqdefault.jpg" alt="" loading="lazy" data-cursor-anchor="${anchor}">`
+      const now = s.now ? `<li class="now">
+          ${thumb(s.now.id, 'now:thumb')}
+          <span class="about"><span class="state">${s.playing ? 'playing' : 'paused'}</span>
+          <span class="title" data-cursor-anchor="now:title">${escapeHtml(s.now.title ?? s.now.id)}</span></span>
+        </li>` : ''
+      const empty = s.queue.length ? '' : `<li class="hint">${s.now ? 'nothing after this' : 'nothing queued'} — add a link below</li>`
+      list.innerHTML = now + empty + s.queue.map((q, i) => `<li data-key="${q.key}">
+        <span class="pic">${thumb(q.id, `q:${q.key}:thumb`)}<span class="n">${i + 1}</span></span>
+        <span class="about">
+          <span class="title" data-cursor-anchor="q:${q.key}:title">${escapeHtml(q.title ?? q.id)}</span>
+          <span class="acts">
+            <button type="button" class="wbtn media" data-do="now" title="play now" aria-label="play now" data-cursor-anchor="q:${q.key}:now">${PLAY}</button>
+            <button type="button" class="wbtn up" data-do="up" title="earlier" aria-label="earlier" data-cursor-anchor="q:${q.key}:up" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" class="wbtn down" data-do="down" title="later" aria-label="later" data-cursor-anchor="q:${q.key}:down" ${i === s.queue.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" class="wbtn close" data-do="remove" title="remove" aria-label="remove" data-cursor-anchor="q:${q.key}:remove"></button>
+          </span>
+        </span>
       </li>`).join('')
-      // In a phone's column the window is as tall as what it holds.
-      if (grew && view.showQueue) this.wm.layout()
     }
   }
 

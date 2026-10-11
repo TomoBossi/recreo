@@ -371,6 +371,8 @@ export class WindowManager {
     this.hgutters = []
     // A phone's column scrolls, so it sets the desk's height rather than
     // fitting inside one — and has no height to wait for.
+    // Marked for styles: how the desk is laid out now.
+    this.desk.classList.toggle('narrow', this.narrow)
     if (this.narrow) {
       this.#wasWide = false
       this.desk.classList.remove('floating')
