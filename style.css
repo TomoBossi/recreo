@@ -932,7 +932,10 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-side { grid-area: side; }
 .yt-screen { position: relative; min-width: 0; min-height: 120px; background: #000; overflow: hidden; }
 /* In a phone's column the picture keeps its shape; the window fits round it. */
-#desk.narrow .yt-body { grid-template-rows: auto auto auto auto; }
+/* Rows at their own heights, never stretched to fill the window nor squeezed
+   under the picture: the window's height is measured from them, and a
+   stretched row would feed the window's height back into itself. */
+#desk.narrow .yt-body { grid-template-rows: max-content max-content max-content max-content; align-content: start; }
 #desk.narrow .yt-screen { aspect-ratio: 16 / 9; min-height: 0; }
 /* The video's own 16:9 box; YouTube's frame overhangs it top and bottom (app/youtube.js). */
 .yt-view { position: absolute; overflow: hidden; }

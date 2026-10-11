@@ -604,7 +604,10 @@ export class YouTube {
         // window too — the pointers' layer spans it whole, and counting it
         // grew the window by its own height at every layout.
         const below = ['.yt-controls', '.yt-add', '.yt-side'].map((sel) => body.querySelector(`:scope > ${sel}`)).reduce((h, el) => h + (!el || el.hidden ? 0 : el.offsetHeight), 0)
-        return Math.round(title + frame + (w - frame) * 9 / 16 + below)
+        // Never past what the window can hold, should anything ever measure
+        // the window back into itself again.
+        const picture = (w - frame) * 9 / 16
+        return Math.round(title + frame + picture + Math.min(below, 900))
       },
     })
     view.win.el.dataset.cursorWindow = 'youtube'
@@ -642,6 +645,15 @@ export class YouTube {
         if (now) list.scrollTop = now.offsetTop - list.offsetTop
       }
     })
+    // In a phone's column the window's height is measured from what is
+    // under the picture; when any of it changes size — the queue opening,
+    // an entry added, a title arriving — it is measured again.
+    let relayout = 0
+    const sections = new ResizeObserver(() => {
+      if (!this.wm.narrow || relayout) return
+      relayout = requestAnimationFrame(() => { relayout = 0; this.wm.layout() })
+    })
+    for (const sel of ['.yt-controls', '.yt-add', '.yt-side']) sections.observe($(sel))
     // Floating, the queue is at most a share of the window's own height.
     const tall = new ResizeObserver(() => body.style.setProperty('--queue-max', `${Math.max(90, Math.round(body.clientHeight * 0.4))}px`))
     tall.observe(body)
@@ -650,7 +662,7 @@ export class YouTube {
     // pointer until its click is done.
     const activate = (e) => { if (!view.joined && !e.target.closest?.('.yt-screen .join')) this.#join(view) }
     addEventListener('pointerdown', activate, true)
-    view.cleanup = () => { removeEventListener('pointerdown', activate, true); removeEventListener('pointerdown', press, true); fit.disconnect(); tall.disconnect() }
+    view.cleanup = () => { removeEventListener('pointerdown', activate, true); removeEventListener('pointerdown', press, true); fit.disconnect(); tall.disconnect(); sections.disconnect() }
     $('.without').addEventListener('click', () => { for (const peer of this.state.waiting) this.#ask({ type: 'without', peer }) })
     $('.yt-add').addEventListener('submit', (e) => {
       e.preventDefault()
