@@ -966,8 +966,18 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-controls, .yt-add { flex: none; }
 .yt-controls { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: var(--line) solid var(--ink); }
 .yt-controls .seek-box { flex: 1; min-width: 60px; --tone: var(--berry); }
+/* Too narrow for one row, as on a phone: the seek bar has a row of its own,
+   full width, above the buttons. */
+.yt-controls { container-type: inline-size; flex-wrap: wrap; }
+@container (max-width: 500px) {
+  .yt-controls .seek-box { flex-basis: 100%; order: -1; }
+  .yt-controls .queue-toggle { margin-left: auto; }
+}
 .yt-controls .time { font-weight: 800; font-size: 12px; color: var(--text-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .yt-controls .volume { position: static; padding: 0; border: 0; background: none; box-shadow: none; }
+/* The speaker beside its own slider, apart from the button before it: the
+   track starts a thumb's half-width into its box, so almost no gap. */
+.yt-controls .volume { gap: 2px; margin-left: 6px; }
 .yt-controls .volume .slider-box { width: 70px; }
 .yt-add { display: flex; gap: 6px; padding: 0 10px 8px; }
 .yt-add .input { flex: 1; min-width: 0; padding: 5px 10px; }
@@ -1000,6 +1010,22 @@ html.own-cursor, html.own-cursor * { cursor: none !important; }
 .yt-queue .wbtn.up, .yt-queue .wbtn.down { font-weight: 900; font-size: 12px; line-height: 1; display: grid; place-items: center; }
 .yt-queue .wbtn.up::before, .yt-queue .wbtn.down::before { content: none; }
 .yt-controls .wbtn:disabled, .yt-queue .wbtn:disabled { opacity: 0.35; cursor: default; }
+/* The player's buttons are drawn as recreo's buttons are, lifted on a
+   shadow, and every control under the picture is as tall as the add row. */
+.yt-body { --yt-button: 32px; }
+.yt-controls .wbtn.media, .yt-controls .select-button, .yt-add .input, .yt-add .btn { height: var(--yt-button); }
+.yt-controls .wbtn.media {
+  width: var(--yt-button); border: var(--line) solid var(--ink); border-radius: var(--round-small); box-shadow: var(--lift-small);
+  transition: transform 60ms, box-shadow 60ms; --dx: 0px; --dy: 0px; transform: translate(var(--dx), var(--dy));
+}
+/* As on .btn: the look moves when pressed, where it can be pressed does not. */
+.yt-controls .wbtn.media::after {
+  content: ""; background: none; inset: calc(-1 * var(--line));
+  transform: translate(calc(-1 * var(--dx)), calc(-1 * var(--dy)));
+}
+.yt-controls .wbtn.media:hover:not(:disabled) { --dx: -1px; --dy: -1px; box-shadow: 3px 3px 0 var(--ink); }
+.yt-controls .wbtn.media:active:not(:disabled) { --dx: 2px; --dy: 2px; box-shadow: 0 0 0 var(--ink); }
+.yt-controls .wbtn.media:disabled { box-shadow: none; }
 .win.side .yt-controls, .win.side .yt-add, .win.side .yt-side, .win.side .yt-wait .without { display: none; }
 
 /* A slider drawn like the rest: an outlined track, coloured up to the thumb

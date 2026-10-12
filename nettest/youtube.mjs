@@ -17,6 +17,10 @@
  *   held    the share of the time everyone was held for someone
  *   pause, play, seek, next: how long until everyone follows, and how far
  *           apart they are once they have
+ *   quality per peer: the quality each played for most of the steady stretch
+ *
+ * PHONE_QUALITY=480 (or 720, 1080) has the peer on mobile data choose that
+ * quality, as someone on a phone might; otherwise every peer is on auto.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -72,6 +76,13 @@ async function start(run, peers) {
   await Promise.all(labels.map((l) => run.waitFor(`${l} to join`, (e) => e.label === l && e.ev === 'driver-joined', 90000)))
   await Promise.all(labels.flatMap((a) => labels.filter((b) => b !== a).map((b) =>
     run.waitFor(`${a} to know ${b}`, (e) => e.label === a && e.ev === 'peer:update' && e.peer === b, 120000))))
+  // Chosen before the window opens, which is when the player reads it.
+  const quality = process.env.PHONE_QUALITY
+  if (quality) {
+    for (const [l, net] of Object.entries(peers)) {
+      if (net === 'mobile') await js(run, l, `(localStorage.setItem('recreo:yt:quality', ${JSON.stringify(JSON.stringify(quality))}), true)`)
+    }
+  }
   for (const l of labels) await js(run, l, 'yt-watch')
   return Date.now() - t
 }
@@ -176,7 +187,10 @@ function stutter(list, from, to) {
     if (a.st === PLAYING && b.st === PLAYING && a.id === b.id && Math.abs(((b.p ?? b.t) - (a.p ?? a.t)) - dt / 1000 * (a.rate ?? 1)) > 0.5) jumps++
   }
   const reloads = xs.length ? xs.at(-1).reloads - xs[0].reloads : 0
-  return { stalls, stalledS: r2(stalledMs / 1000), jumps, offSpeedS: r2(offSpeedMs / 1000), speedChanges, reloads }
+  const seen = {}
+  for (const x of xs) if (x.st === PLAYING && x.q) seen[x.q] = (seen[x.q] ?? 0) + 1
+  const quality = Object.entries(seen).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  return { stalls, stalledS: r2(stalledMs / 1000), jumps, offSpeedS: r2(offSpeedMs / 1000), speedChanges, reloads, quality }
 }
 
 /** How long after `w` each peer first matched, and the slowest of them. */

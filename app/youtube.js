@@ -1,5 +1,6 @@
 import { fill, soundButton, volumeSlider } from './controls.js'
 import { store } from './store.js'
+import { select } from './select.js'
 
 /**
  * YouTube: an activity, not a game. One player per room, watched together:
@@ -52,6 +53,19 @@ const AHEAD_WAIT = 3000    // how long it waits for them, at most: a paused play
 const ASK_AGAIN = 1000     // an unanswered ask is sent again this often
 const ASK_GIVE_UP = 20000  // and dropped after this long unanswered
 const ASKS_KEPT = 30       // asks the state remembers as done, so no runner does one twice
+const FRAME_EDGE = 64      // YouTube's own title and logo strips, cut off above and below the picture
+// The qualities to choose from: what YouTube calls each, and how wide a
+// frame (in CSS pixels at one device pixel per CSS pixel) earns it, measured.
+const QUALITIES = [
+  { value: 'auto', label: 'auto' },
+  { value: '1080', label: '1080p', yt: 'hd1080', width: 1800 },
+  { value: '720', label: '720p', yt: 'hd720', width: 1300 },
+  { value: '480', label: '480p', yt: 'large', width: 900 },
+]
+const RANKS = ['tiny', 'small', 'medium', 'large', 'hd720', 'hd1080', 'hd1440', 'hd2160', 'highres']
+const AIM_EVERY = 4000     // how often a chosen quality's frame is resized towards it
+const AIM_STEP = 1.15      // by this much each time
+const AIM_RANGE = 2.5      // and never further than this from its first guess, either way
 
 const PLAY = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg>`
 const PAUSE = `<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/></svg>`
@@ -222,6 +236,7 @@ export class YouTube {
       error: this.#view?.error ?? null,
       modules: player?.getOptions?.() ?? null,
       muted: player?.isMuted?.() ?? null,
+      quality: player?.getPlaybackQuality?.() ?? null,
       rate: this.#view?.rate ?? null,
       recovery: this.#view ? { reloads: this.#view.reloads ?? 0, reloaded: this.#view.reloaded ?? 0, nudged: this.#view.nudged ?? 0, grace: this.#view.grace, movedAt: this.#view.movedAt, now: Date.now() } : null,
       patience: this.#view?.patience ?? null,
@@ -407,6 +422,7 @@ export class YouTube {
     this.#askAgain()
     if (this.#runs) this.#judge()
     this.#sync()
+    if (this.#view) this.#aim(this.#view)
   }
 
   /** Make this window and this player match the state. */
@@ -632,6 +648,7 @@ export class YouTube {
       const vw = Math.min(w, h * 16 / 9)
       const vh = vw * 9 / 16
       Object.assign($('.yt-view').style, { width: `${vw}px`, height: `${vh}px`, left: `${(w - vw) / 2}px`, top: `${(h - vh) / 2}px` })
+      this.#fitFrame(view)
     })
     fit.observe(body.querySelector('.yt-screen'))
 
@@ -643,13 +660,30 @@ export class YouTube {
       showQueue: store.get('yt:queue', false),
       heard: true,
       volume: store.get('yt:volume', 0.8),
+      quality: store.get('yt:quality', 'auto'),
       seeking: false,
       render: () => this.#render(view, $),
     }
     this.#view = view
+    this.#setQuality(view, view.quality)
 
     const sound = soundButton((on) => { view.heard = on; this.#applySound(view) })
     view.sound = sound
+    // The quality is each one's own, like the volume.
+    const quality = () => select({
+      value: view.quality,
+      choices: QUALITIES.map(({ value, label }) => ({ value, label })),
+      label: 'quality',
+      onPick: (q) => {
+        store.set('yt:quality', q)
+        this.#setQuality(view, q)
+        const next = quality()
+        qualityPicker.replaceWith(next)
+        qualityPicker = next
+      },
+    })
+    let qualityPicker = quality()
+    $('.yt-controls').append(qualityPicker)
     $('.yt-controls').append(volumeSlider(view.volume, (v) => { view.volume = v; store.set('yt:volume', v); this.#applySound(view) }))
 
     view.win = this.wm.add({
@@ -777,7 +811,7 @@ export class YouTube {
         height: '100%',
         playerVars: { controls: 0, disablekb: 1, fs: 0, rel: 0, iv_load_policy: 3, playsinline: 1, cc_load_policy: 0, origin: location.origin },
         events: {
-          onReady: () => { view.loaded = undefined; this.#applySound(view); this.#sync() },
+          onReady: () => { view.loaded = undefined; this.#fitFrame(view); this.#applySound(view); this.#sync() },
           onStateChange: (e) => {
             if (e.data === 0 && this.state.now) this.#ask({ type: 'ended', key: this.state.now.key })
             if (e.data === 1) noCaptions(view.player)
@@ -789,6 +823,60 @@ export class YouTube {
         },
       })
     }).catch((err) => this.toast(err.message))
+  }
+
+  /**
+   * YouTube's frame, sized for the quality asked for. The player offers no
+   * way to choose one (setPlaybackQuality does nothing any more): it picks
+   * by the size of its frame, the screen's density, and what the line
+   * carries, by rules of its own. So for a quality the frame is laid out at a
+   * size first guessed, then grown or shrunk a step at a time (#aim) until
+   * YouTube plays that quality, and scaled to fit the picture's box; auto
+   * lays it out at the box's own size. On a line too slow for it, YouTube
+   * plays less whatever the size.
+   */
+  #fitFrame(view) {
+    const iframe = view?.win?.el.querySelector('.yt-view iframe')
+    if (!iframe) return
+    const box = iframe.parentElement.clientWidth
+    if (!box) return
+    const width = view.quality === 'auto' ? box : view.frameWidth
+    const scale = box / width
+    // Taller than the picture by YouTube's own edges (see .yt-view in style.css),
+    // which keep their size in the frame's own pixels however it is scaled.
+    Object.assign(iframe.style, {
+      width: `${width}px`,
+      height: `${width * 9 / 16 + 2 * FRAME_EDGE}px`,
+      top: `${-FRAME_EDGE * scale}px`,
+      transform: scale === 1 ? '' : `scale(${scale})`,
+      transformOrigin: '0 0',
+    })
+  }
+
+  /** A quality chosen: its first guess at the frame's size. */
+  #setQuality(view, value) {
+    const q = QUALITIES.find((x) => x.value === value)
+    view.quality = q ? value : 'auto'
+    view.frameGuess = q?.width ? q.width / (devicePixelRatio || 1) : null
+    view.frameWidth = view.frameGuess
+    view.aimedAt = Date.now()
+    this.#fitFrame(view)
+  }
+
+  /** Playing, but not at the quality chosen: a step nearer to it. */
+  #aim(view) {
+    const target = QUALITIES.find((x) => x.value === view.quality)?.yt
+    const player = view.player
+    if (!target || !view.frameGuess || player?.getPlayerState?.() !== 1) return
+    const now = Date.now()
+    if (now - view.aimedAt < AIM_EVERY) return
+    const off = RANKS.indexOf(player.getPlaybackQuality?.()) - RANKS.indexOf(target)
+    if (off === 0 || RANKS.indexOf(player.getPlaybackQuality?.()) < 0) return
+    const width = off > 0 ? view.frameWidth / AIM_STEP : view.frameWidth * AIM_STEP
+    if (width > view.frameGuess * AIM_RANGE || width < view.frameGuess / AIM_RANGE) return
+    view.frameWidth = width
+    view.aimedAt = now
+    this.#fitFrame(view)
   }
 
   #join(view) {
@@ -888,7 +976,7 @@ export class YouTube {
           <span class="about"><span class="state">${s.playing ? 'playing' : 'paused'}</span>
           <span class="title" data-cursor-anchor="now:title">${escapeHtml(s.now.title ?? s.now.id)}</span></span>
         </li>` : ''
-      const empty = s.queue.length ? '' : `<li class="hint">${s.now ? 'nothing after this' : 'nothing queued'} — add a link below</li>`
+      const empty = s.queue.length ? '' : `<li class="hint">${s.now ? 'nothing after this' : 'nothing queued'}</li>`
       list.innerHTML = now + empty + s.queue.map((q, i) => `<li data-key="${q.key}">
         <span class="pic">${thumb(q.id, `q:${q.key}:thumb`)}<span class="n">${i + 1}</span></span>
         <span class="about">

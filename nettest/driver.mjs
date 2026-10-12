@@ -88,7 +88,7 @@ async function hook(page, label) {
               if (!s) return
               window.ntYt.push({
                 w: Date.now(), t: s.time, p: s.position, st: s.player, rate: s.rate, held: !!s.state.held, playing: !!s.state.playing,
-                id: s.state.now?.id ?? null, exp: s.expected, reloads: s.recovery?.reloaded ?? 0, runner: s.runner,
+                id: s.state.now?.id ?? null, exp: s.expected, reloads: s.recovery?.reloaded ?? 0, runner: s.runner, q: s.quality,
               })
             }, 250)
           }
