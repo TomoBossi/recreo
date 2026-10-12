@@ -78,7 +78,8 @@ let uid = 0
 
 function view(el, ctx) {
   const id = uid++
-  const { svg, space } = board(el, { width: 380, height: 360, className: 'c4' })
+  const b = board(el, { width: 380, height: 360, className: 'c4' })
+  const { svg, space } = b
   space.innerHTML = `
     <defs><mask id="c4-holes-${id}"><rect x="0" y="40" width="380" height="320" fill="#fff"/></mask></defs>
     <g class="ghost"><circle r="18" stroke="${INK}" stroke-width="2.5"/></g>
@@ -116,20 +117,47 @@ function view(el, ctx) {
     ghost.firstElementChild.setAttribute('fill', ctx.colours[info.mySeat])
   }
 
-  // A mouse previews by hovering and drops on click. A finger has no hover,
-  // so its first tap on a column previews and a second tap drops.
+  // A mouse previews by hovering and drops on click. A finger has no hover:
+  // its first tap on a column previews and a second tap drops; or, pressed
+  // and slid, the disc follows it from column to column and drops where the
+  // finger lifts.
   let pointerType = 'mouse'
-  hits.addEventListener('pointerdown', (e) => { pointerType = e.pointerType })
+  let slide = null // { id, at, moved }: a finger pressed on the board
+  let slidAt = 0
+  const colAt = (e) => Math.max(0, Math.min(COLS - 1, Math.round((b.point(e).x - cx(0)) / (cx(1) - cx(0)))))
+  hits.addEventListener('pointerdown', (e) => {
+    pointerType = e.pointerType
+    if (e.pointerType !== 'mouse' && myTurn() && !slide) slide = { id: e.pointerId, at: [e.clientX, e.clientY], moved: false }
+  })
   hits.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse') return
+    if (e.pointerType !== 'mouse') {
+      if (!slide || e.pointerId !== slide.id) return
+      // A tap's wobble is not a slide.
+      if (!slide.moved && Math.hypot(e.clientX - slide.at[0], e.clientY - slide.at[1]) < 12) return
+      slide.moved = true
+      hover = colAt(e)
+      drawGhost()
+      return
+    }
     const col = e.target.dataset?.col
     hover = col == null ? null : Number(col)
     drawGhost()
   })
+  const lift = (e, cancelled) => {
+    if (!slide || e.pointerId !== slide.id) return
+    const { moved } = slide
+    slide = null
+    if (!moved) return // a tap: its click answers it
+    // The click a slide may still end in is not a tap.
+    slidAt = Date.now()
+    if (!cancelled && hover != null) ctx.play({ col: hover })
+  }
+  hits.addEventListener('pointerup', (e) => lift(e, false))
+  hits.addEventListener('pointercancel', (e) => lift(e, true))
   hits.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { hover = null; drawGhost() } })
   hits.addEventListener('click', (e) => {
     const col = e.target.dataset?.col
-    if (col == null) return
+    if (col == null || Date.now() - slidAt < 400) return
     if (pointerType !== 'mouse' && hover !== Number(col)) { hover = Number(col); drawGhost(); return }
     ctx.play({ col: Number(col) })
   })

@@ -340,7 +340,9 @@ function view(el, ctx) {
     }
     const sq = Number(e.target.dataset?.sq)
     if (!Number.isInteger(sq)) return
-    pressSquare(sq)
+    const echo = tapped?.sq === sq && Date.now() - tapped.at < 600
+    tapped = null
+    if (!echo) pressSquare(sq)
   })
 
   /**
@@ -377,14 +379,15 @@ function view(el, ctx) {
    * following the pointer; let go over a square to move there. A press that
    * does not move far is a click, and picks the piece as clicking does.
    */
-  let drag = null // { id, from, x, y, lifted }
+  let drag = null // { id, from, x, y, at, lifted }
+  let tapped = null // { sq, at }: the square a press just answered
   const squareAtPoint = ({ x, y }) => (x < 0 || y < 0 || x >= 800 || y >= 800 ? null : (7 - Math.floor(y / 100)) * 8 + Math.floor(x / 100))
   svg.addEventListener('pointerdown', (e) => {
     if (e.button > 0 || drag || promoting || !state || !playing()) return
     const sq = Number(e.target.dataset?.sq)
     if (!Number.isInteger(sq) || state.board[sq]?.[0] !== myColour()) return
     const p = b.point(e)
-    drag = { id: e.pointerId, from: sq, x: p.x, y: p.y, start: p, lifted: false }
+    drag = { id: e.pointerId, from: sq, x: p.x, y: p.y, at: [e.clientX, e.clientY], lifted: false }
     svg.setPointerCapture(e.pointerId)
   })
   svg.addEventListener('pointermove', (e) => {
@@ -393,7 +396,8 @@ function view(el, ctx) {
     drag.x = p.x
     drag.y = p.y
     if (!drag.lifted) {
-      if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 12) return
+      // A finger wobbles further than a mouse does in a tap.
+      if (Math.hypot(e.clientX - drag.at[0], e.clientY - drag.at[1]) < (e.pointerType === 'mouse' ? 6 : 12)) return
       drag.lifted = true
       if (picked !== drag.from) sound.play('pick', { from: el })
       picked = drag.from
@@ -407,10 +411,10 @@ function view(el, ctx) {
     if (!drag || e.pointerId !== drag.id) return
     const d = drag
     drag = null
-    // Pressed and let go without moving: a click on that square. (The
-    // pointer was captured, so the browser's own click lands on the board,
-    // not the square — it is answered here instead.)
-    if (!d.lifted) { if (!cancelled) pressSquare(d.from); return }
+    // Pressed and let go without moving: a click on that square. (A mouse's
+    // own click then lands on the board, the pointer being captured, but a
+    // finger's lands on the square: that one is not a second press.)
+    if (!d.lifted) { if (!cancelled) { pressSquare(d.from); tapped = { sq: d.from, at: Date.now() } } return }
     // The click that follows this release is not a click on a square — it
     // would otherwise call off a promotion the drop has just asked about.
     const eat = (ev) => { ev.stopPropagation(); ev.preventDefault() }
@@ -420,7 +424,8 @@ function view(el, ctx) {
     picked = d.from
     if (to != null && to !== d.from) pressSquare(to)
     // Moved, queued, or dropped where it cannot go: either way, put down.
-    if (!promoting) picked = null
+    // Dropped back where it stood, it stays picked, as a press would leave it.
+    if (!promoting && to !== d.from) picked = null
     draw()
   }
   svg.addEventListener('pointerup', (e) => drop(e, false))
