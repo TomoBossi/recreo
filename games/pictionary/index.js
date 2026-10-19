@@ -25,6 +25,7 @@ const DRAW_TIMES = ['45', '60', '80', '120', '180'] // seconds a drawer has; the
 /** How long a drawer has, in ms: a choice from DRAW_TIMES, else the usual. */
 const drawMsOf = (value) => (DRAW_TIMES.includes(String(value)) ? Number(value) * 1000 : DRAW_MS)
 const REVEAL_MS = 5000
+const AWAY_MS = 20000 // how long a drawer who drops out (a reload, a blip) has to come back
 const ROUNDS = ['1', '2', '3', '5'] // each player draws once a round
 const GUESS_POINTS = [10, 8, 6, 4]
 const DRAWER_POINTS = 3
@@ -99,6 +100,7 @@ function startTurn(s, at) {
   return {
     ...s,
     phase: 'choosing',
+    awayAt: null,
     drawer,
     word: null,
     choices: picked.words,
@@ -152,6 +154,11 @@ const rules = {
         return []
       case 'clear':
         return s.phase === 'drawing' && seat === s.drawer ? [{ type: 'clear' }] : []
+      case 'picture':
+        // The drawer's undo and redo: the whole picture as it should now be.
+        if (s.phase !== 'drawing' || seat !== s.drawer || !Array.isArray(intent.strokes)) return []
+        return [{ type: 'picture', strokes: intent.strokes.slice(0, 2000).filter((st) => st && Array.isArray(st.pts) && HEX.test(st.c) && strokeId(st.id))
+          .map((st) => ({ id: strokeId(st.id), c: st.c, w: strokeWidth(st.w), pts: st.pts.slice(0, 20000).map((n) => Math.round(Number(n) || 0)) })) }]
       case 'guess': {
         const text = String(intent.text ?? '').slice(0, 60)
         if (!text.trim() || seat === s.drawer || s.guessed[seat] != null || s.out.includes(seat)) return []
@@ -164,13 +171,16 @@ const rules = {
 
   /** As the authority: what the clock says should happen now. */
   tick(s, { now, here }) {
-    if (s.phase === 'choosing' && (!here.includes(s.drawer) || now - s.phaseAt > CHOOSE_MS)) {
-      if (!here.includes(s.drawer)) return [{ type: 'end', why: 'the drawer left', at: now }]
-      return [{ type: 'choose', word: s.choices[0], at: now }]
+    // A drawer who drops out gets a little while to come back — a reload is a
+    // blink — and finds the round as they left it; after that the round ends.
+    if (s.phase === 'choosing' || s.phase === 'drawing') {
+      if (!here.includes(s.drawer)) {
+        if (s.awayAt == null) return [{ type: 'away', at: now }]
+        if (now - s.awayAt > AWAY_MS) return [{ type: 'end', why: 'the drawer left', at: now }]
+      } else if (s.awayAt != null) return [{ type: 'back' }]
     }
-    if (s.phase === 'drawing' && (!here.includes(s.drawer) || now - s.phaseAt > (s.drawMs ?? DRAW_MS))) {
-      return [{ type: 'end', why: here.includes(s.drawer) ? 'time is up' : 'the drawer left', at: now }]
-    }
+    if (s.phase === 'choosing' && now - s.phaseAt > CHOOSE_MS) return [{ type: 'choose', word: s.choices[0], at: now }]
+    if (s.phase === 'drawing' && now - s.phaseAt > (s.drawMs ?? DRAW_MS)) return [{ type: 'end', why: 'time is up', at: now }]
     if (s.phase === 'drawing' && s.hints.length < hintsDue(s.word, now - s.phaseAt, s.drawMs ?? DRAW_MS)) return [{ type: 'hint' }]
     if (s.phase === 'reveal' && now - s.phaseAt > REVEAL_MS) return [{ type: 'next', at: now }]
     return []
@@ -193,6 +203,12 @@ const rules = {
       }
       case 'clear':
         return { ...s, strokes: [] }
+      case 'picture':
+        return { ...s, strokes: move.strokes }
+      case 'away':
+        return { ...s, awayAt: move.at }
+      case 'back':
+        return { ...s, awayAt: null }
       case 'hint': {
         // A letter not yet shown, drawn from the game's own generator.
         const hidden = letterAt(s.word ?? '').filter((i) => !s.hints.includes(i))
@@ -218,7 +234,7 @@ const rules = {
         return next
       }
       case 'end':
-        return { ...s, phase: 'reveal', phaseAt: move.at, log: [...s.log, { kind: 'system', text: `${move.why} — the word was "${s.word ?? '…'}"` }] }
+        return { ...s, phase: 'reveal', awayAt: null, phaseAt: move.at, log: [...s.log, { kind: 'system', text: `${move.why} — the word was "${s.word ?? '…'}"` }] }
       case 'next': {
         // The pencil skips whoever has forfeited.
         const turns = s.order.length * (s.rounds ?? 1)
@@ -347,6 +363,7 @@ function view(el, ctx) {
     + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button></span>'
     // The sizes and clear keep together: if the bar wraps, they wrap as one.
     + '<span class="tool-group sizes"><span class="segmented widths">' + WIDTHS.map((w, i) => `<button class="btn small" data-width="${w}">${SIZES[i]}</button>`).join('') + '</span>'
+    + '<button class="btn small" data-undo disabled>undo</button><button class="btn small" data-redo disabled>redo</button>'
     + '<button class="btn small berry" data-clear>clear</button></span>'
   // Any colour at all: a swatch that opens the picker, from near black to near white.
   let custom = null
@@ -360,7 +377,8 @@ function view(el, ctx) {
       picker.replaceChildren(colourPicker({
         value: custom ?? '#2fa4e6',
         presets: [],
-        range: [0.16, 0.97],
+        range: [0, 1],
+        saturation: true,
         onPick: (c) => { custom = c; colour = c; markTools() },
       }))
     }
@@ -385,10 +403,26 @@ function view(el, ctx) {
       openPicker(picker.hidden)
     } else if (b.dataset.colour) colour = b.dataset.colour === 'eraser' ? PAPER : b.dataset.colour
     if (b.dataset.width) width = Number(b.dataset.width)
-    if ('clear' in b.dataset) ctx.intend({ type: 'clear' })
+    if ('clear' in b.dataset && state?.strokes.length) { remember(); ctx.intend({ type: 'clear' }) }
+    if ('undo' in b.dataset && past.length) { future.push(state.strokes); ctx.intend({ type: 'picture', strokes: past.pop() }) }
+    if ('redo' in b.dataset && future.length) { past.push(state.strokes); ctx.intend({ type: 'picture', strokes: future.pop() }) }
     markTools()
   })
   markTools()
+
+  // Undo and redo, for the drawer only and only this turn: each stroke and
+  // each clear is one step. The picture before every step is kept here, on
+  // the drawer's side; everyone else just gets the picture it leads to.
+  let past = []
+  let future = []
+  let historyOf = null // the turn the history belongs to
+  const remember = () => { past.push(state.strokes); future = [] }
+  const markHistory = () => {
+    const turn = state && state.phase === 'drawing' ? `${state.turn}:${state.drawer}` : null
+    if (turn !== historyOf) { past = []; future = []; historyOf = turn }
+    tools.querySelector('[data-undo]').disabled = !iDraw() || !past.length
+    tools.querySelector('[data-redo]').disabled = !iDraw() || !future.length
+  }
 
   // With a mouse, the brush's size follows the pointer over the paper.
   const brush = svg.querySelector('.brush')
@@ -421,6 +455,7 @@ function view(el, ctx) {
     if (!iDraw()) return
     e.preventDefault()
     svg.setPointerCapture(e.pointerId)
+    remember()
     current = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, c: colour, w: width, pts: point(e) }
     el.classList.add('stroking')
     openPicker(false)
@@ -513,8 +548,10 @@ function view(el, ctx) {
 
     // Strokes are added as they come, and only the one being drawn is
     // redrawn — not the whole picture on every point.
+    // An undo or redo can change the picture anywhere, so it is redrawn
+    // whenever what is shown is no longer the start of what should be.
     const nodes = strokesG.children
-    if (s.strokes.length < nodes.length || (s.strokes.length && nodes.length && nodes[0].dataset.id !== s.strokes[0].id)) strokesG.textContent = ''
+    if (s.strokes.length < nodes.length || [...nodes].some((node, i) => node.dataset.id !== s.strokes[i].id)) strokesG.textContent = ''
     s.strokes.forEach((st, i) => {
       const node = nodes[i]
       const d = pathOf(st.pts)
@@ -523,6 +560,7 @@ function view(el, ctx) {
         strokesG.lastElementChild.dataset.id = st.id
       } else if (node.getAttribute('d') !== d) node.setAttribute('d', d)
     })
+    markHistory()
 
     // Starting and playing again are the kit's lobby; choosing a word is ours.
     lobby.update({

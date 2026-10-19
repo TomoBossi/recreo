@@ -139,14 +139,43 @@ test('pictionary gives the drawer the time chosen, and the clock ends the turn t
   assert.equal(pictionary.init({ seed: 1 }).drawMs, 80000, 'eighty seconds unless chosen otherwise')
 })
 
-test('when the drawer leaves, the next player takes over and ends the round', () => {
+test('when the drawer leaves, the next player takes over and ends the round once they stay gone', () => {
   const ctx = { now: 0, seated: [0, 1, 2], here: [0, 1, 2] }
   let s = act(pictionary.init({ seed: 7 }), { type: 'start' }, 0, ctx)
   s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
   assert.equal(pictionary.authority(s, [1, 2]), 1)
-  const moves = pictionary.tick(s, { now: 10, here: [1, 2] })
+  let moves = pictionary.tick(s, { now: 10, here: [1, 2] })
+  assert.equal(moves[0].type, 'away')
+  s = pictionary.apply(s, moves[0])
+  assert.deepEqual(pictionary.tick(s, { now: 5000, here: [1, 2] }), [])
+  moves = pictionary.tick(s, { now: 25000, here: [1, 2] })
   assert.equal(moves[0].type, 'end')
   assert.equal(pictionary.apply(s, moves[0]).phase, 'reveal')
+})
+
+test('a drawer who drops out and comes back keeps drawing, picture and all', () => {
+  const ctx = { now: 0, seated: [0, 1], here: [0, 1] }
+  let s = act(pictionary.init({ seed: 7 }), { type: 'start' }, 0, ctx)
+  s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
+  s = act(s, { type: 'stroke', id: 'a1', c: '#123456', w: 10, pts: [1, 2, 3, 4] }, s.drawer, ctx)
+  s = pictionary.apply(s, pictionary.tick(s, { now: 10, here: [1 - s.drawer] })[0])
+  const moves = pictionary.tick(s, { now: 3000, here: [0, 1] })
+  assert.equal(moves[0].type, 'back')
+  s = pictionary.apply(s, moves[0])
+  assert.equal(s.phase, 'drawing')
+  assert.equal(s.strokes.length, 1)
+})
+
+test('undo and redo send the whole picture, from the drawer only', () => {
+  const ctx = { now: 0, seated: [0, 1], here: [0, 1] }
+  let s = act(pictionary.init({ seed: 7 }), { type: 'start' }, 0, ctx)
+  s = act(s, { type: 'choose', word: s.choices[0] }, 0, ctx)
+  const one = { id: 'a1', c: '#123456', w: 10, pts: [1, 2, 3, 4] }
+  s = act(s, { type: 'stroke', ...one }, s.drawer, ctx)
+  s = act(s, { type: 'stroke', id: 'b2', c: '#654321', w: 10, pts: [5, 6] }, s.drawer, ctx)
+  assert.deepEqual(pictionary.decide(s, { type: 'picture', strokes: [one] }, 1 - s.drawer, ctx), [])
+  s = act(s, { type: 'picture', strokes: [one] }, s.drawer, ctx)
+  assert.deepEqual(s.strokes, [one])
 })
 
 test('pictionary picks the same words everywhere from the same seed', () => {

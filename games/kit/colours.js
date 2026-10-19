@@ -54,8 +54,8 @@ export function bandColour(hue, L) {
   return vivid(hue, Math.min(L_MAX, Math.max(L_MIN, L)))
 }
 
-/** A colour from a hue (degrees) and any lightness, as vivid as sRGB allows there. */
-function vivid(hue, lightness) {
+/** How much chroma sRGB allows at a hue (degrees) and lightness, up to the pad's. */
+function maxChroma(hue, lightness) {
   const h = (hue * Math.PI) / 180
   let lo = 0
   let hi = C_PAD
@@ -64,7 +64,15 @@ function vivid(hue, lightness) {
     if (fromOklch([lightness, mid, h]).every((v) => v >= -0.0005 && v <= 1.0005)) lo = mid
     else hi = mid
   }
-  return hexOf(fromOklch([lightness, lo, h]))
+  return lo
+}
+
+/**
+ * A colour from a hue (degrees) and any lightness, as vivid as sRGB allows
+ * there — or, with `saturation` below 1, that much of the way from grey.
+ */
+function vivid(hue, lightness, saturation = 1) {
+  return hexOf(fromOklch([lightness, maxChroma(hue, lightness) * saturation, (hue * Math.PI) / 180]))
 }
 
 /** A colour's OKLCH lightness and chroma. */
@@ -139,12 +147,13 @@ function hexOf(rgb) {
  * By default both strips are drawn from the readable band, so a player's
  * colour reads on both themes. `range` widens the shades — a drawing can
  * use any colour, from near black to near white — and `presets` can be
- * other colours, or none.
+ * other colours, or none. `saturation` adds a third strip, from grey to the
+ * most vivid the colour can be, so greys can be picked too.
  */
-export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN, L_MAX] }) {
+export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN, L_MAX], saturation = false }) {
   const [lo, hi] = range
   const band = range[0] === L_MIN && range[1] === L_MAX
-  const shadeOf = band ? bandColour : vivid
+  const shadeOf = band ? bandColour : (h, L) => vivid(h, L, sat)
   // The shades strip overstates itself: drawn true to the band, its two ends
   // can look nearly alike for some hues, though the colour they make differs
   // plainly on a disc or a card. So the strip and its thumb are painted
@@ -158,9 +167,11 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
       ${presets.map((c) => `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
     </div>` : ''}
     <div class="strip hue" role="slider" aria-label="hue" tabindex="0"><canvas></canvas><span class="thumb"></span></div>
-    <div class="strip shade" role="slider" aria-label="lightness" tabindex="0"><canvas></canvas><span class="thumb"></span></div>`
+    <div class="strip shade" role="slider" aria-label="lightness" tabindex="0"><canvas></canvas><span class="thumb"></span></div>
+    ${saturation ? '<div class="strip saturation" role="slider" aria-label="saturation" tabindex="0"><canvas></canvas><span class="thumb"></span></div>' : ''}`
   const hueStrip = el.querySelector('.hue')
   const shadeStrip = el.querySelector('.shade')
+  const satStrip = el.querySelector('.saturation')
   const MID = (L_MIN + L_MAX) / 2
   let current = value
   // The thumbs keep their own positions: hue wraps round (both ends are
@@ -168,6 +179,9 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
   const start = padPlace(value, range)
   let hue = start.hue
   let light = presets.includes(value) ? MID : start.L
+  // How far from grey: worked out from the colour, where a strip offers it.
+  const most = maxChroma(hue, light)
+  let sat = saturation && most > 0.001 ? Math.min(1, oklch(value).C / most) : 1
 
   /** Paint a strip from a function of 0..1 along it to a colour. */
   const paint = (strip, colourAt) => {
@@ -195,6 +209,12 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
     const st = shadeStrip.querySelector('.thumb')
     st.style.left = `${((hi - light) / (hi - lo)) * 100}%`
     st.style.background = shown(light)
+    if (satStrip) {
+      paint(satStrip, (f) => vivid(hue, light, f))
+      const tt = satStrip.querySelector('.thumb')
+      tt.style.left = `${sat * 100}%`
+      tt.style.background = vivid(hue, light, sat)
+    }
   }
   const choose = () => { current = shadeOf(hue, light); show(); onPick(current) }
 
@@ -205,6 +225,7 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
     const at = padPlace(current, range)
     hue = at.hue
     light = at.L
+    sat = 1
     show()
     onPick(current)
   })
@@ -228,6 +249,7 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
   }
   drag(hueStrip, (f) => { hue = f * 360 })
   drag(shadeStrip, (f) => { light = lightAt(f) })
+  if (satStrip) drag(satStrip, (f) => { sat = f })
 
   // Arrow keys step either strip.
   hueStrip.addEventListener('keydown', (e) => {
@@ -242,6 +264,13 @@ export function colourPicker({ value, onPick, presets = PRESETS, range = [L_MIN,
     if (!step) return
     e.preventDefault()
     light = Math.min(hi, Math.max(lo, light + step))
+    choose()
+  })
+  satStrip?.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -0.04, ArrowRight: 0.04 }[e.key]
+    if (!step) return
+    e.preventDefault()
+    sat = Math.min(1, Math.max(0, sat + step))
     choose()
   })
   show()
