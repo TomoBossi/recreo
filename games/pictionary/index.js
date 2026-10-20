@@ -346,9 +346,10 @@ function view(el, ctx) {
   const overlay = $('.draw-overlay')
   const lobby = startPanel($('.draw-paper'), { onStart: () => ctx.intend({ type: 'start' }) })
 
-  // Stacked or side by side, whichever gives the bigger paper: side by side
-  // the paper shares the width with the side column; stacked, it shares the
-  // height with the scores, guesses and guess box.
+  // Side by side unless stacking gives a clearly bigger paper — a phone, a
+  // window about as tall as it is wide or taller: side by side the paper
+  // shares the width with the side column; stacked, it shares the height with
+  // the scores, guesses and guess box, which read worse as a strip.
   const SIDE_W = 220 + 10
   const SIDE_H = 130 + 6
   const layout = new ResizeObserver(() => {
@@ -357,7 +358,7 @@ function view(el, ctx) {
     const h = box.clientHeight - 20
     const beside = Math.min(w - SIDE_W, (h * 10) / 7)
     const stacked = Math.min(w, ((h - SIDE_H) * 10) / 7)
-    box.classList.toggle('stacked', stacked > beside)
+    box.classList.toggle('stacked', stacked > beside * 1.3)
   })
   layout.observe(el)
   const tools = $('.draw-tools')
