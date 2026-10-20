@@ -319,6 +319,7 @@ function view(el, ctx) {
   el.innerHTML = `
     <div class="draw">
       <div class="draw-main">
+        <div class="draw-slot">
         <div class="draw-paper" data-cursor-anchor="paper">
           <span class="draw-word" data-cursor-anchor="word"></span>
           <span class="draw-clock" data-cursor-anchor="clock"></span>
@@ -329,6 +330,7 @@ function view(el, ctx) {
           </svg>
           <div class="draw-tools"></div>
           <div class="draw-overlay game-panel" data-cursor-anchor="overlay"></div>
+        </div>
         </div>
         <div class="draw-side">
           <div class="draw-scores scrolls" data-cursor-anchor="scores" data-cursor-clip></div>
@@ -461,7 +463,9 @@ function view(el, ctx) {
     const scale = Math.max(1000 / box.width, 700 / box.height)
     const ox = (box.width * scale - 1000) / 2
     const oy = (box.height * scale - 700) / 2
-    return [Math.round((e.clientX - box.left) * scale - ox), Math.round((e.clientY - box.top) * scale - oy)]
+    // Kept on the paper: what one player draws, everyone sees.
+    const clamp = (v, hi) => Math.min(hi, Math.max(0, Math.round(v)))
+    return [clamp((e.clientX - box.left) * scale - ox, 1000), clamp((e.clientY - box.top) * scale - oy, 700)]
   }
   const flush = () => {
     flushTimer = null
