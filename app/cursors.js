@@ -231,14 +231,14 @@ export class Cursors {
     // that one gone already is not brought back to leave again.
     if (msg.r && msg.out && !entry.shown) return
     if (msg.r && entry.shown && entry.table === String(msg.t) && (entry.a ?? null) === (msg.a ?? null)
-      && entry.x === Number(msg.x) && entry.y === Number(msg.y) && entry.fx === Number(msg.fx) && entry.fy === Number(msg.fy)
+      && entry.x === num(msg.x) && entry.y === num(msg.y) && entry.fx === num(msg.fx) && entry.fy === num(msg.fy)
       && !!msg.out === entry.el.classList.contains('parked')) return
     const before = entry.shown ? entry.screen : null
     const moved = entry.table !== String(msg.t) || (entry.a ?? null) !== (msg.a ?? null)
     Object.assign(entry, {
       table: String(msg.t),
       a: msg.a ?? null,
-      x: Number(msg.x), y: Number(msg.y), fx: Number(msg.fx), fy: Number(msg.fy),
+      x: num(msg.x), y: num(msg.y), fx: num(msg.fx), fy: num(msg.fy),
       at: Date.now(),
       touch: !!msg.touch,
       outer: Array.isArray(msg.outer) ? msg.outer : null,
@@ -419,6 +419,8 @@ function toSpace(space, e) {
 }
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v))
+/** A coordinate from a message, or null where it has none — so two can be compared. */
+const num = (v) => (v == null ? null : Number(v))
 
 /**
  * How cursors are shown: 'show', 'characters' or 'hide' (once stored as true

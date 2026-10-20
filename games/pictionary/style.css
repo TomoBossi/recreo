@@ -67,13 +67,15 @@
 /* The chosen colour stands up off the bar, a ring of paper inside its outline. */
 .swatch.on { transform: translate(-1px, -2px); box-shadow: inset 0 0 0 2.5px var(--chrome), 2px 3px 0 var(--ink); }
 .draw-tools .tool-group { display: inline-flex; align-items: center; gap: 6px; }
+.draw-tools .widths { margin-left: 6px; }
 /* Where the colours and the rest do not fit on one line, they take a line
-   each, and the bar is as wide as the wider of them, no wider. */
+   each: the bar is as wide as the wider of them, no wider, and the other is
+   spread out to the same width. */
 @container paper (max-width: 780px) {
-  .draw-tools { flex-direction: column; align-items: flex-start; }
+  .draw-tools { flex-direction: column; align-items: stretch; }
+  .draw-tools .tool-group { justify-content: space-between; }
   .draw-tools .widths { margin-left: 0; }
 }
-.draw-tools .widths { margin-left: 6px; }
 /* The reveal: the word, big, over the drawing, and the round's points. */
 .draw-overlay .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; animation: outcome-pop 300ms cubic-bezier(.3, 1.4, .6, 1) both; }
 .draw-overlay .reveal p { font-size: 15px; font-weight: 800; color: var(--text-soft); }
@@ -88,21 +90,19 @@
 .score.out { opacity: 0.55; }
 .score i { font-size: 11px; font-weight: 800; color: var(--text-soft); }
 
-/* In a narrow window — a phone's column — the paper goes full width at its
-   own shape, then the scores in one row, a few lines of guesses and the
-   guess box. */
-@container stage (max-width: 560px) {
-  .draw { gap: 6px; padding: 8px; }
-  .draw-main { flex-direction: column; gap: 6px; }
-  .draw-slot { flex: none; container-type: normal; }
-  .draw-paper { width: 100%; }
-  .draw-side { width: auto; flex: 1; min-height: 0; gap: 6px; }
-  .draw-scores { flex-direction: row; flex-wrap: wrap; gap: 4px; }
-  .draw-scores .score { flex: 1 1 30%; min-width: 0; }
-  .draw-log { min-height: 0; flex: 1; }
-  .draw-word { font-size: 16px; padding: 2px 9px; }
-  .draw-clock { font-size: 15px; padding: 1px 9px; }
-}
+/* Stacked — the paper above, the scores, guesses and guess box below —
+   whenever that makes the paper bigger than having them beside it: a phone's
+   column, or a tall window on a desktop. The view decides (class stacked). */
+.draw.stacked { gap: 6px; padding: 8px; }
+.draw.stacked .draw-main { flex-direction: column; gap: 6px; }
+.draw.stacked .draw-slot { flex: 0 1 auto; width: 100%; aspect-ratio: 10 / 7; }
+.draw.stacked .draw-side { width: auto; flex: 1 0 130px; min-height: 130px; gap: 6px; }
+.draw.stacked .draw-scores { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+.draw.stacked .draw-scores .score { flex: 1 1 30%; min-width: 0; }
+.draw.stacked .draw-log { min-height: 0; flex: 1; }
+.draw.stacked .draw-word { font-size: 16px; padding: 2px 9px; }
+.draw.stacked .draw-clock { font-size: 15px; padding: 1px 9px; }
+
 /* Undo and redo: an arrow each. */
 .draw-tools .arrow { display: inline-flex; align-items: center; justify-content: center; padding-left: 7px; padding-right: 7px; }
 /* One line of text tall, so the buttons match their neighbours' height. */

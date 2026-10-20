@@ -345,6 +345,21 @@ function view(el, ctx) {
   const liveG = $('.live')
   const overlay = $('.draw-overlay')
   const lobby = startPanel($('.draw-paper'), { onStart: () => ctx.intend({ type: 'start' }) })
+
+  // Stacked or side by side, whichever gives the bigger paper: side by side
+  // the paper shares the width with the side column; stacked, it shares the
+  // height with the scores, guesses and guess box.
+  const SIDE_W = 220 + 10
+  const SIDE_H = 130 + 6
+  const layout = new ResizeObserver(() => {
+    const box = $('.draw')
+    const w = box.clientWidth - 20 // the same either way, so it settles
+    const h = box.clientHeight - 20
+    const beside = Math.min(w - SIDE_W, (h * 10) / 7)
+    const stacked = Math.min(w, ((h - SIDE_H) * 10) / 7)
+    box.classList.toggle('stacked', stacked > beside)
+  })
+  layout.observe(el)
   const tools = $('.draw-tools')
   const guessForm = $('.draw-guess')
   const guessInput = guessForm.querySelector('input')
@@ -642,7 +657,7 @@ function view(el, ctx) {
 
   return {
     update(next, nextInfo) { state = next; info = nextInfo; render() },
-    destroy() { clearInterval(clockTimer); clockTimer = null; document.removeEventListener('pointerdown', onPress, true); document.removeEventListener('keydown', onKey); el.textContent = '' },
+    destroy() { clearInterval(clockTimer); clockTimer = null; layout.disconnect(); document.removeEventListener('pointerdown', onPress, true); document.removeEventListener('keydown', onKey); el.textContent = '' },
   }
 }
 
