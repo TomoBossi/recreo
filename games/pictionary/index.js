@@ -25,6 +25,8 @@ const DRAW_TIMES = ['45', '60', '80', '120', '180'] // seconds a drawer has; the
 /** How long a drawer has, in ms: a choice from DRAW_TIMES, else the usual. */
 const drawMsOf = (value) => (DRAW_TIMES.includes(String(value)) ? Number(value) * 1000 : DRAW_MS)
 const REVEAL_MS = 5000
+/** A curved arrow back, for undo; mirrored, it is redo. */
+const ARROW = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14.5 A5.5 5.5 0 0 1 14.5 20 H11"/></g></svg>`
 const AWAY_MS = 20000 // how long a drawer who drops out (a reload, a blip) has to come back
 const ROUNDS = ['1', '2', '3', '5'] // each player draws once a round
 const GUESS_POINTS = [10, 8, 6, 4]
@@ -363,7 +365,8 @@ function view(el, ctx) {
     + '<button class="swatch eraser" data-colour="eraser" aria-label="eraser"></button></span>'
     // The sizes and clear keep together: if the bar wraps, they wrap as one.
     + '<span class="tool-group sizes"><span class="segmented widths">' + WIDTHS.map((w, i) => `<button class="btn small" data-width="${w}">${SIZES[i]}</button>`).join('') + '</span>'
-    + '<button class="btn small" data-undo disabled>undo</button><button class="btn small" data-redo disabled>redo</button>'
+    + `<button class="btn small arrow" data-undo disabled title="undo" aria-label="undo">${ARROW}</button>`
+    + `<button class="btn small arrow" data-redo disabled title="redo" aria-label="redo"><span class="flip">${ARROW}</span></button>`
     + '<button class="btn small berry" data-clear>clear</button></span>'
   // Any colour at all: a swatch that opens the picker, from near black to near white.
   let custom = null
@@ -404,8 +407,8 @@ function view(el, ctx) {
     } else if (b.dataset.colour) colour = b.dataset.colour === 'eraser' ? PAPER : b.dataset.colour
     if (b.dataset.width) width = Number(b.dataset.width)
     if ('clear' in b.dataset && state?.strokes.length) { remember(); ctx.intend({ type: 'clear' }) }
-    if ('undo' in b.dataset && past.length) { future.push(state.strokes); ctx.intend({ type: 'picture', strokes: past.pop() }) }
-    if ('redo' in b.dataset && future.length) { past.push(state.strokes); ctx.intend({ type: 'picture', strokes: future.pop() }) }
+    if ('undo' in b.dataset) undo()
+    if ('redo' in b.dataset) redo()
     markTools()
   })
   markTools()
@@ -417,6 +420,21 @@ function view(el, ctx) {
   let future = []
   let historyOf = null // the turn the history belongs to
   const remember = () => { past.push(state.strokes); future = [] }
+  const undo = () => { if (iDraw() && past.length) { future.push(state.strokes); ctx.intend({ type: 'picture', strokes: past.pop() }) } }
+  const redo = () => { if (iDraw() && future.length) { past.push(state.strokes); ctx.intend({ type: 'picture', strokes: future.pop() }) } }
+  // On a keyboard, Ctrl+Z and Ctrl+Shift+Z (⌘ on a Mac) do the same, while
+  // the drawer's last press was on this game rather than somewhere else.
+  let engaged = false
+  const onPress = (e) => { engaged = el.contains(e.target) }
+  const onKey = (e) => {
+    if (!engaged || !iDraw() || !(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'z') return
+    if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return
+    e.preventDefault()
+    if (e.shiftKey) redo()
+    else undo()
+  }
+  document.addEventListener('pointerdown', onPress, true)
+  document.addEventListener('keydown', onKey)
   const markHistory = () => {
     const turn = state && state.phase === 'drawing' ? `${state.turn}:${state.drawer}` : null
     if (turn !== historyOf) { past = []; future = []; historyOf = turn }
@@ -620,7 +638,7 @@ function view(el, ctx) {
 
   return {
     update(next, nextInfo) { state = next; info = nextInfo; render() },
-    destroy() { clearInterval(clockTimer); clockTimer = null; el.textContent = '' },
+    destroy() { clearInterval(clockTimer); clockTimer = null; document.removeEventListener('pointerdown', onPress, true); document.removeEventListener('keydown', onKey); el.textContent = '' },
   }
 }
 
