@@ -118,10 +118,14 @@ button, input, select { font: inherit; color: inherit; }
   border-radius: var(--round-small);
   background: var(--panel);
   color: var(--text);
-  box-shadow: var(--lift-small);
+  /* The shadow is a drop shadow, not a box-shadow: a box-shadow stops at the
+     border's edge, and some browsers leave a hairline of the page showing
+     through where the rounded corner meets it. */
+  --shadow: var(--lift-small);
+  filter: drop-shadow(var(--shadow));
   font-weight: 800;
   cursor: pointer;
-  transition: transform 60ms, box-shadow 60ms;
+  transition: transform 60ms, filter 60ms;
   white-space: nowrap;
   /* How far the button moves when hovered or pressed: set as variables so
      its hit area (below) can stay where it was. */
@@ -137,15 +141,16 @@ button, input, select { font: inherit; color: inherit; }
   content: ""; position: absolute; inset: calc(-1 * var(--line));
   transform: translate(calc(-1 * var(--dx)), calc(-1 * var(--dy)));
 }
-.btn:hover { --dx: -1px; --dy: -1px; box-shadow: 3px 3px 0 var(--ink); }
-.btn:active { --dx: 2px; --dy: 2px; box-shadow: 0 0 0 var(--ink); }
+.btn:hover { --dx: -1px; --dy: -1px; --shadow: 3px 3px 0 var(--ink); }
+.btn:active { --dx: 2px; --dy: 2px; --shadow: 0 0 0 var(--ink); }
 .btn.sun { background: var(--sun); color: var(--on-accent); }
 .btn.leaf { background: var(--leaf); color: var(--on-accent); }
 .btn.berry { background: var(--berry); color: var(--on-strong); }
 .btn.grape { background: var(--grape); color: var(--on-strong); }
 .btn.small { padding: 4px 10px; font-size: 13px; }
 .btn[aria-pressed="true"] { background: var(--text); color: var(--panel); }
-.btn[disabled] { opacity: 0.45; cursor: default; box-shadow: none; --dx: 0px; --dy: 0px; }
+/* Greyed, shadow and all, so it keeps the same size and shape as its neighbours. */
+.btn[disabled] { opacity: 0.45; cursor: default; --shadow: var(--lift-small); --dx: 0px; --dy: 0px; }
 .btn.icon { padding: 4px 7px; }
 
 .chip {
@@ -182,8 +187,8 @@ button, input, select { font: inherit; color: inherit; }
    shadow stops at the group's own edge, and where a button's rounded outline
    is smoothed against what lies behind it, that is ink too, not a hairline
    of the panel showing through. */
-.segmented { display: inline-flex; box-shadow: var(--lift-small); border-radius: var(--round-small); background: var(--ink); }
-.segmented .btn { border-radius: 0; box-shadow: none; }
+.segmented { display: inline-flex; filter: drop-shadow(var(--lift-small)); border-radius: var(--round-small); background: var(--ink); }
+.segmented .btn { border-radius: 0; filter: none; }
 .segmented .btn:hover, .segmented .btn:active { --dx: 0px; --dy: 0px; }
 .segmented .btn + .btn { margin-left: calc(-1 * var(--line)); }
 .segmented .btn:first-child { border-radius: var(--round-small) 0 0 var(--round-small); }
@@ -530,7 +535,7 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .seat.empty.closed:hover { background: transparent; color: var(--text-soft); }
 .seat .piece { align-self: stretch; margin: var(--inset) 0; aspect-ratio: 1; height: auto; border-radius: 4px; border: 2px solid var(--seat-line); flex: none; }
 /* Getting up — leave, or forfeit — stands out, in the room's leaving colour. */
-.seat .btn { align-self: stretch; margin: var(--inset) 0; height: auto; padding: 0 8px; font-size: 12px; box-shadow: none; border-width: 2px; border-color: var(--seat-line); background: var(--berry); color: var(--on-strong); }
+.seat .btn { align-self: stretch; margin: var(--inset) 0; height: auto; padding: 0 8px; font-size: 12px; filter: none; border-width: 2px; border-color: var(--seat-line); background: var(--berry); color: var(--on-strong); }
 .seat .btn:hover, .seat .btn:active { --dx: 0px; --dy: 0px; background: color-mix(in srgb, var(--berry) 85%, #000); }
 .seats .vs { font-weight: 900; color: var(--text-soft); }
 /* The Peers window's menu: hangs below its button, above every window. */
