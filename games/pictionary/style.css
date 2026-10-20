@@ -101,7 +101,8 @@
   .draw-word { font-size: 16px; padding: 2px 9px; }
   .draw-clock { font-size: 15px; padding: 1px 9px; }
 }
-/* Undo and redo: an arrow each, the same height as the words beside them. */
+/* Undo and redo: an arrow each. */
 .draw-tools .arrow { display: inline-flex; align-items: center; justify-content: center; padding-left: 7px; padding-right: 7px; }
-.draw-tools .arrow svg { width: 17px; height: 17px; display: block; }
+/* One line of text tall, so the buttons match their neighbours' height. */
+.draw-tools .arrow svg { width: 1lh; height: 1lh; display: block; }
 .draw-tools .arrow .flip { display: block; transform: scaleX(-1); }
