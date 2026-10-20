@@ -17,7 +17,11 @@
 /* The paper is always the same shape, 10 by 7, as large as fits: a stroke
    lands in the same place on everyone's paper, whatever their window. */
 .draw-slot { flex: 1; min-width: 0; min-height: 0; container: slot / size; display: flex; align-items: center; justify-content: center; }
-.draw-paper { position: relative; flex: none; box-sizing: border-box; width: min(100cqw, 100cqh * 10 / 7); aspect-ratio: 10 / 7; container: paper / inline-size; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
+.draw-paper { position: relative; flex: none; box-sizing: content-box; width: min(100cqw - 2 * var(--line), (100cqh - 2 * var(--line)) * 10 / 7); aspect-ratio: 10 / 7; container: paper / inline-size; border: var(--line) solid var(--ink); border-radius: var(--round-small); overflow: hidden; background: #fffaf0; box-shadow: var(--lift-small); }
+/* Inside the border it is exactly 10 by 7, all of it the drawing (the svg).
+   While a panel veils it, ink goes behind: where the rounded corners clip
+   the paper and the veil, the light colour would show through as a line. */
+.draw-paper:has(> .game-lobby:not([hidden]), > .draw-overlay:not([hidden])) { background: var(--ink); }
 .draw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .draw-stage.drawing .draw-canvas { cursor: crosshair; }
 /* The pictionary word choice uses the same panel as the lobby. */
