@@ -575,7 +575,8 @@ body.resizing-rows, body.resizing-rows * { cursor: row-resize !important; user-s
 .select-list li:hover, .select-list li.active { background: var(--sun); color: var(--on-accent); }
 
 /* A game's options sit after the seats. */
-.table-options { display: inline-flex; align-items: center; gap: 12px; margin-left: 6px; }
+/* They wrap onto more lines rather than run out of a narrow window. */
+.table-options { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-left: 6px; min-width: 0; max-width: 100%; }
 .table-option { display: inline-flex; align-items: center; gap: 7px; height: 28px; font-weight: 800; font-size: 13px; line-height: 1; }
 .table-option .label { color: var(--text-soft); }
 .table-option .segmented .btn { height: 26px; padding: 0 10px; font-size: 12.5px; }
